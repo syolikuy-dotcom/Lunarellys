@@ -1,0 +1,95 @@
+{
+  "apiVersion": "v1.2",
+  "arguments": {
+    "PROJECT_NAME": "simple-ytapi",
+    "SERVICE_NAME": "simple-ytapi",
+    "SERVICE_INSTANCES": "1",
+    "SERVICE_PLAN": "nf-compute-10",
+    "BUILD_PLAN": "nf-compute-100-1",
+    "GIT_ACCOUNT": "",
+    "GIT_REPO": "",
+    "GIT_BRANCH": "main",
+    "API_KEYS": "",
+    "DEFAULT_REGION": "ID",
+    "RATE_LIMIT_MAX": "60"
+  },
+  "spec": {
+    "kind": "Workflow",
+    "spec": {
+      "type": "sequential",
+      "steps": [
+        {
+          "kind": "CombinedService",
+          "ref": "simple-ytapi",
+          "spec": {
+            "name": "${args.SERVICE_NAME}",
+            "billing": {
+              "deploymentPlan": "${args.SERVICE_PLAN}",
+              "buildPlan": "${args.BUILD_PLAN}"
+            },
+            "vcsData": {
+              "projectType": "github",
+              "accountLogin": "${args.GIT_ACCOUNT}",
+              "projectUrl": "${args.GIT_REPO}",
+              "projectBranch": "${args.GIT_BRANCH}"
+            },
+            "buildSettings": {
+              "dockerfile": {
+                "buildEngine": "kaniko",
+                "dockerFilePath": "/Dockerfile",
+                "dockerWorkDir": "/"
+              }
+            },
+            "deployment": {
+              "instances": "${args.SERVICE_INSTANCES}",
+              "docker": {
+                "configType": "default"
+              },
+              "storage": {
+                "ephemeralStorage": {
+                  "storageSize": 2048
+                }
+              }
+            },
+            "ports": [
+              {
+                "internalPort": 3000,
+                "protocol": "HTTP",
+                "name": "web",
+                "public": true
+              }
+            ],
+            "healthChecks": [
+              {
+                "type": "HTTP",
+                "path": "/api/health",
+                "initialDelaySeconds": 5,
+                "periodSeconds": 15,
+                "timeoutSeconds": 5,
+                "successThreshold": 1,
+                "failureThreshold": 3
+              }
+            ],
+            "runtimeEnvironment": {
+              "NODE_ENV": "production",
+              "API_KEYS": "${args.API_KEYS}",
+              "DEFAULT_REGION": "${args.DEFAULT_REGION}",
+              "RATE_LIMIT_WINDOW_MS": "60000",
+              "RATE_LIMIT_MAX": "${args.RATE_LIMIT_MAX}",
+              "CACHE_TTL_MS": "300000",
+              "CACHE_MAX_ENTRIES": "500",
+              "CORS_ORIGIN": "*"
+            },
+            "disabledCI": false,
+            "buildConfiguration": {
+              "branchRestrictions": ["main"],
+              "isAllowList": true,
+              "ciIgnoreFlagsEnabled": false,
+              "pathIgnoreRules": []
+            }
+          }
+        }
+      ]
+    }
+  }
+}
