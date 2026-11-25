@@ -1,15 +1,17 @@
 {
-  "name": "youtube-rest-api",
-  "version": "1.0.0",
-  "description": "Fast REST API for YouTube search, metadata, music and downloaders built on scraping",
+  "name": "lunarellys-music-api",
+  "version": "1.1.0",
+  "description": "Lunarellys Music Backend — YouTube Music & Media Streaming API for Flutter & Web",
   "type": "module",
-  "main": "src/server.js",
+  "main": "index.js",
   "engines": {
-    "node": ">=24.0.0"
+    "node": ">=20.0.0"
   },
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "build": "node --check index.js src/server.js src/config.js src/middleware.js src/routes.js src/auth-routes.js src/lib/user-store.js src/routes-registry.js src/docs.js src/index-page.js src/scrapers/music.js",
+    "lint": "node --check index.js src/server.js src/config.js src/middleware.js src/routes.js src/auth-routes.js src/lib/user-store.js src/routes-registry.js src/docs.js src/index-page.js src/scrapers/music.js"
   },
   "dependencies": {
     "@distube/ytdl-core": "^5.2.1",

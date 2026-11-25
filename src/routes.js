@@ -1,7 +1,8 @@
 import { Router } from 'express';
+import { Readable } from 'node:stream';
 import { config } from './config.js';
 import { TtlCache } from './lib/cache.js';
-import { asyncHandler } from './middleware.js';
+import { asyncHandler, downloadRateLimit, requireAdminAuth, adminRateLimit } from './middleware.js';
 import { routes } from './routes-registry.js';
 import * as searchScraper from './scrapers/search.js';
 import * as ytScraper from './scrapers/youtube.js';
@@ -10,18 +11,30 @@ import { downloadV1 } from './scrapers/downloader-v1.js';
 import { downloadV2 } from './scrapers/downloader-v2.js';
 import { downloadV3 } from './scrapers/downloader-v3.js';
 import { HttpError, UpstreamError, extractVideoId } from './lib/http.js';
+import authRouter from './auth-routes.js';
 
 const cache = new TtlCache(config.cacheMaxEntries);
 const TTL = config.cacheTtlMs;
+
+const inFlight = new Map();
 
 function cachedFn(keyFn, resolver, ttl = TTL) {
   return async (...args) => {
     const key = keyFn(...args);
     const hit = cache.get(key);
     if (hit !== undefined) return hit;
-    const value = await resolver(...args);
-    cache.set(key, value, ttl);
-    return value;
+    if (inFlight.has(key)) return inFlight.get(key);
+    const promise = Promise.resolve()
+      .then(() => resolver(...args))
+      .then((value) => {
+        cache.set(key, value, ttl);
+        return value;
+      })
+      .finally(() => {
+        inFlight.delete(key);
+      });
+    inFlight.set(key, promise);
+    return promise;
   };
 }
 
@@ -47,6 +60,8 @@ const cachedMusicMoods = cachedFn(() => 'mmoods', () => musicScraper.musicMoods(
 const cachedMusicMood = cachedFn((b, p) => `mmood|${b}|${p}`, (b, p) => musicScraper.musicMoodPlaylists(b, p));
 const cachedMusicSong = cachedFn((id, ly) => `msong|${id}|${ly}`, (id, ly) => musicScraper.musicSong(id, ly));
 const cachedMusicStream = cachedFn((id) => `mstream|${id}`, (id) => musicScraper.musicStream(id), 60 * 60 * 1000);
+const cachedMusicLyrics = cachedFn((id, t, a, d) => `mlyrics|${id}|${t}|${a}|${d}`, (id, t, a, d) => musicScraper.getSyncedLyrics(id, { title: t, artist: a, durationSeconds: d }), 30 * 60 * 1000);
+const cachedMusicRadio = cachedFn((id) => `mradio|${id}`, (id) => musicScraper.getRadioQueue(id), 10 * 60 * 1000);
 
 function requireQuery(value, name) {
   if (!value || !String(value).trim()) {
@@ -61,14 +76,18 @@ function parseBool(value, fallback = true) {
 }
 
 const router = Router();
+router.use(authRouter);
 
 router.get('/', (req, res) => {
   res.json({
     success: true,
-    name: 'YouTube REST API',
-    version: '1.0.0',
-    description: 'Scraping-based YouTube data API: search, video, channel, playlist, trending, music, downloaders',
-    auth: config.apiKeys.length ? 'API key required (X-API-Key header, Bearer token, or api_key param)' : 'disabled',
+    service: 'lunarellys-api'
+  });
+});
+
+router.get('/admin/routes', adminRateLimit, requireAdminAuth, (req, res) => {
+  res.json({
+    success: true,
     cache: cache.stats(),
     endpoints: routes.map((r) => ({ method: r.method, path: r.path, description: r.description }))
   });
@@ -77,10 +96,7 @@ router.get('/', (req, res) => {
 router.get('/health', (req, res) => {
   res.json({
     success: true,
-    uptime: Math.floor(process.uptime()),
-    memoryMb: Number((process.memoryUsage().heapUsed / 1048576).toFixed(1)),
-    node: process.version,
-    cache: cache.stats()
+    status: 'ok'
   });
 });
 
@@ -256,6 +272,131 @@ router.get('/music/audio', asyncHandler(async (req, res) => {
   });
 }));
 
+router.get('/music/lyrics', asyncHandler(async (req, res) => {
+  const id = extractVideoId(requireQuery(req.query.id || req.query.v, 'id'));
+  if (!id) throw new HttpError('invalid video id or url', 400);
+  const title = req.query.title ? String(req.query.title).slice(0, 150) : '';
+  const artist = req.query.artist ? String(req.query.artist).slice(0, 150) : '';
+  const duration = req.query.duration ? Number(req.query.duration) : null;
+  const data = await cachedMusicLyrics(id, title, artist, duration);
+  res.json({ success: true, ...data });
+}));
+
+router.get('/music/radio', asyncHandler(async (req, res) => {
+  const id = extractVideoId(requireQuery(req.query.id || req.query.v, 'id'));
+  if (!id) throw new HttpError('invalid video id or url', 400);
+  const data = await cachedMusicRadio(id);
+  res.json({ success: true, ...data });
+}));
+
+function pickFormatFromStream(stream, quality = 'high', preferMp4 = false) {
+  const audioList = (stream.audio ?? []).filter((f) => f.url);
+  if (!audioList.length) throw new HttpError('no playable audio stream found', 404);
+  const pool = preferMp4
+    ? (audioList.filter((f) => f.mimeType?.includes('audio/mp4')).length
+      ? audioList.filter((f) => f.mimeType?.includes('audio/mp4'))
+      : audioList)
+    : audioList;
+  const sorted = [...pool].sort((a, b) => (a.bitrate ?? 0) - (b.bitrate ?? 0));
+  if (quality === 'low') return sorted[0];
+  if (quality === 'medium' && sorted.length > 1) return sorted[Math.floor((sorted.length - 1) / 2)];
+  return sorted[sorted.length - 1];
+}
+
+router.get('/music/proxy-stream', asyncHandler(async (req, res) => {
+  const id = extractVideoId(requireQuery(req.query.id || req.query.v, 'id'));
+  if (!id) throw new HttpError('invalid video id or url', 400);
+  const quality = ['high', 'medium', 'low'].includes(req.query.quality) ? req.query.quality : 'high';
+  const preferMp4 = req.query.format === 'mp4';
+
+  let streamData = await cachedMusicStream(id);
+  let format = pickFormatFromStream(streamData, quality, preferMp4);
+
+  const rangeHeader = req.headers.range;
+  const buildUpstreamHeaders = () => {
+    const h = {
+      'User-Agent': 'com.google.ios.youtube/21.03.38 (iPhone16,2; U; CPU iOS 18_1_0 like Mac OS X;)',
+      Accept: '*/*'
+    };
+    if (rangeHeader) h.Range = rangeHeader;
+    return h;
+  };
+
+  let upstream = await fetch(format.url, { headers: buildUpstreamHeaders() });
+  if (upstream.status === 403 || upstream.status === 410) {
+    streamData = await musicScraper.musicStream(id);
+    cache.set(`mstream|${id}`, streamData, 60 * 60 * 1000);
+    format = pickFormatFromStream(streamData, quality, preferMp4);
+    upstream = await fetch(format.url, { headers: buildUpstreamHeaders() });
+  }
+
+  if (!upstream.ok && upstream.status !== 206) {
+    throw new UpstreamError(`upstream audio stream returned HTTP ${upstream.status}`);
+  }
+
+  const contentType = upstream.headers.get('content-type') || (format.mimeType ? format.mimeType.split(';')[0] : 'audio/mp4');
+  const contentLength = upstream.headers.get('content-length');
+  const contentRange = upstream.headers.get('content-range');
+
+  res.status(upstream.status === 206 ? 206 : 200);
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Accept-Ranges', 'bytes');
+  res.setHeader('Cache-Control', 'public, max-age=1800');
+  if (contentLength) res.setHeader('Content-Length', contentLength);
+  if (contentRange) res.setHeader('Content-Range', contentRange);
+
+  if (req.method === 'HEAD') {
+    res.end();
+    return;
+  }
+
+  if (!upstream.body) {
+    res.end();
+    return;
+  }
+
+  const nodeStream = Readable.fromWeb(upstream.body);
+  req.on('close', () => {
+    if (!nodeStream.destroyed) nodeStream.destroy();
+  });
+  nodeStream.on('error', () => {
+    if (!res.headersSent) res.status(502).end();
+    else res.end();
+  });
+  nodeStream.pipe(res);
+}));
+
+const ALLOWED_ARTWORK_HOSTS = new Set([
+  'i.ytimg.com',
+  'lh3.googleusercontent.com',
+  'yt3.ggpht.com',
+  'yt3.googleusercontent.com',
+  'music.youtube.com'
+]);
+
+router.get('/music/artwork', asyncHandler(async (req, res) => {
+  const rawUrl = requireQuery(req.query.url, 'url');
+  let parsed;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new HttpError('invalid artwork url', 400);
+  }
+  if (!['https:', 'http:'].includes(parsed.protocol) || !ALLOWED_ARTWORK_HOSTS.has(parsed.hostname.toLowerCase())) {
+    throw new HttpError('artwork host not allowed', 403);
+  }
+  const upstream = await fetch(parsed.toString(), {
+    headers: { 'User-Agent': 'Mozilla/5.0' }
+  });
+  if (!upstream.ok || !upstream.body) {
+    throw new UpstreamError(`artwork fetch failed (${upstream.status})`);
+  }
+  res.setHeader('Content-Type', upstream.headers.get('content-type') || 'image/jpeg');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  const nodeStream = Readable.fromWeb(upstream.body);
+  nodeStream.pipe(res);
+}));
+
 const DOWNLOAD_TYPES = ['video', 'audio'];
 
 async function runDownloader(fn, req, res) {
@@ -268,19 +409,19 @@ async function runDownloader(fn, req, res) {
   res.json({ success: true, ...result });
 }
 
-router.get('/download/v1', asyncHandler(async (req, res) => {
+router.get('/download/v1', downloadRateLimit, asyncHandler(async (req, res) => {
   await runDownloader(downloadV1, req, res);
 }));
 
-router.get('/download/v2', asyncHandler(async (req, res) => {
+router.get('/download/v2', downloadRateLimit, asyncHandler(async (req, res) => {
   await runDownloader(downloadV2, req, res);
 }));
 
-router.get('/download/v3', asyncHandler(async (req, res) => {
+router.get('/download/v3', downloadRateLimit, asyncHandler(async (req, res) => {
   await runDownloader(downloadV3, req, res);
 }));
 
-router.get('/download/all', asyncHandler(async (req, res) => {
+router.get('/download/all', downloadRateLimit, asyncHandler(async (req, res) => {
   const url = requireQuery(req.query.url || req.query.id || req.query.v, 'url');
   const videoId = extractVideoId(url);
   if (!videoId) throw new HttpError('invalid youtube url or video id', 400);

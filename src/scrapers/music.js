@@ -882,3 +882,161 @@ export async function musicAudio(videoId) {
     serverAbrStreamingUrl: result.serverAbrStreamingUrl
   };
 }
+
+export function parseLrc(lrcText) {
+  if (!lrcText || typeof lrcText !== 'string') return [];
+  const lines = [];
+  const timeTagRe = /\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
+  for (const rawLine of lrcText.split(/\r?\n/)) {
+    const matches = [...rawLine.matchAll(timeTagRe)];
+    if (!matches.length) continue;
+    const textContent = rawLine.replace(timeTagRe, '').trim();
+    for (const m of matches) {
+      const min = Number(m[1]);
+      const sec = Number(m[2]);
+      const fracRaw = m[3] || '0';
+      const ms = fracRaw.length === 3 ? Number(fracRaw) : fracRaw.length === 2 ? Number(fracRaw) * 10 : Number(fracRaw) * 100;
+      const timeMs = min * 60000 + sec * 1000 + ms;
+      if (textContent) {
+        lines.push({ timeMs, text: textContent });
+      }
+    }
+  }
+  lines.sort((a, b) => a.timeMs - b.timeMs);
+  return lines;
+}
+
+export async function getSyncedLyrics(videoId, { title = '', artist = '', durationSeconds = null } = {}) {
+  let trackTitle = String(title || '').trim();
+  let trackArtist = String(artist || '').trim();
+  let trackDuration = durationSeconds ? Number(durationSeconds) : null;
+  let ytPlain = null;
+  let ytSource = null;
+
+  try {
+    const next = await request('next', { videoId });
+    const tabs = next.contents?.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs ?? [];
+    const queue = (tabs.find((tab) => tab.tabRenderer?.content?.musicQueueRenderer)
+      ?.tabRenderer?.content?.musicQueueRenderer?.content?.playlistPanelRenderer?.contents ?? [])
+      .map(parseItem)
+      .filter(Boolean);
+    const current = queue.find((item) => item.id === videoId) ?? queue[0] ?? null;
+    if (current) {
+      if (!trackTitle) trackTitle = current.title || '';
+      if (!trackArtist) trackArtist = current.artists?.map((a) => a.name).join(', ') || '';
+      if (!trackDuration && current.durationSeconds) trackDuration = current.durationSeconds;
+    }
+    const lyricsTab = tabs.find((tab) => getTabPageType(tab) === 'MUSIC_PAGE_TYPE_TRACK_LYRICS');
+    if (lyricsTab?.tabRenderer?.endpoint?.browseEndpoint?.browseId) {
+      const ytLyric = await getLyrics(lyricsTab.tabRenderer.endpoint.browseEndpoint.browseId).catch(() => null);
+      if (ytLyric?.text) {
+        ytPlain = ytLyric.text;
+        ytSource = ytLyric.source || 'YouTube Music';
+      }
+    }
+  } catch {
+    // Continue to LRCLIB with provided metadata
+  }
+
+  const cleanTitle = trackTitle.replace(/\s*[\[(](?:official\s*(?:music\s*)?video|lyrics|audio|hd|4k|visualizer|remastered)[\])]/gi, '').trim();
+  const primaryArtist = trackArtist.split(',')[0].trim();
+
+  if (cleanTitle) {
+    try {
+      const qs = new URLSearchParams({ track_name: cleanTitle });
+      if (primaryArtist) qs.set('artist_name', primaryArtist);
+      if (trackDuration && Number.isFinite(trackDuration)) qs.set('duration', String(Math.round(trackDuration)));
+      const lrcHit = await httpJson(`https://lrclib.net/api/get?${qs.toString()}`, {
+        headers: { 'User-Agent': 'LunarellysMusic/1.1.0' },
+        timeout: 6000,
+        tag: 'lrclib-get'
+      }).catch(() => null);
+
+      const candidate = lrcHit?.syncedLyrics
+        ? lrcHit
+        : (await httpJson(`https://lrclib.net/api/search?q=${encodeURIComponent(`${cleanTitle} ${primaryArtist}`.trim())}`, {
+            headers: { 'User-Agent': 'LunarellysMusic/1.1.0' },
+            timeout: 6000,
+            tag: 'lrclib-search'
+          }).catch(() => []))?.[0] ?? null;
+
+      if (candidate?.syncedLyrics) {
+        const lines = parseLrc(candidate.syncedLyrics);
+        if (lines.length) {
+          return {
+            id: videoId,
+            synced: true,
+            lines,
+            plain: candidate.plainLyrics || ytPlain || lines.map((l) => l.text).join('\n'),
+            source: 'LRCLIB Synced'
+          };
+        }
+      }
+      if (candidate?.plainLyrics && !ytPlain) {
+        ytPlain = candidate.plainLyrics;
+        ytSource = 'LRCLIB';
+      }
+    } catch {
+      // Fallback to plain YouTube lyrics
+    }
+  }
+
+  return {
+    id: videoId,
+    synced: false,
+    lines: ytPlain ? ytPlain.split(/\r?\n/).filter(Boolean).map((line) => ({ timeMs: null, text: line })) : [],
+    plain: ytPlain || null,
+    source: ytSource
+  };
+}
+
+export async function getRadioQueue(videoId) {
+  if (!videoId) throw new HttpError('videoId is required', 400);
+  const next = await request('next', { videoId, enablePersistentPlaylistPanel: true, isAudioOnly: true });
+  const tabs = next.contents?.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs ?? [];
+  const queue = (tabs.find((tab) => tab.tabRenderer?.content?.musicQueueRenderer)
+    ?.tabRenderer?.content?.musicQueueRenderer?.content?.playlistPanelRenderer?.contents ?? [])
+    .map(parseItem)
+    .filter((item) => item && item.id && item.id !== videoId);
+  const relatedTab = tabs.find((tab) => getTabPageType(tab) === 'MUSIC_PAGE_TYPE_TRACK_RELATED');
+  const related = relatedTab
+    ? await getRelated(relatedTab.tabRenderer.endpoint.browseEndpoint.browseId).catch(() => [])
+    : [];
+  const relatedSongs = related.filter((item) => item && item.id && item.id !== videoId && (item.type === 'song' || item.type === 'video'));
+  const seen = new Set();
+  const tracks = [];
+  for (const item of [...queue, ...relatedSongs]) {
+    if (!item.id || seen.has(item.id)) continue;
+    seen.add(item.id);
+    tracks.push(item);
+  }
+  return { id: videoId, total: tracks.length, tracks };
+}
+
+export async function resolveAudioFormat(videoId, quality = 'high', preferMp4 = false) {
+  const stream = await musicStream(videoId);
+  const audioList = (stream.audio ?? []).filter((f) => f.url);
+  if (!audioList.length) throw new HttpError('no playable audio stream found', 404);
+
+  const pool = preferMp4
+    ? (audioList.filter((f) => f.mimeType?.includes('audio/mp4')).length
+      ? audioList.filter((f) => f.mimeType?.includes('audio/mp4'))
+      : audioList)
+    : audioList;
+
+  const sorted = [...pool].sort((a, b) => (a.bitrate ?? 0) - (b.bitrate ?? 0));
+  let chosen = sorted[sorted.length - 1];
+  if (quality === 'low') {
+    chosen = sorted[0];
+  } else if (quality === 'medium' && sorted.length > 1) {
+    chosen = sorted[Math.floor((sorted.length - 1) / 2)];
+  }
+  return {
+    id: videoId,
+    title: stream.title,
+    author: stream.author,
+    durationSeconds: stream.durationSeconds,
+    format: chosen
+  };
+}
+

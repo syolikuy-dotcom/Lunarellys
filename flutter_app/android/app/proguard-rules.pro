@@ -1,0 +1,8 @@
+-keep class com.ryanheise.audioservice.** { *; }
+-keep class com.ryanheise.just_audio.** { *; }
+-keep class androidx.media3.** { *; }
+-keep class com.google.android.exoplayer2.** { *; }
+-keep class com.llfbandit.app_links.** { *; }
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn javax.annotation.**
+-dontwarn org.codehaus.mojo.animal_sniffer.**

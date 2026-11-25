@@ -189,6 +189,32 @@ route('GET', '/music/audio', 'Best audio stream only', [
   response: '{ success, track: { id, title, best, audio: [...] } }'
 });
 
+route('GET', '/music/lyrics', 'Time-synced LRC and plain lyrics for a track', [
+  { name: 'id', required: true, type: 'string', description: 'Video ID' },
+  { name: 'title', required: false, type: 'string', description: 'Optional track title for LRCLIB match' },
+  { name: 'artist', required: false, type: 'string', description: 'Optional artist name for LRCLIB match' },
+  { name: 'duration', required: false, type: 'number', description: 'Optional duration in seconds' }
+], {
+  request: 'GET /api/music/lyrics?id=9qnqYL0eNNI',
+  response: '{ success, id, synced, lines: [{ timeMs, text }], plain, source }'
+});
+
+route('GET', '/music/radio', 'Up-next radio queue and related tracks', [
+  { name: 'id', required: true, type: 'string', description: 'Seed Video ID' }
+], {
+  request: 'GET /api/music/radio?id=9qnqYL0eNNI',
+  response: '{ success, id, total, tracks: [...] }'
+});
+
+route('GET', '/music/proxy-stream', 'HTTP Range-aware audio stream proxy for Web & Flutter playback', [
+  { name: 'id', required: true, type: 'string', description: 'Video ID' },
+  { name: 'quality', required: false, type: 'string', description: 'high | medium | low, default high' },
+  { name: 'format', required: false, type: 'string', description: 'mp4 | auto, default auto' }
+], {
+  request: 'GET /api/music/proxy-stream?id=9qnqYL0eNNI&quality=high',
+  response: 'Binary audio stream (200 OK / 206 Partial Content)'
+});
+
 route('GET', '/download/v1', 'Downloader V1 via @distube/ytdl-core', [
   { name: 'url', required: true, type: 'string', description: 'YouTube video URL or ID' },
   { name: 'type', required: false, type: 'string', description: 'video | audio, default video' },
@@ -223,3 +249,26 @@ route('GET', '/download/all', 'Try all three downloaders, first success wins', [
   request: 'GET /api/download/all?url=https://youtu.be/dQw4w9WgXcQ&type=audio',
   response: '{ success, winner: "v1", result: {...}, failures: [...] }'
 });
+
+route('GET', '/auth/status', 'Check Google OAuth configuration and callback URI', [], {
+  request: 'GET /api/auth/status',
+  response: '{ success, googleOAuthConfigured, callbackUrl, deepLinkScheme }'
+});
+
+route('GET', '/auth/google/start', 'Start Google OAuth 2.0 flow for Flutter or Web', [
+  { name: 'platform', required: false, type: 'string', description: 'flutter | web, default flutter' }
+], {
+  request: 'GET /api/auth/google/start?platform=flutter',
+  response: '302 Redirect to Google OAuth consent screen'
+});
+
+route('GET', '/auth/me', 'Get authenticated Google user profile', [], {
+  request: 'GET /api/auth/me (Header: X-User-Token)',
+  response: '{ success, user: { id, name, email, picture, lastLoginAt } }'
+});
+
+route('GET', '/user/sync', 'Fetch or update synced cloud library snapshot', [], {
+  request: 'GET/PUT /api/user/sync (Header: X-User-Token)',
+  response: '{ success, library: { likedSongs, playlists, followedArtists, savedAlbums, savedPlaylists, recentlyPlayed, updatedAt } }'
+});
+
