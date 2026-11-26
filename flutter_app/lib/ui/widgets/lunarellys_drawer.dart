@@ -21,33 +21,26 @@ class LunarellysDrawer extends ConsumerWidget {
     final auth = ref.watch(authProvider);
     final library = ref.watch(libraryProvider);
     final user = auth.user;
-    final name = user?.name ?? 'Guest Listener';
+    final name = user?.name ?? 'Pendengar Tamu';
     final isGoogle = auth.isSignedInGoogle;
+    final isDark = AppColors.isDark(context);
+    final ink = AppColors.inkOf(context);
+    final sub = AppColors.subOf(context);
+    final border = AppColors.borderOf(context);
 
     return Drawer(
       backgroundColor: Colors.transparent,
       elevation: 0,
       width: MediaQuery.of(context).size.width.clamp(268.0, 326.0),
-      child: RepaintBoundary(
-        child: ClipRRect(
-          borderRadius: const BorderRadius.horizontal(right: Radius.circular(28)),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.horizontal(right: Radius.circular(28)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
           child: Container(
             decoration: BoxDecoration(
               borderRadius: const BorderRadius.horizontal(right: Radius.circular(28)),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  const Color(0xD9162028),
-                  const Color(0xEA0C1116),
-                  const Color(0xF5070A0D),
-                ],
-              ),
-              border: Border(
-                right: BorderSide(color: Colors.white.withAlpha(22), width: 0.9),
-              ),
+              color: isDark ? const Color(0xEC11151B) : const Color(0xF4FFFFFF),
+              border: Border(right: BorderSide(color: border, width: 1)),
             ),
             child: SafeArea(
               child: Column(
@@ -64,30 +57,21 @@ class LunarellysDrawer extends ConsumerWidget {
                       child: Row(
                         children: [
                           Container(
-                            width: 52,
-                            height: 52,
+                            width: 50,
+                            height: 50,
                             decoration: BoxDecoration(
-                              color: isGoogle ? AppColors.surfaceHigh : AppColors.brandGreenBright,
+                              color: isGoogle ? AppColors.horizonBlue : AppColors.pillOf(context),
                               shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isGoogle ? AppColors.brandGreenBright : Colors.white.withAlpha(90),
-                                width: 1.5,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.brandGreen.withAlpha(65),
-                                  blurRadius: 16,
-                                ),
-                              ],
+                              border: Border.all(color: border, width: 1.2),
                             ),
                             clipBehavior: Clip.antiAlias,
                             child: user?.picture.isNotEmpty == true
                                 ? CachedNetworkImage(
                                     imageUrl: user!.picture,
                                     fit: BoxFit.cover,
-                                    errorWidget: (_, __, ___) => _initialAvatar(user.initials, isGoogle),
+                                    errorWidget: (_, __, ___) => _initialAvatar(user.initials, isGoogle, ink),
                                   )
-                                : _initialAvatar(user?.initials ?? 'L', isGoogle),
+                                : _initialAvatar(user?.initials ?? 'L', isGoogle, ink),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -98,21 +82,18 @@ class LunarellysDrawer extends ConsumerWidget {
                                   name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 18,
+                                  style: TextStyle(
+                                    fontSize: 17.5,
                                     fontWeight: FontWeight.w800,
-                                    color: Colors.white,
+                                    color: ink,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  isGoogle ? 'View profile · Cloud Synced' : 'Guest · Tap to view profile',
+                                  isGoogle ? 'Tersinkron ke cloud' : 'Tamu · Ketuk untuk lihat profil',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 12.5,
-                                    color: AppColors.textSecondary,
-                                  ),
+                                  style: TextStyle(fontSize: 12.5, color: sub),
                                 ),
                               ],
                             ),
@@ -121,7 +102,7 @@ class LunarellysDrawer extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  const Divider(height: 1, color: AppColors.border),
+                  Divider(height: 1, color: border),
                   Expanded(
                     child: ListView(
                       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -140,46 +121,41 @@ class LunarellysDrawer extends ConsumerWidget {
                                 );
                               },
                               child: LiquidGlassSurface(
-                                borderRadius: 18,
-                                blurSigma: 20,
-                                tintColor: AppColors.brandDeep,
-                                borderColor: AppColors.brandGreenBright.withAlpha(68),
+                                borderRadius: BorderRadius.circular(18),
+                                blurSigma: 16,
                                 padding: const EdgeInsets.all(14),
                                 child: Row(
                                   children: [
                                     Container(
                                       width: 36,
                                       height: 36,
-                                      decoration: const BoxDecoration(
-                                        color: Colors.white,
+                                      decoration: BoxDecoration(
+                                        color: isDark ? Colors.white : AppColors.lightSurfaceMuted,
                                         shape: BoxShape.circle,
                                       ),
                                       child: const Center(child: GoogleLogoIcon(size: 18)),
                                     ),
                                     const SizedBox(width: 12),
-                                    const Expanded(
+                                    Expanded(
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            'Sign in with Google',
+                                            'Masuk dengan YouTube Music',
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
                                               fontWeight: FontWeight.w700,
-                                              fontSize: 14,
-                                              color: Colors.white,
+                                              fontSize: 13.5,
+                                              color: ink,
                                             ),
                                           ),
-                                          SizedBox(height: 2),
+                                          const SizedBox(height: 2),
                                           Text(
-                                            'Sync liked songs & playlists across devices',
+                                            'Sinkron lagu disukai & playlist',
                                             maxLines: 2,
                                             overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              fontSize: 11.5,
-                                              color: AppColors.textSecondary,
-                                            ),
+                                            style: TextStyle(fontSize: 11.5, color: sub),
                                           ),
                                         ],
                                       ),
@@ -192,56 +168,86 @@ class LunarellysDrawer extends ConsumerWidget {
                         else
                           ListTile(
                             leading: auth.isSyncing
-                                ? const SizedBox(
+                                ? SizedBox(
                                     width: 22,
                                     height: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.2,
-                                      color: AppColors.brandGreenBright,
-                                    ),
+                                    child: CircularProgressIndicator(strokeWidth: 2.2, color: ink),
                                   )
-                                : const Icon(Icons.cloud_done_rounded, color: AppColors.brandGreenBright),
-                            title: const Text('Cloud Library Sync'),
+                                : const Icon(Icons.cloud_done_rounded, color: AppColors.horizonBlue),
+                            title: Text('Sinkron Cloud', style: TextStyle(color: ink, fontWeight: FontWeight.w600)),
                             subtitle: Text(
                               auth.isSyncing
-                                  ? 'Syncing with cloud...'
-                                  : 'Tap to sync ${library.likedSongs.length} liked songs',
+                                  ? 'Menyinkronkan...'
+                                  : 'Ketuk untuk sinkron ${library.likedSongs.length} lagu disukai',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: sub),
                             ),
                             onTap: () => ref.read(libraryProvider.notifier).syncWithCloud(),
                           ),
                         _drawerNavTile(
-                          icon: Icons.bolt_rounded,
-                          title: "What's new",
-                          subtitle: 'Charts & new releases',
+                          context,
+                          icon: Icons.person_outline_rounded,
+                          title: 'Kamu',
+                          subtitle: 'Riwayat, Recap & Akun',
                           onTap: () {
                             Navigator.pop(context);
                             onNavigateTab(3);
                           },
                         ),
                         _drawerNavTile(
+                          context,
+                          icon: Icons.graphic_eq_rounded,
+                          title: 'Ekualiser',
+                          subtitle: 'Preset audio & tuning 5-band',
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(builder: (_) => const EqualizerScreen()),
+                            );
+                          },
+                        ),
+                        _drawerNavTile(
+                          context,
+                          icon: Icons.bar_chart_rounded,
+                          title: 'Statistik dan recap',
+                          subtitle: '${library.recentlyPlayed.length} riwayat · Teratas 50',
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(builder: (_) => const StatsRecapScreen()),
+                            );
+                          },
+                        ),
+                        _drawerNavTile(
+                          context,
+                          icon: Icons.groups_rounded,
+                          title: 'Dengar bersama',
+                          subtitle: 'Sinkron pemutaran langsung dengan teman',
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(builder: (_) => const ListenTogetherScreen()),
+                            );
+                          },
+                        ),
+                        _drawerNavTile(
+                          context,
                           icon: Icons.history_rounded,
-                          title: 'Recents',
-                          subtitle: '${library.recentlyPlayed.length} recently played',
+                          title: 'Riwayat',
+                          subtitle: '${library.recentlyPlayed.length} baru diputar',
                           onTap: () {
                             Navigator.pop(context);
-                            onNavigateTab(2);
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(builder: (_) => const HistoryScreen()),
+                            );
                           },
                         ),
                         _drawerNavTile(
-                          icon: Icons.arrow_circle_down_rounded,
-                          title: 'Offline Downloads',
-                          subtitle: '${library.downloadedTracks.length} saved tracks',
-                          onTap: () {
-                            Navigator.pop(context);
-                            onNavigateTab(2);
-                          },
-                        ),
-                        _drawerNavTile(
+                          context,
                           icon: Icons.settings_outlined,
-                          title: 'Settings and privacy',
-                          subtitle: 'Appearance, playback & storage',
+                          title: 'Pengaturan',
+                          subtitle: 'Suara, tampilan & penyimpanan',
                           onTap: () {
                             Navigator.pop(context);
                             Navigator.of(context).push(
@@ -252,36 +258,36 @@ class LunarellysDrawer extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  const Divider(height: 1, color: AppColors.border),
+                  Divider(height: 1, color: border),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
                     child: Row(
                       children: [
-                        const LunarellysLogo(size: 30),
+                        const LunarellysHorizonLogo(size: 30),
                         const SizedBox(width: 10),
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                'Lunarellys Music',
+                                'Lunarellys',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 13.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w800,
+                                  color: ink,
                                 ),
                               ),
                               Text(
-                                'Developed by ${AppConfig.developerName}',
+                                'by ${AppConfig.developerName}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w600,
-                                  color: AppColors.brandGreenBright,
+                                  color: AppColors.horizonBlue,
                                 ),
                               ),
                             ],
@@ -293,7 +299,7 @@ class LunarellysDrawer extends ConsumerWidget {
                               Navigator.pop(context);
                               await ref.read(authProvider.notifier).signOut();
                             },
-                            child: const Text('Log out', style: TextStyle(color: AppColors.error)),
+                            child: const Text('Keluar', style: TextStyle(color: AppColors.error)),
                           ),
                       ],
                     ),
@@ -303,42 +309,44 @@ class LunarellysDrawer extends ConsumerWidget {
             ),
           ),
         ),
-        ),
       ),
     );
   }
 
-  Widget _drawerNavTile({
+  Widget _drawerNavTile(
+    BuildContext context, {
     required IconData icon,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
   }) {
+    final ink = AppColors.inkOf(context);
+    final sub = AppColors.subOf(context);
+    final pill = AppColors.pillOf(context);
     return ListTile(
       leading: Container(
         width: 38,
         height: 38,
         decoration: BoxDecoration(
-          color: Colors.white.withAlpha(16),
+          color: pill,
           borderRadius: BorderRadius.circular(11),
-          border: Border.all(color: AppColors.border),
         ),
-        child: Icon(icon, color: Colors.white, size: 20),
+        child: Icon(icon, color: ink, size: 20),
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+      title: Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: ink)),
+      subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: sub)),
       onTap: onTap,
     );
   }
 
-  Widget _initialAvatar(String initial, bool isGoogle) {
+  Widget _initialAvatar(String initial, bool isGoogle, Color ink) {
     return Center(
       child: Text(
         initial,
         style: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w800,
-          color: isGoogle ? Colors.white : Colors.black,
+          color: isGoogle ? Colors.white : ink,
         ),
       ),
     );
