@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { Readable } from 'node:stream';
+import { randomBytes } from 'node:crypto';
 import { config, authEnabled, googleOAuthEnabled } from './config.js';
 import { TtlCache } from './lib/cache.js';
 import { asyncHandler, downloadRateLimit, requireAdminAuth, adminRateLimit } from './middleware.js';
@@ -11,6 +12,7 @@ import { downloadV1 } from './scrapers/downloader-v1.js';
 import { downloadV2 } from './scrapers/downloader-v2.js';
 import { downloadV3 } from './scrapers/downloader-v3.js';
 import { HttpError, UpstreamError, extractVideoId } from './lib/http.js';
+import { getRemoteNodeConfig, setRemoteNodeConfig, resetRemoteNodeConfig } from './lib/node-config-store.js';
 import authRouter, { resolveBaseUrl } from './auth-routes.js';
 
 const cache = new TtlCache(config.cacheMaxEntries);
@@ -128,6 +130,66 @@ router.get(['/node/info', '/node/info/'], (req, res) => {
     callbackUrl: `${baseUrl}/api/auth/google/callback`,
     publicDocs: config.publicDocs,
     uptime: Math.floor(process.uptime())
+  });
+});
+
+router.get(['/node/config', '/node/config/'], (req, res) => {
+  const baseUrl = resolveBaseUrl(req);
+  const remote = getRemoteNodeConfig();
+  res.json({
+    success: true,
+    configured: Boolean(remote.serverUrl),
+    serverUrl: remote.serverUrl || baseUrl,
+    apiKey: remote.apiKey || '',
+    defaultUrl: baseUrl,
+    note: remote.note || '',
+    updatedAt: remote.updatedAt || null
+  });
+});
+
+// PUT is the canonical method, but many reverse proxies / panels (Pterodactyl port
+// forwards, nginx, Cloudflare rules) reject PUT with HTTP 405. POST and PATCH are
+// accepted as equivalents so the APK can always publish the node config.
+router.all(['/admin/node-config', '/admin/node-config/'], (req, res, next) => {
+  if (!['PUT', 'POST', 'PATCH'].includes(req.method)) {
+    res.setHeader('Allow', 'PUT, POST, PATCH');
+    return res.status(405).json({ success: false, error: 'method not allowed, use PUT or POST' });
+  }
+  next();
+}, adminRateLimit, requireAdminAuth, (req, res) => {
+  const baseUrl = resolveBaseUrl(req);
+  if (req.body?.reset === true) {
+    const cleared = resetRemoteNodeConfig();
+    return res.json({
+      success: true,
+      configured: false,
+      serverUrl: baseUrl,
+      apiKey: '',
+      defaultUrl: baseUrl,
+      note: '',
+      updatedAt: cleared.updatedAt
+    });
+  }
+
+  let saved;
+  try {
+    saved = setRemoteNodeConfig({
+      serverUrl: req.body?.serverUrl,
+      apiKey: req.body?.apiKey || '',
+      note: req.body?.note || ''
+    });
+  } catch (err) {
+    throw new HttpError(err.message || 'invalid node configuration', 400);
+  }
+
+  res.json({
+    success: true,
+    configured: true,
+    serverUrl: saved.serverUrl,
+    apiKey: saved.apiKey,
+    defaultUrl: baseUrl,
+    note: saved.note,
+    updatedAt: saved.updatedAt
   });
 });
 
@@ -469,5 +531,128 @@ router.get('/download/all', downloadRateLimit, asyncHandler(async (req, res) => 
   }
   throw new UpstreamError('all download engines failed', failures);
 }));
+
+const listenRooms = new Map();
+const LISTEN_ROOM_TTL_MS = 3 * 60 * 60 * 1000;
+
+function cleanupListenRooms() {
+  const now = Date.now();
+  for (const [code, room] of listenRooms.entries()) {
+    if (now - room.updatedAt > LISTEN_ROOM_TTL_MS) {
+      listenRooms.delete(code);
+    }
+  }
+}
+
+function generateRoomCode() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = randomBytes(6);
+  let out = '';
+  for (let i = 0; i < 6; i += 1) {
+    out += alphabet[bytes[i] % alphabet.length];
+  }
+  return out;
+}
+
+router.post('/listen-together/host', (req, res) => {
+  cleanupListenRooms();
+  let roomCode = generateRoomCode();
+  while (listenRooms.has(roomCode)) roomCode = generateRoomCode();
+  const hostName = String(req.body?.hostName || 'Host').trim().slice(0, 40) || 'Host';
+  const hostToken = randomBytes(16).toString('hex');
+  const room = {
+    roomCode,
+    hostToken,
+    hostName,
+    members: [hostName],
+    track: req.body?.track && typeof req.body.track === 'object' ? req.body.track : null,
+    isPlaying: Boolean(req.body?.isPlaying),
+    positionMs: Number(req.body?.positionMs) || 0,
+    updatedAt: Date.now()
+  };
+  listenRooms.set(roomCode, room);
+  res.json({
+    success: true,
+    roomCode: room.roomCode,
+    hostToken: room.hostToken,
+    hostName: room.hostName,
+    members: room.members,
+    track: room.track,
+    isPlaying: room.isPlaying,
+    positionMs: room.positionMs,
+    updatedAt: room.updatedAt
+  });
+});
+
+router.post('/listen-together/join', (req, res) => {
+  cleanupListenRooms();
+  const code = String(req.body?.roomCode || '').trim().toUpperCase();
+  if (!code || !listenRooms.has(code)) {
+    throw new HttpError('Listen Together room not found or expired', 404);
+  }
+  const room = listenRooms.get(code);
+  const memberName = String(req.body?.memberName || 'Guest').trim().slice(0, 40) || 'Guest';
+  if (!room.members.includes(memberName)) {
+    room.members = [...room.members.slice(0, 24), memberName];
+  }
+  room.updatedAt = Date.now();
+  res.json({
+    success: true,
+    roomCode: room.roomCode,
+    hostName: room.hostName,
+    members: room.members,
+    track: room.track,
+    isPlaying: room.isPlaying,
+    positionMs: room.positionMs,
+    updatedAt: room.updatedAt
+  });
+});
+
+router.get('/listen-together/state', (req, res) => {
+  cleanupListenRooms();
+  const code = requireQuery(req.query.code || req.query.roomCode, 'code').toUpperCase();
+  const room = listenRooms.get(code);
+  if (!room) {
+    throw new HttpError('Listen Together room not found or expired', 404);
+  }
+  res.json({
+    success: true,
+    roomCode: room.roomCode,
+    hostName: room.hostName,
+    members: room.members,
+    track: room.track,
+    isPlaying: room.isPlaying,
+    positionMs: room.positionMs,
+    updatedAt: room.updatedAt
+  });
+});
+
+router.post('/listen-together/sync', (req, res) => {
+  cleanupListenRooms();
+  const code = String(req.body?.roomCode || '').trim().toUpperCase();
+  const hostToken = String(req.body?.hostToken || '').trim();
+  const room = listenRooms.get(code);
+  if (!room) {
+    throw new HttpError('Listen Together room not found or expired', 404);
+  }
+  if (!hostToken || room.hostToken !== hostToken) {
+    throw new HttpError('Only the host can sync room playback', 403);
+  }
+  if (req.body?.track !== undefined) {
+    room.track = req.body.track && typeof req.body.track === 'object' ? req.body.track : null;
+  }
+  if (req.body?.isPlaying !== undefined) {
+    room.isPlaying = Boolean(req.body.isPlaying);
+  }
+  if (req.body?.positionMs !== undefined) {
+    room.positionMs = Math.max(0, Number(req.body.positionMs) || 0);
+  }
+  room.updatedAt = Date.now();
+  res.json({
+    success: true,
+    roomCode: room.roomCode,
+    updatedAt: room.updatedAt
+  });
+});
 
 export default router;
