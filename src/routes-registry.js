@@ -22,6 +22,16 @@ route('GET', '/node/info', 'Public Pterodactyl / self-hosted node discovery & ca
   response: '{ success, status, service, version, developer, region, baseUrl, authRequired, googleOAuthConfigured, callbackUrl }'
 });
 
+route('GET', '/node/config', 'Public remote server auto-configuration for APK bootstrap sync', [], {
+  request: 'GET /api/node/config',
+  response: '{ success, configured, serverUrl, apiKey, defaultUrl, note, updatedAt }'
+});
+
+route('POST', '/admin/node-config', 'Publish active Pterodactyl/backend node URL for all APK clients (Admin Passcode)', [], {
+  request: 'POST|PUT /api/admin/node-config { serverUrl, apiKey, note } (Header: X-Admin-Passcode)',
+  response: '{ success, configured, serverUrl, apiKey, defaultUrl, note, updatedAt }'
+});
+
 route('GET', '/search', 'YouTube search (all types combined)', [
   { name: 'q', required: true, type: 'string', description: 'Search query' },
   { name: 'gl', required: false, type: 'string', description: 'Geo region code, default ID' },
@@ -276,4 +286,15 @@ route('GET', '/user/sync', 'Fetch or update synced cloud library snapshot', [], 
   request: 'GET/PUT /api/user/sync (Header: X-User-Token)',
   response: '{ success, library: { likedSongs, playlists, followedArtists, savedAlbums, savedPlaylists, recentlyPlayed, updatedAt } }'
 });
+
+route('POST', '/listen-together/host', 'Create a synchronized Listen Together room', [], {
+  request: 'POST /api/listen-together/host { hostName }',
+  response: '{ success, roomCode, hostToken, hostName, members, track, isPlaying, positionMs, updatedAt }'
+});
+
+route('POST', '/listen-together/join', 'Join an active Listen Together room', [], {
+  request: 'POST /api/listen-together/join { roomCode, memberName }',
+  response: '{ success, roomCode, hostName, members, track, isPlaying, positionMs, updatedAt }'
+});
+
 
