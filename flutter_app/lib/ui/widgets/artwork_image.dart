@@ -60,6 +60,7 @@ class _ArtworkImageState extends ConsumerState<ArtworkImage> {
                 imageUrl: resolvedUrl,
                 httpHeaders: headers,
                 fit: BoxFit.cover,
+                filterQuality: FilterQuality.high,
                 fadeInDuration: const Duration(milliseconds: 180),
                 placeholder: (_, __) => _fallback(),
                 errorWidget: (_, __, ___) {
@@ -79,18 +80,21 @@ class _ArtworkImageState extends ConsumerState<ArtworkImage> {
   }
 
   Widget _fallback() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF282828), Color(0xFF161616)],
+          colors: isDark
+              ? const [Color(0xFF232730), Color(0xFF14171D)]
+              : const [Color(0xFFE7EAF0), Color(0xFFD9DEE6)],
         ),
       ),
       child: Center(
         child: Icon(
           widget.isCircle ? Icons.person_rounded : Icons.music_note_rounded,
-          color: AppColors.textSecondary,
+          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
           size: (widget.size * 0.4).clamp(16.0, 64.0),
         ),
       ),
