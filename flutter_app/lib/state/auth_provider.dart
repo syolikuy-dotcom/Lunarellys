@@ -4,7 +4,7 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../data/models/music_models.dart';
+import '../models/music_models.dart';
 import 'settings_provider.dart';
 
 class GoogleSignInLaunchResult {
