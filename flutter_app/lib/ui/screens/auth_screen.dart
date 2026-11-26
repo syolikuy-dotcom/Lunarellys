@@ -1,388 +1,278 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_theme.dart';
 import '../../state/auth_provider.dart';
-import '../widgets/google_logo.dart';
-import '../widgets/liquid_glass.dart';
 import '../widgets/lunarellys_logo.dart';
 
-class AuthScreen extends ConsumerStatefulWidget {
+class AuthScreen extends ConsumerWidget {
   final bool allowBack;
+
   const AuthScreen({super.key, this.allowBack = false});
 
   @override
-  ConsumerState<AuthScreen> createState() => _AuthScreenState();
-}
-
-class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStateMixin {
-  late final AnimationController _ambientCtrl;
-  late final AnimationController _entryCtrl;
-  late final Animation<double> _logoFade;
-  late final Animation<Offset> _logoSlide;
-  late final Animation<double> _titleFade;
-  late final Animation<Offset> _titleSlide;
-  late final Animation<double> _actionsFade;
-  late final Animation<Offset> _actionsSlide;
-
-  bool _googlePressed = false;
-  bool _guestPressed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _ambientCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 7),
-    )..repeat(reverse: true);
-
-    _entryCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 950),
-    )..forward();
-
-    _logoFade = CurvedAnimation(
-      parent: _entryCtrl,
-      curve: const Interval(0.0, 0.45, curve: Curves.easeOut),
-    );
-    _logoSlide = Tween<Offset>(
-      begin: const Offset(0, 0.18),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _entryCtrl,
-      curve: const Interval(0.0, 0.5, curve: Curves.easeOutCubic),
-    ));
-
-    _titleFade = CurvedAnimation(
-      parent: _entryCtrl,
-      curve: const Interval(0.18, 0.68, curve: Curves.easeOut),
-    );
-    _titleSlide = Tween<Offset>(
-      begin: const Offset(0, 0.16),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _entryCtrl,
-      curve: const Interval(0.18, 0.72, curve: Curves.easeOutCubic),
-    ));
-
-    _actionsFade = CurvedAnimation(
-      parent: _entryCtrl,
-      curve: const Interval(0.42, 1.0, curve: Curves.easeOut),
-    );
-    _actionsSlide = Tween<Offset>(
-      begin: const Offset(0, 0.18),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _entryCtrl,
-      curve: const Interval(0.42, 1.0, curve: Curves.easeOutCubic),
-    ));
-  }
-
-  @override
-  void dispose() {
-    _ambientCtrl.dispose();
-    _entryCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _handleGoogleLogin() async {
-    final result = await ref.read(authProvider.notifier).signInWithGoogle();
-    if (!mounted) return;
-    if (result.launched) {
-      if (widget.allowBack && Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
-      return;
-    }
-    if (result.oauthUnconfigured) {
-      _showGoogleUnavailableSheet();
-      return;
-    }
-    if (result.message != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.message!)),
-      );
-    }
-  }
-
-  Future<void> _handleGuest() async {
-    await ref.read(authProvider.notifier).continueAsGuest();
-    if (!mounted) return;
-    if (widget.allowBack && Navigator.canPop(context)) {
-      Navigator.pop(context);
-    }
-  }
-
-  void _showGoogleUnavailableSheet() {
-    showLiquidGlassSheet<void>(
-      context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const GoogleLogoIcon(size: 22),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Google Sign-In Unavailable',
-                      style: Theme.of(ctx).textTheme.titleLarge,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'Google Sign-In is temporarily unavailable right now. You can continue listening as a Guest immediately.',
-                style: TextStyle(fontSize: 13.5, color: AppColors.textSecondary, height: 1.4),
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _handleGuest();
-                  },
-                  child: const Text('Continue as Guest'),
-                ),
-              ),
-            ],
-          ),
-        ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
+    final isDark = AppColors.isDark(context);
+    final bg = isDark ? AppColors.darkBackground : Colors.white;
+    final card = isDark ? AppColors.darkSurface : const Color(0xFFF7F8FA);
+    final ink = AppColors.inkOf(context);
+    final sub = AppColors.subOf(context);
+    final border = AppColors.borderOf(context);
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundDeep,
-      body: Stack(
-        children: [
-          AnimatedBuilder(
-            animation: _ambientCtrl,
-            builder: (_, __) {
-              final t = _ambientCtrl.value;
-              final pulse = 0.85 + 0.25 * math.sin(t * math.pi);
-              return Container(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment(-0.2 + 0.35 * t, -0.55 + 0.15 * t),
-                    radius: 1.15 * pulse,
-                    colors: [
-                      AppColors.brandGreen.withAlpha(68),
-                      const Color(0xFF143522).withAlpha(110),
-                      AppColors.backgroundDeep,
-                    ],
-                    stops: const [0.0, 0.45, 1.0],
-                  ),
+      backgroundColor: bg,
+      appBar: allowBack
+          ? AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: IconButton(
+                icon: Icon(Icons.arrow_back_rounded, color: ink),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            )
+          : null,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: (constraints.maxHeight - 42).clamp(0.0, double.infinity),
                 ),
-              );
-            },
-          ),
-          SafeArea(
-            child: LayoutBuilder(
-              builder: (ctx, constraints) => SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight - 36),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      if (widget.allowBack)
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: IconButton(
-                            icon: const Icon(Icons.close_rounded, color: Colors.white),
-                            onPressed: () => Navigator.pop(context),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      children: [
+                        SizedBox(height: allowBack ? 6 : 22),
+                        const LunarellysHorizonLogo(size: 88),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Lunarellys',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: sub,
+                            letterSpacing: 0.1,
                           ),
-                        )
-                      else
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          'Musikmu, caramu.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 31,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.9,
+                            color: ink,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Text(
+                            'Masuk untuk membawa pustaka YouTube Music-mu, atau langsung mulai.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 15,
+                              height: 1.4,
+                              color: sub,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: card,
+                            borderRadius: BorderRadius.circular(22),
+                            border: Border.all(color: border, width: 1),
+                          ),
+                          child: Column(
+                            children: [
+                              _featureRow(
+                                context,
+                                icon: Icons.sync_rounded,
+                                title: 'Sinkron dengan YouTube Music',
+                                subtitle: 'Lagu disukai, playlist, dan pustaka ikut terbawa',
+                              ),
+                              Divider(height: 1, indent: 62, endIndent: 16, color: border),
+                              _featureRow(
+                                context,
+                                icon: Icons.group_outlined,
+                                title: 'Dengar bersama',
+                                subtitle: 'Satu ruangan, satu lagu, secara langsung',
+                              ),
+                              Divider(height: 1, indent: 62, endIndent: 16, color: border),
+                              _featureRow(
+                                context,
+                                icon: Icons.palette_outlined,
+                                title: 'Dua tampilan',
+                                subtitle: 'Datar atau Kaca, ganti kapan saja',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 26),
+                    Column(
+                      children: [
+                        if (auth.error != null) ...[
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withAlpha(24),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AppColors.error.withAlpha(80)),
+                            ),
+                            child: Text(
+                              auth.error!,
+                              style: const TextStyle(color: AppColors.error, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                        SizedBox(
+                          width: double.infinity,
+                          height: 54,
+                          child: FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: isDark ? Colors.white : const Color(0xFF111315),
+                              foregroundColor: isDark ? Colors.black : Colors.white,
+                              shape: const StadiumBorder(),
+                            ),
+                            onPressed: auth.isAuthenticating
+                                ? null
+                                : () async {
+                                    final res = await ref
+                                        .read(authProvider.notifier)
+                                        .signInWithGoogle();
+                                    if (!context.mounted) return;
+                                    if (!res.launched && res.message != null) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text(res.message!)),
+                                      );
+                                    } else if (res.launched && allowBack) {
+                                      Navigator.of(context).pop();
+                                    }
+                                  },
+                            icon: auth.isAuthenticating
+                                ? SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: isDark ? Colors.black : Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.login_rounded, size: 20),
+                            label: Text(
+                              auth.isAuthenticating
+                                  ? 'Membuka halaman masuk...'
+                                  : 'Masuk dengan YouTube Music',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
                         const SizedBox(height: 12),
-                      const SizedBox(height: 20),
-                      FadeTransition(
-                        opacity: _logoFade,
-                        child: SlideTransition(
-                          position: _logoSlide,
-                          child: Column(
-                            children: [
-                              AnimatedBuilder(
-                                animation: _ambientCtrl,
-                                builder: (_, child) {
-                                  final scale = 1.0 + 0.045 * math.sin(_ambientCtrl.value * math.pi * 2);
-                                  return Transform.scale(scale: scale, child: child);
-                                },
-                                child: Container(
-                                  width: 96,
-                                  height: 96,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppColors.brandGreenBright.withAlpha(95),
-                                        blurRadius: 36,
-                                        spreadRadius: 4,
-                                      ),
-                                    ],
-                                  ),
-                                  child: const LunarellysLogo(size: 96),
-                                ),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: TextButton(
+                            style: TextButton.styleFrom(
+                              backgroundColor: isDark
+                                  ? AppColors.darkSurfaceMuted
+                                  : const Color(0xFFEFF1F4),
+                              foregroundColor: ink,
+                              shape: const StadiumBorder(),
+                            ),
+                            onPressed: auth.isAuthenticating
+                                ? null
+                                : () async {
+                                    await ref
+                                        .read(authProvider.notifier)
+                                        .continueAsGuest();
+                                    if (context.mounted && allowBack) {
+                                      Navigator.of(context).pop();
+                                    }
+                                  },
+                            child: const Text(
+                              'Lanjutkan tanpa akun',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
                               ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'LUNARELLYS',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 13,
-                                  letterSpacing: 3.4,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.brandGreenBright,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 28),
-                      FadeTransition(
-                        opacity: _titleFade,
-                        child: SlideTransition(
-                          position: _titleSlide,
-                          child: Column(
-                            children: [
-                              Text(
-                                'Millions of songs.\nFree on Lunarellys.',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1.15,
-                                  letterSpacing: -0.9,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              const Text(
-                                'Stream high-quality audio, sing with synced lyrics, save offline tracks, and sync playlists with your Google account.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 14.5,
-                                  color: AppColors.textSecondary,
-                                  height: 1.45,
-                                ),
-                              ),
-                            ],
-                          ),
+                        const SizedBox(height: 14),
+                        Text(
+                          'Kamu bisa masuk kapan saja lewat Pengaturan.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 12.5, color: sub),
                         ),
-                      ),
-                      const SizedBox(height: 36),
-                      FadeTransition(
-                        opacity: _actionsFade,
-                        child: SlideTransition(
-                          position: _actionsSlide,
-                          child: Column(
-                            children: [
-                              if (auth.error != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: Text(
-                                    auth.error!,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(color: AppColors.error, fontSize: 12.5),
-                                  ),
-                                ),
-                              GestureDetector(
-                                onTapDown: (_) => setState(() => _googlePressed = true),
-                                onTapUp: (_) => setState(() => _googlePressed = false),
-                                onTapCancel: () => setState(() => _googlePressed = false),
-                                onTap: auth.isAuthenticating ? null : _handleGoogleLogin,
-                                child: AnimatedScale(
-                                  scale: _googlePressed ? 0.97 : 1.0,
-                                  duration: const Duration(milliseconds: 110),
-                                  child: Container(
-                                    width: double.infinity,
-                                    height: 52,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(999),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withAlpha(80),
-                                          blurRadius: 16,
-                                          offset: const Offset(0, 6),
-                                        ),
-                                      ],
-                                    ),
-                                    child: auth.isAuthenticating
-                                        ? const Center(
-                                            child: SizedBox(
-                                              width: 22,
-                                              height: 22,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2.5,
-                                                color: Colors.black,
-                                              ),
-                                            ),
-                                          )
-                                        : Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              const GoogleLogoIcon(size: 20),
-                                              const SizedBox(width: 12),
-                                              Text(
-                                                'Continue with Google',
-                                                style: GoogleFonts.plusJakartaSans(
-                                                  fontSize: 15.5,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: Colors.black,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              GestureDetector(
-                                onTapDown: (_) => setState(() => _guestPressed = true),
-                                onTapUp: (_) => setState(() => _guestPressed = false),
-                                onTapCancel: () => setState(() => _guestPressed = false),
-                                onTap: _handleGuest,
-                                child: AnimatedScale(
-                                  scale: _guestPressed ? 0.97 : 1.0,
-                                  duration: const Duration(milliseconds: 110),
-                                  child: LiquidGlassCapsule(
-                                    blurSigma: 22,
-                                    child: SizedBox(
-                                      width: double.infinity,
-                                      height: 50,
-                                      child: Center(
-                                        child: Text(
-                                          'Continue as Guest',
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _featureRow(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    final ink = AppColors.inkOf(context);
+    final sub = AppColors.subOf(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: ink.withAlpha(14),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 19, color: ink),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                    color: ink,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: sub,
+                    height: 1.3,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
