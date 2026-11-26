@@ -21,6 +21,9 @@ class UserAvatarButton extends ConsumerWidget {
     final picture = user?.picture ?? '';
     final initial = user?.initials ?? 'L';
     final isGoogle = auth.isSignedInGoogle;
+    final ink = AppColors.inkOf(context);
+    final pill = AppColors.pillOf(context);
+    final isDark = AppColors.isDark(context);
 
     return GestureDetector(
       onTap: onTap,
@@ -31,11 +34,13 @@ class UserAvatarButton extends ConsumerWidget {
             width: size,
             height: size,
             decoration: BoxDecoration(
-              color: isGoogle ? AppColors.surfaceHigh : AppColors.brandGreen,
+              color: isGoogle ? AppColors.horizonBlue : pill,
               shape: BoxShape.circle,
               border: Border.all(
-                color: isGoogle ? AppColors.brandGreen.withAlpha(180) : Colors.transparent,
-                width: 1.5,
+                color: isGoogle
+                    ? AppColors.horizonBlue.withAlpha(200)
+                    : AppColors.borderOf(context),
+                width: 1.2,
               ),
             ),
             clipBehavior: Clip.antiAlias,
@@ -43,9 +48,9 @@ class UserAvatarButton extends ConsumerWidget {
                 ? CachedNetworkImage(
                     imageUrl: picture,
                     fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => _initialBadge(initial, isGoogle),
+                    errorWidget: (_, __, ___) => _initialBadge(initial, isGoogle, ink, isDark),
                   )
-                : _initialBadge(initial, isGoogle),
+                : _initialBadge(initial, isGoogle, ink, isDark),
           ),
           if (auth.isSyncing)
             Positioned(
@@ -55,13 +60,13 @@ class UserAvatarButton extends ConsumerWidget {
                 width: 12,
                 height: 12,
                 padding: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(
-                  color: AppColors.background,
+                decoration: BoxDecoration(
+                  color: AppColors.cardOf(context),
                   shape: BoxShape.circle,
                 ),
-                child: const CircularProgressIndicator(
+                child: CircularProgressIndicator(
                   strokeWidth: 1.8,
-                  color: AppColors.brandGreen,
+                  color: ink,
                 ),
               ),
             ),
@@ -70,14 +75,14 @@ class UserAvatarButton extends ConsumerWidget {
     );
   }
 
-  Widget _initialBadge(String initial, bool isGoogle) {
+  Widget _initialBadge(String initial, bool isGoogle, Color ink, bool isDark) {
     return Center(
       child: Text(
         initial,
         style: TextStyle(
-          fontSize: size * 0.44,
+          fontSize: size * 0.42,
           fontWeight: FontWeight.w800,
-          color: isGoogle ? Colors.white : Colors.black,
+          color: isGoogle ? Colors.white : ink,
         ),
       ),
     );
