@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'core/config/app_config.dart';
 import 'core/theme/app_theme.dart';
 import 'state/auth_provider.dart';
 import 'state/player_provider.dart';
@@ -15,21 +16,14 @@ Future<void> main() async {
 
   await JustAudioBackground.init(
     androidNotificationChannelId: 'com.lunarellys.music.channel.audio',
-    androidNotificationChannelName: 'Lunarellys Music Playback',
+    androidNotificationChannelName: 'Lunarellys Audio Playback',
     androidNotificationOngoing: true,
-    androidStopForegroundOnPause: true,
+    androidShowNotificationBadge: true,
   );
+
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
   final prefs = await SharedPreferences.getInstance();
-
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: AppColors.background,
-      systemNavigationBarIconBrightness: Brightness.light,
-    ),
-  );
 
   runApp(
     ProviderScope(
@@ -46,21 +40,37 @@ class LunarellysApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authProvider);
+    final settings = ref.watch(settingsProvider);
     final dynamicColor = ref.watch(playerProvider.select((s) => s.dynamicColor));
-    final useDynamic = ref.watch(settingsProvider.select((s) => s.dynamicAlbumColors));
-    final onboardingDone = ref.watch(authProvider.select((s) => s.onboardingCompleted));
+    final accent = settings.dynamicAlbumColors ? dynamicColor : null;
+
+    final themeMode = switch (settings.themePreference) {
+      AppThemePreference.light => ThemeMode.light,
+      AppThemePreference.dark => ThemeMode.dark,
+      AppThemePreference.system => ThemeMode.system,
+    };
+
+    final isDarkActive = themeMode == ThemeMode.dark ||
+        (themeMode == ThemeMode.system &&
+            WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark);
+
+    SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: isDarkActive ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: isDarkActive ? Brightness.light : Brightness.dark,
+      ),
+    );
 
     return MaterialApp(
-      title: 'Lunarellys',
+      title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme(dynamicSeed: useDynamic ? dynamicColor : null),
-      home: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 380),
-        switchInCurve: Curves.easeOutCubic,
-        child: onboardingDone
-            ? const MainShell(key: ValueKey('main_shell'))
-            : const AuthScreen(key: ValueKey('auth_screen')),
-      ),
+      theme: AppTheme.lightTheme(dynamicSeed: accent),
+      darkTheme: AppTheme.darkTheme(dynamicSeed: accent),
+      themeMode: themeMode,
+      home: auth.onboardingCompleted ? const MainShell() : const AuthScreen(),
     );
   }
 }
