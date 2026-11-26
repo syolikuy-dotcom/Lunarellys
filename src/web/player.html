@@ -1030,6 +1030,80 @@
   .probe-result.ok { display: block; border-color: rgba(52, 245, 164, 0.4); color: #b7f7cc; }
   .probe-result.err { display: block; border-color: rgba(248, 113, 113, 0.4); color: #fdb8bf; }
 
+  /* Mini-player Background Styles & Ambient Animations */
+  @keyframes glowPulse {
+    0%, 100% { filter: brightness(1) saturate(1); }
+    50% { filter: brightness(1.12) saturate(1.15); }
+  }
+  .now-overlay.bg-glow, .now-overlay.bg-mesh { animation: glowPulse 7s ease-in-out infinite; }
+  .player-bar.mini-blur { background: rgba(14, 20, 26, 0.78); }
+  .player-bar.mini-dynamic {
+    background: linear-gradient(115deg, rgba(16, 48, 36, 0.86), rgba(14, 20, 26, 0.88));
+    border-top-color: rgba(52, 245, 164, 0.24);
+  }
+  .player-bar.mini-glow {
+    background: radial-gradient(circle at 18% 50%, rgba(52, 245, 164, 0.26), transparent 55%), rgba(12, 18, 24, 0.86);
+    border-top-color: rgba(52, 245, 164, 0.34);
+  }
+  .player-bar.mini-mesh {
+    background: radial-gradient(at 15% 40%, rgba(18, 216, 138, 0.26), transparent 52%),
+                radial-gradient(at 85% 60%, rgba(56, 189, 248, 0.22), transparent 52%),
+                rgba(12, 18, 24, 0.88);
+    border-top-color: rgba(56, 189, 248, 0.28);
+  }
+
+  /* Equalizer, Stats & Listen Together */
+  .eq-presets { display: flex; flex-wrap: wrap; gap: 8px; }
+  .eq-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    padding: 16px 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+  }
+  .eq-band { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .eq-db { font-family: var(--font-mono); font-size: 11px; color: var(--accent-bright); font-weight: 700; }
+  .eq-slider {
+    writing-mode: vertical-lr;
+    direction: rtl;
+    height: 130px;
+    width: 24px;
+    accent-color: var(--accent-bright);
+    cursor: pointer;
+  }
+  .eq-freq { font-size: 11px; color: var(--fg-secondary); }
+  .recap-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .recap-stat {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px;
+  }
+  .recap-val { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--accent-bright); }
+  .recap-lbl { font-size: 11.5px; color: var(--fg-secondary); }
+  .lyrics-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .offset-pills { display: inline-flex; align-items: center; gap: 4px; }
+  .mini-pill-btn {
+    height: 28px;
+    padding: 0 9px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--fg-secondary);
+  }
+  .mini-pill-btn:hover { background: rgba(255, 255, 255, 0.16); color: var(--fg); }
+
   @media (max-width: 900px) {
     .app-shell {
       display: block;
@@ -1150,7 +1224,28 @@
 
     <div class="sidebar-playlists" id="sidebar-playlists"></div>
 
+    <div class="sidebar-divider"></div>
+
+    <div class="nav-list" aria-label="Tools">
+      <button class="nav-btn" id="btn-open-eq-side">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+        <span>Equalizer</span>
+      </button>
+      <button class="nav-btn" id="btn-open-stats-side">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Stats &amp; Recap</span>
+      </button>
+      <button class="nav-btn" id="btn-open-listen-side">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Listen Together</span>
+      </button>
+    </div>
+
     <div class="sidebar-footer">
+      <button class="sidebar-meta-link" id="btn-google-auth-side">
+        <span id="auth-side-label">Sign in with Google</span>
+        <span id="auth-side-badge" style="color:var(--accent-bright);font-size:11.5px;">Sync</span>
+      </button>
       <button class="sidebar-meta-link" id="btn-open-settings-side">
         <span>Settings</span>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.77 1 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -1331,6 +1426,7 @@
     </div>
     <div class="now-right">
       <div class="now-tabs">
+        <button class="now-tab" data-now-panel="track">Track</button>
         <button class="now-tab active" data-now-panel="lyrics">Lyrics</button>
         <button class="now-tab" data-now-panel="queue">Up Next</button>
       </div>
@@ -1392,6 +1488,18 @@
       </div>
       <div class="setting-row">
         <div>
+          <div class="setting-label">Mini-player Background</div>
+          <div class="setting-sub">Bottom bar glass appearance</div>
+        </div>
+        <select class="modal-select setting-select-sm" id="set-mini-bg">
+          <option value="blur">Blur</option>
+          <option value="dynamic">Dynamic</option>
+          <option value="glow">Glow Animated</option>
+          <option value="mesh">Live Mesh</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div>
           <div class="setting-label">Player Background Style</div>
           <div class="setting-sub">Backdrop effect in Now Playing</div>
         </div>
@@ -1412,6 +1520,17 @@
           <option value="wavy">Wavy</option>
           <option value="slim">Slim</option>
           <option value="squiggly">Squiggly</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Application Language</div>
+          <div class="setting-sub">Interface locale</div>
+        </div>
+        <select class="modal-select setting-select-sm" id="set-lang">
+          <option value="system">System Default</option>
+          <option value="en">English</option>
+          <option value="id">Bahasa Indonesia</option>
         </select>
       </div>
       <div class="setting-row">
@@ -1443,8 +1562,77 @@
       </div>
     </div>
 
+    <div class="settings-group">
+      <div class="settings-group-title">Audio &amp; Social Tools</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-secondary" id="btn-open-eq-settings" type="button" style="height:36px;">Equalizer</button>
+        <button class="btn-secondary" id="btn-open-stats-settings" type="button" style="height:36px;">Stats &amp; Recap</button>
+        <button class="btn-secondary" id="btn-open-listen-settings" type="button" style="height:36px;">Listen Together</button>
+      </div>
+    </div>
+
     <div class="modal-actions">
       <button class="btn-primary" id="btn-close-settings" style="height:40px;">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Equalizer Modal -->
+<div class="modal-backdrop" id="eq-modal">
+  <div class="modal-card wide">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div>
+        <h3>Web Audio Equalizer</h3>
+        <div style="font-size:12px;color:var(--fg-secondary);">Real-time 5-band audio filter</div>
+      </div>
+      <label style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;">
+        <span>Active</span>
+        <input type="checkbox" class="toggle-check" id="eq-enabled-check">
+      </label>
+    </div>
+    <div class="eq-presets" id="eq-presets-row"></div>
+    <div class="eq-grid" id="eq-bands-grid"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="btn-eq-reset" type="button" style="height:38px;">Reset Flat</button>
+      <button class="btn-primary" id="btn-close-eq" type="button" style="height:38px;">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Stats & Recap Modal -->
+<div class="modal-backdrop" id="stats-modal">
+  <div class="modal-card wide">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div>
+        <h3>Stats &amp; Listening Recap</h3>
+        <div style="font-size:12px;color:var(--fg-secondary);">Top artists, Top 50 mix &amp; playtime</div>
+      </div>
+      <button class="icon-action" id="btn-close-stats-x" aria-label="Close stats">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="stats-modal-body" style="display:flex;flex-direction:column;gap:14px;"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="btn-close-stats" type="button" style="height:38px;">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Listen Together Modal -->
+<div class="modal-backdrop" id="listen-modal">
+  <div class="modal-card wide">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div>
+        <h3>Listen Together</h3>
+        <div style="font-size:12px;color:var(--fg-secondary);">Host or join a live synced listening room</div>
+      </div>
+      <button class="icon-action" id="btn-close-listen-x" aria-label="Close listen together">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="listen-modal-body" style="display:flex;flex-direction:column;gap:12px;"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="btn-close-listen" type="button" style="height:38px;">Close</button>
     </div>
   </div>
 </div>
@@ -1526,6 +1714,23 @@
 
   const savedSettings = loadJson('lunarellys_settings', {});
 
+  const STRINGS = {
+    en: {
+      home: 'Home', explore: 'Explore', search: 'Search', library: 'Library',
+      playlists: 'Playlists', equalizer: 'Equalizer', stats: 'Stats & Recap',
+      listen: 'Listen Together', settings: 'Settings', signIn: 'Sign in with Google',
+      searchPh: 'Search songs, artists, albums...', nowPlaying: 'Now Playing',
+      tabTrack: 'Track', tabLyrics: 'Lyrics', tabQueue: 'Up Next'
+    },
+    id: {
+      home: 'Beranda', explore: 'Jelajahi', search: 'Cari', library: 'Koleksi',
+      playlists: 'Playlist', equalizer: 'Ekualiser', stats: 'Statistik & Kilas',
+      listen: 'Dengar Bersama', settings: 'Pengaturan', signIn: 'Masuk dengan Google',
+      searchPh: 'Cari lagu, artis, album...', nowPlaying: 'Sedang Diputar',
+      tabTrack: 'Lagu', tabLyrics: 'Lirik', tabQueue: 'Berikutnya'
+    }
+  };
+
   const state = {
     tab: 'home',
     homeData: null,
@@ -1551,20 +1756,81 @@
     liked: loadJson('lunarellys_liked', []),
     recent: loadJson('lunarellys_recent', []),
     playlists: loadJson('lunarellys_playlists', []),
+    playCounts: loadJson('lunarellys_play_counts', {}),
+    listeningSec: Number(localStorage.getItem('lunarellys_listening_sec') || 0) || 0,
+    userToken: localStorage.getItem('lunarellys_user_token') || '',
+    userProfile: loadJson('lunarellys_user_profile', null),
     pendingPlaylistTrack: null,
     sleepTimeoutId: null,
     sleepIntervalId: null,
     sleepRemainingSec: 0,
+    listenRoom: {
+      roomCode: '',
+      hostToken: '',
+      isHost: false,
+      hostName: '',
+      members: [],
+      pollId: null,
+      applyingSync: false
+    },
     settings: {
       quality: savedSettings.quality || 'high',
       bgStyle: savedSettings.bgStyle || 'blur',
+      miniBg: savedSettings.miniBg || 'blur',
       sliderStyle: savedSettings.sliderStyle || 'default',
+      lang: savedSettings.lang || 'system',
+      eqEnabled: Boolean(savedSettings.eqEnabled),
+      eqPreset: savedSettings.eqPreset || 'Flat',
+      eqBands: Array.isArray(savedSettings.eqBands) && savedSettings.eqBands.length === 5
+        ? savedSettings.eqBands.map((v) => Number(v) || 0)
+        : [0, 0, 0, 0, 0],
+      lyricsOffsetMs: Number(savedSettings.lyricsOffsetMs || 0),
       autoRadio: savedSettings.autoRadio !== false,
       autoSkip: savedSettings.autoSkip !== false,
       nodeUrl: normalizeBaseUrl(savedSettings.nodeUrl || ''),
       apiKey: savedSettings.apiKey || ''
     }
   };
+
+  function resolveLang() {
+    const l = state.settings.lang || 'system';
+    if (l === 'id' || l === 'en') return l;
+    return (navigator.language || '').toLowerCase().startsWith('id') ? 'id' : 'en';
+  }
+
+  function t(key) {
+    const dict = STRINGS[resolveLang()] || STRINGS.en;
+    return dict[key] || STRINGS.en[key] || key;
+  }
+
+  function applyLocalization() {
+    const mapTab = { home: t('home'), explore: t('explore'), search: t('search'), library: t('library') };
+    document.querySelectorAll('.nav-btn[data-tab] span, .mobile-tab[data-tab] span').forEach((el) => {
+      const btn = el.closest('[data-tab]');
+      if (btn && mapTab[btn.dataset.tab]) el.textContent = mapTab[btn.dataset.tab];
+    });
+    const eqSpan = document.querySelector('#btn-open-eq-side span');
+    if (eqSpan) eqSpan.textContent = t('equalizer');
+    const stSpan = document.querySelector('#btn-open-stats-side span');
+    if (stSpan) stSpan.textContent = t('stats');
+    const lsSpan = document.querySelector('#btn-open-listen-side span');
+    if (lsSpan) lsSpan.textContent = t('listen');
+    const setSideSpan = document.querySelector('#btn-open-settings-side span');
+    if (setSideSpan) setSideSpan.textContent = t('settings');
+    const setTopSpan = document.querySelector('#btn-open-settings-top span');
+    if (setTopSpan) setTopSpan.textContent = t('settings');
+    const nowTopSpan = document.querySelector('#btn-open-now-top span');
+    if (nowTopSpan) nowTopSpan.textContent = t('nowPlaying');
+    if (searchInput) searchInput.placeholder = t('searchPh');
+    const plHead = document.querySelector('.sidebar-section-head span');
+    if (plHead) plHead.textContent = t('playlists');
+    document.querySelectorAll('.now-tab').forEach((tab) => {
+      if (tab.dataset.nowPanel === 'track') tab.textContent = t('tabTrack');
+      else if (tab.dataset.nowPanel === 'lyrics') tab.textContent = t('tabLyrics');
+      else if (tab.dataset.nowPanel === 'queue') tab.textContent = t('tabQueue');
+    });
+    updateAuthSideUi();
+  }
 
   function esc(v) {
     return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -1596,13 +1862,17 @@
     return state.liked.some((t) => t.id === id);
   }
 
-  function saveStorage() {
+  let cloudSyncTimer = null;
+  function saveStorage(skipCloud = false) {
     localStorage.setItem('lunarellys_liked', JSON.stringify(state.liked));
     localStorage.setItem('lunarellys_recent', JSON.stringify(state.recent.slice(0, 40)));
     localStorage.setItem('lunarellys_playlists', JSON.stringify(state.playlists));
     localStorage.setItem('lunarellys_queue', JSON.stringify(state.queue.slice(0, 60)));
+    localStorage.setItem('lunarellys_play_counts', JSON.stringify(state.playCounts));
+    localStorage.setItem('lunarellys_listening_sec', String(Math.floor(state.listeningSec)));
     localStorage.setItem('lunarellys_settings', JSON.stringify(state.settings));
     renderSidebarPlaylists();
+    if (!skipCloud && state.userToken) scheduleCloudSync();
   }
 
   function applyVisualSettings() {
@@ -1610,12 +1880,19 @@
     overlay.classList.remove('bg-blur', 'bg-classic', 'bg-glow', 'bg-mesh');
     overlay.classList.add('bg-' + state.settings.bgStyle);
 
+    const bar = document.querySelector('.player-bar');
+    if (bar) {
+      bar.classList.remove('mini-blur', 'mini-dynamic', 'mini-glow', 'mini-mesh');
+      bar.classList.add('mini-' + (state.settings.miniBg || 'blur'));
+    }
+
     for (const id of ['bar-seek', 'now-seek']) {
       const el = document.getElementById(id);
       if (!el) continue;
       el.classList.remove('style-default', 'style-wavy', 'style-slim', 'style-squiggly');
       el.classList.add('style-' + state.settings.sliderStyle);
     }
+    applyLocalization();
   }
 
   function toggleLike(track) {
@@ -1634,15 +1911,19 @@
     return (state.settings.nodeUrl || '') + '/api';
   }
 
-  async function apiGet(path, customBase = null, customKey = null) {
-    const headers = {};
+  function buildApiHeaders(customBase = null, customKey = null, extra = {}) {
+    const headers = { ...extra };
     const keyToUse = customKey !== null ? customKey : state.settings.apiKey;
     const isLocalHost = !customBase && !state.settings.nodeUrl;
     if (isLocalHost && WEB_TOKEN && !WEB_TOKEN.includes('LUNARELLYS_WEB_TOKEN')) {
       headers['X-Web-Token'] = WEB_TOKEN;
     }
     if (keyToUse) headers['X-API-Key'] = keyToUse;
+    return headers;
+  }
 
+  async function apiGet(path, customBase = null, customKey = null) {
+    const headers = buildApiHeaders(customBase, customKey);
     const base = customBase !== null ? normalizeBaseUrl(customBase) + '/api' : apiBase();
     const res = await fetch(base + path, { headers });
     const json = await res.json();
@@ -1651,6 +1932,195 @@
     }
     return json;
   }
+
+  async function apiSend(method, path, body = null, extraHeaders = {}) {
+    const headers = buildApiHeaders(null, null, {
+      ...(body !== null ? { 'Content-Type': 'application/json' } : {}),
+      ...extraHeaders
+    });
+    const res = await fetch(apiBase() + path, {
+      method,
+      headers,
+      body: body !== null ? JSON.stringify(body) : undefined
+    });
+    const json = await res.json();
+    if (!res.ok || json.success === false) {
+      throw new Error(json.error || 'Request failed');
+    }
+    return json;
+  }
+
+  // Real-time 5-band Web Audio Equalizer
+  const EQ_FREQS = [60, 230, 910, 3600, 14000];
+  const EQ_LABELS = ['60Hz', '230Hz', '910Hz', '3.6kHz', '14kHz'];
+  const EQ_PRESETS = {
+    Flat: [0, 0, 0, 0, 0],
+    'Bass Boost': [6, 4, 0, 0, 1],
+    'Treble Boost': [0, 0, 1, 4, 6],
+    'Vocal Clarity': [-2, 0, 4, 3, 1],
+    Electronic: [5, 3, -1, 3, 5],
+    Rock: [4, 2, -1, 3, 4]
+  };
+  let audioCtx = null;
+  let audioSource = null;
+  let eqFilters = [];
+
+  function ensureEqGraph() {
+    if (audioCtx || state.settings.nodeUrl) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    try {
+      audioCtx = new Ctx();
+      audioSource = audioCtx.createMediaElementSource(audio);
+      eqFilters = EQ_FREQS.map((freq, idx) => {
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = idx === 0 ? 'lowshelf' : (idx === EQ_FREQS.length - 1 ? 'highshelf' : 'peaking');
+        filter.frequency.value = freq;
+        filter.Q.value = 1.0;
+        return filter;
+      });
+      let node = audioSource;
+      for (const f of eqFilters) {
+        node.connect(f);
+        node = f;
+      }
+      node.connect(audioCtx.destination);
+      applyEqGains();
+    } catch {
+      audioCtx = null;
+    }
+  }
+
+  function applyEqGains() {
+    if (!eqFilters.length) return;
+    for (let i = 0; i < eqFilters.length; i++) {
+      eqFilters[i].gain.value = state.settings.eqEnabled ? (Number(state.settings.eqBands[i]) || 0) : 0;
+    }
+  }
+
+  function renderEqModal() {
+    document.getElementById('eq-enabled-check').checked = state.settings.eqEnabled;
+    const presetsEl = document.getElementById('eq-presets-row');
+    presetsEl.innerHTML = Object.keys(EQ_PRESETS).map((name) =>
+      '<button class="filter-btn ' + (state.settings.eqPreset === name ? 'active' : '') + '" data-eq-preset="' + esc(name) + '">' + esc(name) + '</button>'
+    ).join('');
+    presetsEl.querySelectorAll('[data-eq-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const preset = btn.dataset.eqPreset;
+        if (!EQ_PRESETS[preset]) return;
+        state.settings.eqPreset = preset;
+        state.settings.eqBands = [...EQ_PRESETS[preset]];
+        state.settings.eqEnabled = true;
+        ensureEqGraph();
+        applyEqGains();
+        saveStorage();
+        renderEqModal();
+      });
+    });
+
+    const gridEl = document.getElementById('eq-bands-grid');
+    gridEl.innerHTML = EQ_LABELS.map((lbl, idx) => {
+      const val = Number(state.settings.eqBands[idx]) || 0;
+      return '<div class="eq-band">' +
+        '<div class="eq-db" id="eq-db-' + idx + '">' + (val > 0 ? '+' : '') + val + ' dB</div>' +
+        '<input type="range" class="eq-slider" min="-12" max="12" step="1" value="' + val + '" data-eq-band="' + idx + '">' +
+        '<div class="eq-freq">' + lbl + '</div>' +
+      '</div>';
+    }).join('');
+    gridEl.querySelectorAll('[data-eq-band]').forEach((sl) => {
+      sl.addEventListener('input', () => {
+        const idx = Number(sl.dataset.eqBand);
+        const val = Number(sl.value);
+        state.settings.eqBands[idx] = val;
+        state.settings.eqPreset = 'Custom';
+        state.settings.eqEnabled = true;
+        document.getElementById('eq-enabled-check').checked = true;
+        const dbEl = document.getElementById('eq-db-' + idx);
+        if (dbEl) dbEl.textContent = (val > 0 ? '+' : '') + val + ' dB';
+        ensureEqGraph();
+        applyEqGains();
+        saveStorage();
+        presetsEl.querySelectorAll('.filter-btn').forEach((b) => b.classList.remove('active'));
+      });
+    });
+  }
+
+  function openEqModal() {
+    renderEqModal();
+    document.getElementById('eq-modal').classList.add('open');
+  }
+
+  // Google Sign-In & Cloud Library Sync
+  function updateAuthSideUi() {
+    const lbl = document.getElementById('auth-side-label');
+    const badge = document.getElementById('auth-side-badge');
+    if (!lbl || !badge) return;
+    if (state.userToken && state.userProfile) {
+      lbl.textContent = state.userProfile.name || 'Signed in';
+      badge.textContent = 'Synced';
+    } else {
+      lbl.textContent = t('signIn');
+      badge.textContent = 'Sync';
+    }
+  }
+
+  function mergeTrackLists(primary, secondary, limit = 100) {
+    const seen = new Set();
+    const out = [];
+    for (const item of [...(primary || []), ...(secondary || [])]) {
+      if (item && item.id && !seen.has(item.id)) {
+        seen.add(item.id);
+        out.push(item);
+      }
+    }
+    return out.slice(0, limit);
+  }
+
+  async function syncCloudDown() {
+    if (!state.userToken) return;
+    try {
+      const res = await apiSend('GET', '/user/sync', null, { Authorization: 'Bearer ' + state.userToken });
+      const lib = res.library || {};
+      if (Array.isArray(lib.likedSongs)) state.liked = mergeTrackLists(state.liked, lib.likedSongs, 200);
+      if (Array.isArray(lib.recentlyPlayed)) state.recent = mergeTrackLists(state.recent, lib.recentlyPlayed, 40);
+      if (Array.isArray(lib.playlists)) {
+        const byId = new Map(state.playlists.map((p) => [p.id, p]));
+        for (const p of lib.playlists) {
+          if (p && p.id && !byId.has(p.id)) byId.set(p.id, p);
+        }
+        state.playlists = Array.from(byId.values());
+      }
+      saveStorage(true);
+      if (state.tab === 'library') renderLibrary();
+      updateAuthSideUi();
+    } catch {}
+  }
+
+  function scheduleCloudSync() {
+    clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = setTimeout(async () => {
+      if (!state.userToken) return;
+      try {
+        await apiSend('PUT', '/user/sync', {
+          likedSongs: state.liked,
+          playlists: state.playlists,
+          recentlyPlayed: state.recent
+        }, { Authorization: 'Bearer ' + state.userToken });
+      } catch {}
+    }, 1500);
+  }
+
+  window.addEventListener('message', (event) => {
+    const data = event?.data;
+    if (data && data.type === 'LUNARELLYS_AUTH_SUCCESS' && data.payload?.token) {
+      state.userToken = data.payload.token;
+      state.userProfile = data.payload.user || null;
+      localStorage.setItem('lunarellys_user_token', state.userToken);
+      localStorage.setItem('lunarellys_user_profile', JSON.stringify(state.userProfile));
+      updateAuthSideUi();
+      syncCloudDown().then(() => scheduleCloudSync());
+    }
+  });
 
   function artImgHtml(url, alt) {
     if (!url) return '<div class="art-fallback">' + SVG_NOTE + '</div>';
@@ -1764,6 +2234,7 @@
     }
 
     state.currentTrack = track;
+    state.playCounts[track.id] = (state.playCounts[track.id] || 0) + 1;
     state.recent = [track, ...state.recent.filter((t) => t.id !== track.id)].slice(0, 40);
     saveStorage();
     updatePlayerBarMeta();
@@ -1776,6 +2247,11 @@
     const ak = state.settings.apiKey ? '&api_key=' + encodeURIComponent(state.settings.apiKey) : '';
     const quality = encodeURIComponent(state.settings.quality || 'high');
 
+    if (isLocalHost) audio.crossOrigin = 'anonymous';
+    else audio.removeAttribute('crossorigin');
+    if (state.settings.eqEnabled) ensureEqGraph();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+
     audio.src = apiBase() + '/music/proxy-stream?id=' + encodeURIComponent(track.id) + '&quality=' + quality + '&format=mp4' + wt + ak;
     audio.playbackRate = state.playbackSpeed || 1.0;
     try {
@@ -1784,6 +2260,7 @@
       console.warn('Playback prompt:', err);
     }
     updatePlayButtons();
+    if (state.listenRoom.isHost && !state.listenRoom.applyingSync) pushListenSync();
 
     state.lyrics = null;
     state.activeLyricIdx = -1;
@@ -1906,6 +2383,38 @@
 
   function renderNowPanel() {
     const body = document.getElementById('now-panel-body');
+    if (state.nowPanel === 'track') {
+      const tr = state.currentTrack;
+      if (!tr) {
+        body.innerHTML = '<div class="empty-state">Select a track to inspect details.</div>';
+        return;
+      }
+      const dur = Number.isFinite(audio.duration) ? fmtTime(audio.duration) : (tr.duration || fmtTime(tr.durationSeconds || 0));
+      const plays = state.playCounts[tr.id] || 0;
+      body.innerHTML =
+        '<div style="display:flex;flex-direction:column;gap:14px;">' +
+          '<div class="recap-stat">' +
+            '<div style="font-size:11.5px;color:var(--fg-muted);text-transform:uppercase;letter-spacing:0.06em;">Now Playing</div>' +
+            '<div style="font-family:var(--font-display);font-size:18px;font-weight:700;margin-top:4px;">' + esc(tr.title) + '</div>' +
+            '<div style="font-size:13.5px;color:var(--fg-secondary);margin-top:2px;">' + esc(artistText(tr)) + '</div>' +
+          '</div>' +
+          '<div class="recap-grid">' +
+            '<div class="recap-stat"><div class="recap-val" style="font-size:16px;">' + esc(dur) + '</div><div class="recap-lbl">Duration</div></div>' +
+            '<div class="recap-stat"><div class="recap-val" style="font-size:16px;">' + esc(String(plays)) + '</div><div class="recap-lbl">Your Plays</div></div>' +
+            '<div class="recap-stat"><div class="recap-val" style="font-size:16px;text-transform:uppercase;">' + esc(state.settings.quality) + '</div><div class="recap-lbl">Stream Quality</div></div>' +
+          '</div>' +
+          (tr.album?.name ? '<div class="recap-stat"><div class="recap-lbl">Album</div><div style="font-size:14px;font-weight:600;margin-top:2px;">' + esc(tr.album.name) + '</div></div>' : '') +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+            '<button class="btn-secondary" id="btn-now-add-pl" style="height:36px;">+ Add to Playlist</button>' +
+            '<button class="btn-secondary" id="btn-now-open-eq" style="height:36px;">Equalizer</button>' +
+            '<button class="btn-secondary" id="btn-now-listen" style="height:36px;">Listen Together</button>' +
+          '</div>' +
+        '</div>';
+      document.getElementById('btn-now-add-pl')?.addEventListener('click', () => openAddToPlaylistModal(tr));
+      document.getElementById('btn-now-open-eq')?.addEventListener('click', openEqModal);
+      document.getElementById('btn-now-listen')?.addEventListener('click', openListenModal);
+      return;
+    }
     if (state.nowPanel === 'lyrics') {
       if (!state.currentTrack) {
         body.innerHTML = '<div class="empty-state">Play any song to view synced lyrics.</div>';
@@ -1919,10 +2428,37 @@
         body.innerHTML = '<div class="empty-state">No lyrics found for this track.</div>';
         return;
       }
-      body.innerHTML = '<div style="font-size:12px;color:var(--fg-muted);margin-bottom:12px;">' + esc(state.lyrics.source || 'Lyrics') + '</div>' +
+      const offMs = state.settings.lyricsOffsetMs || 0;
+      const offLabel = (offMs > 0 ? '+' : '') + (offMs / 1000).toFixed(2) + 's';
+      body.innerHTML =
+        '<div class="lyrics-toolbar">' +
+          '<span style="font-size:12px;color:var(--fg-muted);">' + esc(state.lyrics.source || 'Lyrics') + '</span>' +
+          '<div class="offset-pills">' +
+            '<button class="mini-pill-btn" id="btn-lyr-minus">-0.25s</button>' +
+            '<span style="font-size:11.5px;color:var(--fg-secondary);padding:0 4px;">' + offLabel + '</span>' +
+            '<button class="mini-pill-btn" id="btn-lyr-plus">+0.25s</button>' +
+            '<button class="mini-pill-btn" id="btn-lyr-resync">Resync</button>' +
+          '</div>' +
+        '</div>' +
         state.lyrics.lines.map((line, i) =>
           '<button class="lyric-line ' + (i === state.activeLyricIdx ? 'active' : '') + '" data-lyric-ms="' + (line.timeMs ?? '') + '">' + esc(line.text) + '</button>'
         ).join('');
+      document.getElementById('btn-lyr-minus')?.addEventListener('click', () => {
+        state.settings.lyricsOffsetMs = (state.settings.lyricsOffsetMs || 0) - 250;
+        saveStorage();
+        renderNowPanel();
+      });
+      document.getElementById('btn-lyr-plus')?.addEventListener('click', () => {
+        state.settings.lyricsOffsetMs = (state.settings.lyricsOffsetMs || 0) + 250;
+        saveStorage();
+        renderNowPanel();
+      });
+      document.getElementById('btn-lyr-resync')?.addEventListener('click', () => {
+        state.settings.lyricsOffsetMs = 0;
+        state.activeLyricIdx = -1;
+        saveStorage();
+        renderNowPanel();
+      });
     } else {
       if (!state.queue.length) {
         body.innerHTML = '<div class="empty-state">Queue is empty.</div>';
@@ -1953,8 +2489,21 @@
     }
   }
 
-  audio.addEventListener('play', updatePlayButtons);
-  audio.addEventListener('pause', updatePlayButtons);
+  let lastTrackTick = 0;
+  let listenSaveCounter = 0;
+  audio.addEventListener('play', () => {
+    lastTrackTick = performance.now();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    updatePlayButtons();
+    if (state.listenRoom.isHost && !state.listenRoom.applyingSync) pushListenSync();
+  });
+  audio.addEventListener('pause', () => {
+    updatePlayButtons();
+    if (state.listenRoom.isHost && !state.listenRoom.applyingSync) pushListenSync();
+  });
+  audio.addEventListener('seeked', () => {
+    if (state.listenRoom.isHost && !state.listenRoom.applyingSync) pushListenSync();
+  });
   audio.addEventListener('ended', nextTrack);
   audio.addEventListener('error', () => {
     if (state.settings.autoSkip && state.queue.length > 1) {
@@ -1964,6 +2513,19 @@
   audio.addEventListener('timeupdate', () => {
     const cur = audio.currentTime || 0;
     const dur = Number.isFinite(audio.duration) ? audio.duration : (state.currentTrack?.durationSeconds || 0);
+    if (!audio.paused) {
+      const now = performance.now();
+      const dt = (now - lastTrackTick) / 1000;
+      lastTrackTick = now;
+      if (dt > 0 && dt < 3) {
+        state.listeningSec += dt;
+        listenSaveCounter += dt;
+        if (listenSaveCounter >= 10) {
+          listenSaveCounter = 0;
+          localStorage.setItem('lunarellys_listening_sec', String(Math.floor(state.listeningSec)));
+        }
+      }
+    }
     document.getElementById('bar-current').textContent = fmtTime(cur);
     document.getElementById('now-current').textContent = fmtTime(cur);
     document.getElementById('bar-duration').textContent = fmtTime(dur);
@@ -1974,7 +2536,7 @@
       document.getElementById('now-seek').value = pct;
     }
     if (state.lyrics?.synced && state.lyrics.lines?.length) {
-      const ms = cur * 1000;
+      const ms = cur * 1000 + (state.settings.lyricsOffsetMs || 0);
       let idx = -1;
       for (let i = 0; i < state.lyrics.lines.length; i++) {
         if (state.lyrics.lines[i].timeMs !== null && ms >= state.lyrics.lines[i].timeMs) idx = i;
@@ -2426,11 +2988,28 @@
     }
   }
 
+  function getTop50Tracks() {
+    const byId = new Map();
+    for (const tr of [...state.recent, ...state.liked, ...state.queue]) {
+      if (tr && tr.id && !byId.has(tr.id)) byId.set(tr.id, tr);
+    }
+    for (const pl of state.playlists) {
+      for (const tr of pl.tracks || []) {
+        if (tr && tr.id && !byId.has(tr.id)) byId.set(tr.id, tr);
+      }
+    }
+    return Array.from(byId.values())
+      .sort((a, b) => (state.playCounts[b.id] || 0) - (state.playCounts[a.id] || 0))
+      .slice(0, 50);
+  }
+
   function renderLibrary() {
     state.tab = 'library';
     setNavActive('library');
-    let html = '<div class="page-header"><div><h1 class="page-title">Your Library</h1><p class="page-subtitle">Liked songs, recent history, and custom playlists</p></div>' +
+    const top50 = getTop50Tracks();
+    let html = '<div class="page-header"><div><h1 class="page-title">Your Library</h1><p class="page-subtitle">Liked songs, Top 50 mix, history, and custom playlists</p></div>' +
       '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
+        (top50.length ? '<button class="btn-secondary" id="btn-play-top50">Play Top 50</button>' : '') +
         (state.liked.length ? '<button class="btn-secondary" id="btn-shuffle-liked">Shuffle Liked</button>' : '') +
         '<button class="btn-primary" id="btn-create-pl-lib">New Playlist</button>' +
       '</div></div>';
@@ -2443,6 +3022,11 @@
           '</button>'
         ).join('') +
       '</div></section>';
+    }
+
+    if (top50.length) {
+      html += '<section class="section-block"><div class="section-title-row"><h2 class="section-title">Your Top 50 (' + top50.length + ')</h2></div>' +
+        '<div class="track-list" id="lib-top50">' + top50.slice(0, 10).map((t, i) => renderTrackRowHtml(t, i)).join('') + '</div></section>';
     }
 
     html += '<section class="section-block"><div class="section-title-row"><h2 class="section-title">Liked Songs (' + state.liked.length + ')</h2></div>';
@@ -2463,11 +3047,14 @@
 
     mainScroll.innerHTML = html;
     document.getElementById('btn-create-pl-lib').addEventListener('click', openPlaylistModal);
+    document.getElementById('btn-play-top50')?.addEventListener('click', () => playTrack(top50[0], top50));
     mainScroll.querySelectorAll('[data-lib-open-pl]').forEach((btn) => {
       btn.addEventListener('click', () => openLocalPlaylist(btn.dataset.libOpenPl));
     });
     const shufLikedBtn = document.getElementById('btn-shuffle-liked');
     if (shufLikedBtn) shufLikedBtn.addEventListener('click', () => playShuffled(state.liked));
+    const top50Box = document.getElementById('lib-top50');
+    if (top50Box) bindTrackEvents(top50Box, top50.slice(0, 10));
     const likedBox = document.getElementById('lib-liked');
     if (likedBox) bindTrackEvents(likedBox, state.liked);
     const recentBox = document.getElementById('lib-recent');
@@ -2651,7 +3238,9 @@
   function openSettingsModal() {
     document.getElementById('set-quality').value = state.settings.quality;
     document.getElementById('set-bg-style').value = state.settings.bgStyle;
+    document.getElementById('set-mini-bg').value = state.settings.miniBg || 'blur';
     document.getElementById('set-slider-style').value = state.settings.sliderStyle;
+    document.getElementById('set-lang').value = state.settings.lang || 'system';
     document.getElementById('set-autoradio').checked = state.settings.autoRadio;
     document.getElementById('set-autoskip').checked = state.settings.autoSkip;
     settingsModal.classList.add('open');
@@ -2696,10 +3285,20 @@
     saveStorage();
     applyVisualSettings();
   });
+  document.getElementById('set-mini-bg').addEventListener('change', (e) => {
+    state.settings.miniBg = e.target.value;
+    saveStorage();
+    applyVisualSettings();
+  });
   document.getElementById('set-slider-style').addEventListener('change', (e) => {
     state.settings.sliderStyle = e.target.value;
     saveStorage();
     applyVisualSettings();
+  });
+  document.getElementById('set-lang').addEventListener('change', (e) => {
+    state.settings.lang = e.target.value;
+    saveStorage();
+    applyLocalization();
   });
   document.getElementById('set-autoradio').addEventListener('change', (e) => {
     state.settings.autoRadio = e.target.checked;
@@ -2708,6 +3307,294 @@
   document.getElementById('set-autoskip').addEventListener('change', (e) => {
     state.settings.autoSkip = e.target.checked;
     saveStorage();
+  });
+
+  // Equalizer bindings
+  document.getElementById('btn-open-eq-side').addEventListener('click', openEqModal);
+  document.getElementById('btn-open-eq-settings').addEventListener('click', () => {
+    closeSettingsModal();
+    openEqModal();
+  });
+  document.getElementById('btn-close-eq').addEventListener('click', () => {
+    document.getElementById('eq-modal').classList.remove('open');
+  });
+  document.getElementById('eq-enabled-check').addEventListener('change', (e) => {
+    state.settings.eqEnabled = e.target.checked;
+    if (state.settings.eqEnabled) ensureEqGraph();
+    applyEqGains();
+    saveStorage();
+  });
+  document.getElementById('btn-eq-reset').addEventListener('click', () => {
+    state.settings.eqPreset = 'Flat';
+    state.settings.eqBands = [0, 0, 0, 0, 0];
+    applyEqGains();
+    saveStorage();
+    renderEqModal();
+  });
+
+  // Stats & Recap Modal
+  function renderStatsModal() {
+    const body = document.getElementById('stats-modal-body');
+    const totalPlays = Object.values(state.playCounts).reduce((a, b) => a + (Number(b) || 0), 0);
+    const totalMins = Math.floor(state.listeningSec / 60);
+    const top50 = getTop50Tracks();
+
+    const artistCounts = new Map();
+    for (const tr of [...state.recent, ...state.liked, ...state.queue]) {
+      if (!tr || !tr.id) continue;
+      const cnt = state.playCounts[tr.id] || 1;
+      const name = artistText(tr);
+      artistCounts.set(name, (artistCounts.get(name) || 0) + cnt);
+    }
+    const topArtists = Array.from(artistCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+
+    body.innerHTML =
+      '<div class="recap-grid">' +
+        '<div class="recap-stat"><div class="recap-val">' + totalPlays + '</div><div class="recap-lbl">Total Plays</div></div>' +
+        '<div class="recap-stat"><div class="recap-val">' + totalMins + 'm</div><div class="recap-lbl">Listening Time</div></div>' +
+        '<div class="recap-stat"><div class="recap-val">' + state.liked.length + '</div><div class="recap-lbl">Liked Songs</div></div>' +
+      '</div>' +
+      (top50.length
+        ? '<div class="recap-stat" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">' +
+            '<div><div style="font-weight:700;font-size:14.5px;">Your Top 50 Mix</div><div class="recap-lbl">' + top50.length + ' most played tracks ready</div></div>' +
+            '<button class="btn-primary" id="btn-stats-play-top50" style="height:36px;">Play Top 50</button>' +
+          '</div>'
+        : '') +
+      (topArtists.length
+        ? '<div><div class="settings-group-title" style="margin-bottom:6px;">Top Artists</div>' +
+            topArtists.map(([name, cnt], idx) =>
+              '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;">' +
+                '<span>' + (idx + 1) + '. ' + esc(name) + '</span><span style="color:var(--accent-bright);font-family:var(--font-mono);">' + cnt + ' plays</span>' +
+              '</div>'
+            ).join('') +
+          '</div>'
+        : '') +
+      (top50.length
+        ? '<div><div class="settings-group-title" style="margin-bottom:6px;">Most Played Songs</div><div class="track-list">' +
+            top50.slice(0, 5).map((t, i) => renderTrackRowHtml(t, i)).join('') +
+          '</div></div>'
+        : '<div class="empty-state">Listen to songs to populate your personal recap.</div>');
+
+    document.getElementById('btn-stats-play-top50')?.addEventListener('click', () => {
+      playTrack(top50[0], top50);
+      document.getElementById('stats-modal').classList.remove('open');
+    });
+    if (top50.length) bindTrackEvents(body, top50.slice(0, 5));
+  }
+
+  function openStatsModal() {
+    renderStatsModal();
+    document.getElementById('stats-modal').classList.add('open');
+  }
+  document.getElementById('btn-open-stats-side').addEventListener('click', openStatsModal);
+  document.getElementById('btn-open-stats-settings').addEventListener('click', () => {
+    closeSettingsModal();
+    openStatsModal();
+  });
+  document.getElementById('btn-close-stats').addEventListener('click', () => document.getElementById('stats-modal').classList.remove('open'));
+  document.getElementById('btn-close-stats-x').addEventListener('click', () => document.getElementById('stats-modal').classList.remove('open'));
+
+  // Listen Together live sync room
+  async function pushListenSync() {
+    const lr = state.listenRoom;
+    if (!lr.roomCode || !lr.isHost || !lr.hostToken) return;
+    try {
+      await apiSend('POST', '/listen-together/sync', {
+        roomCode: lr.roomCode,
+        hostToken: lr.hostToken,
+        track: state.currentTrack,
+        isPlaying: !audio.paused,
+        positionMs: Math.round((audio.currentTime || 0) * 1000)
+      });
+    } catch {}
+  }
+
+  async function pollListenState() {
+    const lr = state.listenRoom;
+    if (!lr.roomCode) return;
+    try {
+      if (lr.isHost) {
+        await pushListenSync();
+        const st = await apiGet('/listen-together/state?code=' + encodeURIComponent(lr.roomCode));
+        lr.members = st.members || [];
+        if (document.getElementById('listen-modal').classList.contains('open')) renderListenModal();
+        return;
+      }
+      const st = await apiGet('/listen-together/state?code=' + encodeURIComponent(lr.roomCode));
+      lr.members = st.members || [];
+      lr.hostName = st.hostName || lr.hostName;
+      if (st.track && st.track.id) {
+        lr.applyingSync = true;
+        try {
+          if (state.currentTrack?.id !== st.track.id) {
+            await playTrack(st.track);
+          }
+          const targetSec = (Number(st.positionMs) || 0) / 1000;
+          if (Math.abs((audio.currentTime || 0) - targetSec) > 1.8) {
+            audio.currentTime = targetSec;
+          }
+          if (st.isPlaying && audio.paused) audio.play().catch(() => {});
+          else if (!st.isPlaying && !audio.paused) audio.pause();
+        } finally {
+          lr.applyingSync = false;
+        }
+      }
+      if (document.getElementById('listen-modal').classList.contains('open')) renderListenModal();
+    } catch {}
+  }
+
+  function startListenPoll() {
+    clearInterval(state.listenRoom.pollId);
+    state.listenRoom.pollId = setInterval(pollListenState, 3000);
+  }
+
+  function leaveListenRoom() {
+    clearInterval(state.listenRoom.pollId);
+    state.listenRoom = { roomCode: '', hostToken: '', isHost: false, hostName: '', members: [], pollId: null, applyingSync: false };
+    renderListenModal();
+  }
+
+  function renderListenModal(errMsg = '') {
+    const body = document.getElementById('listen-modal-body');
+    const lr = state.listenRoom;
+    if (!lr.roomCode) {
+      const defName = state.userProfile?.name || 'Listener';
+      body.innerHTML =
+        (errMsg ? '<div class="probe-result err" style="display:block;">' + esc(errMsg) + '</div>' : '') +
+        '<div class="settings-group">' +
+          '<div class="settings-group-title">Host a Room</div>' +
+          '<div style="display:flex;gap:8px;">' +
+            '<input type="text" class="modal-input" id="listen-host-name" value="' + esc(defName) + '" placeholder="Your display name">' +
+            '<button class="btn-primary" id="btn-listen-host" type="button" style="white-space:nowrap;">Create Room</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="settings-group">' +
+          '<div class="settings-group-title">Join Existing Room</div>' +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+            '<input type="text" class="modal-input" id="listen-join-code" placeholder="Room code (e.g. AB12CD)" style="flex:1;min-width:140px;text-transform:uppercase;">' +
+            '<input type="text" class="modal-input" id="listen-join-name" value="' + esc(defName) + '" placeholder="Your name" style="flex:1;min-width:120px;">' +
+            '<button class="btn-secondary" id="btn-listen-join" type="button">Join</button>' +
+          '</div>' +
+        '</div>';
+
+      document.getElementById('btn-listen-host').addEventListener('click', async () => {
+        const hostName = document.getElementById('listen-host-name').value.trim() || 'Host';
+        try {
+          const res = await apiSend('POST', '/listen-together/host', {
+            hostName,
+            track: state.currentTrack,
+            isPlaying: !audio.paused,
+            positionMs: Math.round((audio.currentTime || 0) * 1000)
+          });
+          state.listenRoom = {
+            roomCode: res.roomCode,
+            hostToken: res.hostToken,
+            isHost: true,
+            hostName: res.hostName,
+            members: res.members || [hostName],
+            pollId: null,
+            applyingSync: false
+          };
+          startListenPoll();
+          renderListenModal();
+        } catch (err) {
+          renderListenModal(err.message);
+        }
+      });
+
+      document.getElementById('btn-listen-join').addEventListener('click', async () => {
+        const roomCode = document.getElementById('listen-join-code').value.trim().toUpperCase();
+        const memberName = document.getElementById('listen-join-name').value.trim() || 'Guest';
+        if (!roomCode) { renderListenModal('Enter a room code first.'); return; }
+        try {
+          const res = await apiSend('POST', '/listen-together/join', { roomCode, memberName });
+          state.listenRoom = {
+            roomCode: res.roomCode,
+            hostToken: '',
+            isHost: false,
+            hostName: res.hostName,
+            members: res.members || [],
+            pollId: null,
+            applyingSync: false
+          };
+          startListenPoll();
+          pollListenState();
+          renderListenModal();
+        } catch (err) {
+          renderListenModal(err.message);
+        }
+      });
+      return;
+    }
+
+    body.innerHTML =
+      '<div class="recap-stat" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">' +
+        '<div>' +
+          '<div class="recap-lbl">' + (lr.isHost ? 'Hosting Live Room' : 'Joined Room · Host: ' + esc(lr.hostName)) + '</div>' +
+          '<div style="font-family:var(--font-mono);font-size:24px;font-weight:800;letter-spacing:0.12em;color:var(--accent-bright);">' + esc(lr.roomCode) + '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;">' +
+          '<button class="btn-secondary" id="btn-copy-room" type="button" style="height:36px;">Copy Code</button>' +
+          '<button class="btn-secondary" id="btn-leave-room" type="button" style="height:36px;color:var(--danger);">Leave</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="recap-stat">' +
+        '<div class="settings-group-title" style="margin-bottom:6px;">Listeners (' + lr.members.length + ')</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
+          lr.members.map((m) => '<span class="mini-pill-btn">' + esc(m) + '</span>').join('') +
+        '</div>' +
+      '</div>';
+
+    document.getElementById('btn-copy-room')?.addEventListener('click', () => {
+      navigator.clipboard?.writeText(lr.roomCode).catch(() => {});
+      const btn = document.getElementById('btn-copy-room');
+      if (btn) btn.textContent = 'Copied!';
+    });
+    document.getElementById('btn-leave-room')?.addEventListener('click', leaveListenRoom);
+  }
+
+  function openListenModal() {
+    renderListenModal();
+    document.getElementById('listen-modal').classList.add('open');
+  }
+  document.getElementById('btn-open-listen-side').addEventListener('click', openListenModal);
+  document.getElementById('btn-open-listen-settings').addEventListener('click', () => {
+    closeSettingsModal();
+    openListenModal();
+  });
+  document.getElementById('btn-close-listen').addEventListener('click', () => document.getElementById('listen-modal').classList.remove('open'));
+  document.getElementById('btn-close-listen-x').addEventListener('click', () => document.getElementById('listen-modal').classList.remove('open'));
+
+  let googleOAuthReady = null;
+  apiGet('/auth/status').then((st) => {
+    googleOAuthReady = Boolean(st?.googleOAuthConfigured);
+  }).catch(() => {});
+
+  // Google Sign-In sidebar button
+  document.getElementById('btn-google-auth-side').addEventListener('click', async () => {
+    const badge = document.getElementById('auth-side-badge');
+    if (state.userToken) {
+      await syncCloudDown();
+      scheduleCloudSync();
+      return;
+    }
+    if (googleOAuthReady === false) {
+      if (badge) badge.textContent = 'Not set';
+      return;
+    }
+    const w = 480, h = 620;
+    const left = Math.max(0, Math.round((window.screen.width - w) / 2));
+    const top = Math.max(0, Math.round((window.screen.height - h) / 2));
+    const popup = window.open(
+      apiBase() + '/auth/google/start?platform=web',
+      'lunarellys_google_auth',
+      'width=' + w + ',height=' + h + ',left=' + left + ',top=' + top
+    );
+    if (!popup && badge) {
+      badge.textContent = 'Allow popup';
+    }
   });
 
   document.getElementById('set-sleep-timer').addEventListener('change', (e) => {
@@ -2813,6 +3700,7 @@
 
   applyVisualSettings();
   renderSidebarPlaylists();
+  if (state.userToken) syncCloudDown();
   loadHome();
 })();
 </script>
