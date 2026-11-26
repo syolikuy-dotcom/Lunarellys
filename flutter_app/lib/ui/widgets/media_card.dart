@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
-import '../../data/models/music_models.dart';
+import '../../models/music_models.dart';
 import '../../state/library_provider.dart';
 import '../../state/player_provider.dart';
 import '../screens/detail_screens.dart';
@@ -51,85 +51,101 @@ class _MediaCardState extends ConsumerState<MediaCard> {
       ref.read(playerProvider.notifier).playTrack(
             item,
             queue: queue,
-            contextName: widget.contextLabel ?? item.album?.name ?? 'Home',
+            contextName: widget.contextLabel ?? item.album?.name ?? 'Beranda',
           );
     }
   }
 
   void _handleLongPress() {
     final item = widget.item;
-    if (!item.isPlayable) return;
     HapticFeedback.mediumImpact();
     final isLiked = ref.read(libraryProvider).isLiked(item.id);
+    final isPinned = ref.read(libraryProvider).isPinnedSpeedDial(item.id);
+    final ink = AppColors.inkOf(context);
+    final sub = AppColors.subOf(context);
 
     showLiquidGlassSheet<void>(
       context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-              ListTile(
-                leading: ArtworkImage(url: item.bestThumbUrl(size: 160), size: 46, radius: 6),
-                title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text(item.artistDisplay, maxLines: 1, overflow: TextOverflow.ellipsis),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.play_arrow_rounded, color: AppColors.brandGreenBright),
-                title: const Text('Play Now'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _handleTap();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.queue_play_next_rounded),
-                title: const Text('Play Next'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  ref.read(playerProvider.notifier).playNextInQueue(item);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.queue_music_rounded),
-                title: const Text('Add to Queue'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  ref.read(playerProvider.notifier).addToQueue(item);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.radio_rounded),
-                title: const Text('Start Song Radio'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  ref.read(playerProvider.notifier).startRadio(item);
-                },
-              ),
-              ListTile(
-                leading: Icon(
-                  isLiked ? Icons.check_circle_rounded : Icons.add_circle_outline_rounded,
-                  color: isLiked ? AppColors.brandGreenBright : null,
-                ),
-                title: Text(isLiked ? 'Remove from Liked Songs' : 'Save to Liked Songs'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  ref.read(libraryProvider.notifier).toggleLike(item);
-                },
-              ),
-            ],
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: ArtworkImage(url: item.bestThumbUrl(size: 160), size: 46, radius: 8),
+            title: Text(
+              item.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontWeight: FontWeight.w700, color: ink),
+            ),
+            subtitle: Text(
+              item.artistDisplay,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: sub),
+            ),
           ),
-        ),
+          const Divider(height: 1),
+          ListTile(
+            leading: Icon(Icons.play_arrow_rounded, color: ink),
+            title: Text('Putar sekarang', style: TextStyle(color: ink)),
+            onTap: () {
+              Navigator.pop(ctx);
+              _handleTap();
+            },
+          ),
+          if (item.isPlayable) ...[
+            ListTile(
+              leading: Icon(Icons.queue_play_next_rounded, color: ink),
+              title: Text('Putar berikutnya', style: TextStyle(color: ink)),
+              onTap: () {
+                Navigator.pop(ctx);
+                ref.read(playerProvider.notifier).playNextInQueue(item);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.queue_music_rounded, color: ink),
+              title: Text('Tambahkan ke antrean', style: TextStyle(color: ink)),
+              onTap: () {
+                Navigator.pop(ctx);
+                ref.read(playerProvider.notifier).addToQueue(item);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.radio_rounded, color: ink),
+              title: Text('Mulai radio', style: TextStyle(color: ink)),
+              onTap: () {
+                Navigator.pop(ctx);
+                ref.read(playerProvider.notifier).startRadio(item);
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                color: isLiked ? const Color(0xFFE11D48) : ink,
+              ),
+              title: Text(isLiked ? 'Hapus dari Disukai' : 'Tambahkan ke Disukai', style: TextStyle(color: ink)),
+              onTap: () {
+                Navigator.pop(ctx);
+                ref.read(libraryProvider.notifier).toggleLike(item);
+              },
+            ),
+          ],
+          ListTile(
+            leading: Icon(
+              isPinned ? Icons.push_pin_rounded : Icons.add_rounded,
+              color: isPinned ? AppColors.horizonBlue : ink,
+            ),
+            title: Text(
+              isPinned ? 'Lepas dari andalan' : 'Sematkan ke speed dial',
+              style: TextStyle(color: ink),
+            ),
+            onTap: () {
+              Navigator.pop(ctx);
+              ref.read(libraryProvider.notifier).togglePinSpeedDial(item);
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -143,11 +159,13 @@ class _MediaCardState extends ConsumerState<MediaCard> {
     final isPlaying = ref.watch(
       playerProvider.select((s) => s.currentTrack?.id == item.id && s.isPlaying),
     );
+    final ink = AppColors.inkOf(context);
+    final sub = AppColors.subOf(context);
 
     final fallbackType = item.type.isNotEmpty
         ? '${item.type[0].toUpperCase()}${item.type.substring(1)}'
-        : 'Music';
-    final sub = item.isPlayable
+        : 'Musik';
+    final subText = item.isPlayable
         ? item.artistDisplay
         : (item.subtitle.isNotEmpty ? item.subtitle : fallbackType);
 
@@ -175,46 +193,29 @@ class _MediaCardState extends ConsumerState<MediaCard> {
                     radius: 14,
                     isCircle: isArtist,
                   ),
-                  if (item.isPlayable)
+                  if (isCurrent)
                     Positioned(
                       right: 8,
                       bottom: 8,
                       child: Container(
-                        width: 36,
-                        height: 36,
+                        width: 34,
+                        height: 34,
                         decoration: BoxDecoration(
-                          color: isCurrent ? AppColors.brandGreenBright : const Color(0xCC0D131A),
+                          color: Colors.black.withAlpha(190),
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isCurrent ? Colors.white.withAlpha(140) : Colors.white.withAlpha(65),
-                            width: 1.0,
-                          ),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x66000000),
-                              blurRadius: 10,
-                              offset: Offset(0, 3),
-                            ),
-                          ],
                         ),
-                        child: isCurrent
-                            ? Center(
-                                child: AnimatedEqualizer(
-                                  color: Colors.black,
-                                  isPlaying: isPlaying,
-                                  size: 16,
-                                ),
-                              )
-                            : const Icon(
-                                Icons.play_arrow_rounded,
-                                size: 22,
-                                color: Colors.white,
-                              ),
+                        child: Center(
+                          child: AnimatedEqualizer(
+                            color: Colors.white,
+                            isPlaying: isPlaying,
+                            size: 15,
+                          ),
+                        ),
                       ),
                     ),
                 ],
               ),
-              const SizedBox(height: 9),
+              const SizedBox(height: 8),
               Text(
                 item.title,
                 maxLines: 2,
@@ -222,21 +223,21 @@ class _MediaCardState extends ConsumerState<MediaCard> {
                 textAlign: isArtist ? TextAlign.center : TextAlign.start,
                 style: TextStyle(
                   fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                  height: 1.25,
-                  color: isCurrent ? AppColors.brandGreenBright : AppColors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  height: 1.24,
+                  color: isCurrent ? AppColors.horizonBlue : ink,
                 ),
               ),
-              if (sub.isNotEmpty) ...[
-                const SizedBox(height: 3),
+              if (subText.isNotEmpty) ...[
+                const SizedBox(height: 2),
                 Text(
-                  sub,
+                  subText,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: isArtist ? TextAlign.center : TextAlign.start,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: sub,
                   ),
                 ),
               ],
