@@ -1,7 +1,8 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/config/app_config.dart';
-import '../data/services/api_client.dart';
+import '../services/api_client.dart';
 
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('sharedPreferencesProvider must be overridden in main');
@@ -10,61 +11,149 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
 class AppSettingsState {
   final String serverUrl;
   final String apiKey;
+  final bool serverManualOverride;
   final AudioQuality audioQuality;
   final bool dynamicAlbumColors;
   final bool autoRadio;
+  final AppAppearanceStyle appearanceStyle;
+  final AppThemePreference themePreference;
   final PlayerBackgroundStyle playerBackgroundStyle;
+  final MiniPlayerBackgroundStyle miniPlayerBackgroundStyle;
   final bool miniPlayerDynamicBg;
   final PlayerSliderStyle sliderStyle;
   final bool autoSkipOnError;
   final bool persistentQueue;
   final AppLanguageOption appLanguage;
+  final int lyricsOffsetMs;
+  final bool showIntervalIndicator;
+  final bool aiTranslateLyrics;
+  final bool agentPositionSync;
+  final bool romanizeLyrics;
+  final String lyricsSourceName;
+  final int defaultSleepMinutes;
+  final bool pauseWatchHistory;
+  final bool pauseSearchHistory;
+  final bool androidAutoEnabled;
+  final bool spotifyConnected;
+  final String spotifyDisplayName;
+  final bool eqEnabled;
+  final String eqPreset;
+  final List<double> eqBands;
+  final bool showStreakOnHome;
 
   const AppSettingsState({
     required this.serverUrl,
     required this.apiKey,
+    this.serverManualOverride = false,
     required this.audioQuality,
     required this.dynamicAlbumColors,
     required this.autoRadio,
+    this.appearanceStyle = AppAppearanceStyle.glass,
+    this.themePreference = AppThemePreference.light,
     required this.playerBackgroundStyle,
+    this.miniPlayerBackgroundStyle = MiniPlayerBackgroundStyle.blur,
     required this.miniPlayerDynamicBg,
     required this.sliderStyle,
     required this.autoSkipOnError,
     required this.persistentQueue,
     required this.appLanguage,
+    this.lyricsOffsetMs = 0,
+    this.showIntervalIndicator = true,
+    this.aiTranslateLyrics = false,
+    this.agentPositionSync = false,
+    this.romanizeLyrics = true,
+    this.lyricsSourceName = 'Lunarellys Sync',
+    this.defaultSleepMinutes = 30,
+    this.pauseWatchHistory = false,
+    this.pauseSearchHistory = false,
+    this.androidAutoEnabled = true,
+    this.spotifyConnected = false,
+    this.spotifyDisplayName = '',
+    this.eqEnabled = false,
+    this.eqPreset = 'Datar',
+    this.eqBands = const [0.0, 0.0, 0.0, 0.0, 0.0],
+    this.showStreakOnHome = true,
   });
 
   AppSettingsState copyWith({
     String? serverUrl,
     String? apiKey,
+    bool? serverManualOverride,
     AudioQuality? audioQuality,
     bool? dynamicAlbumColors,
     bool? autoRadio,
+    AppAppearanceStyle? appearanceStyle,
+    AppThemePreference? themePreference,
     PlayerBackgroundStyle? playerBackgroundStyle,
+    MiniPlayerBackgroundStyle? miniPlayerBackgroundStyle,
     bool? miniPlayerDynamicBg,
     PlayerSliderStyle? sliderStyle,
     bool? autoSkipOnError,
     bool? persistentQueue,
     AppLanguageOption? appLanguage,
+    int? lyricsOffsetMs,
+    bool? showIntervalIndicator,
+    bool? aiTranslateLyrics,
+    bool? agentPositionSync,
+    bool? romanizeLyrics,
+    String? lyricsSourceName,
+    int? defaultSleepMinutes,
+    bool? pauseWatchHistory,
+    bool? pauseSearchHistory,
+    bool? androidAutoEnabled,
+    bool? spotifyConnected,
+    String? spotifyDisplayName,
+    bool? eqEnabled,
+    String? eqPreset,
+    List<double>? eqBands,
+    bool? showStreakOnHome,
   }) {
     return AppSettingsState(
       serverUrl: serverUrl ?? this.serverUrl,
       apiKey: apiKey ?? this.apiKey,
+      serverManualOverride: serverManualOverride ?? this.serverManualOverride,
       audioQuality: audioQuality ?? this.audioQuality,
       dynamicAlbumColors: dynamicAlbumColors ?? this.dynamicAlbumColors,
       autoRadio: autoRadio ?? this.autoRadio,
+      appearanceStyle: appearanceStyle ?? this.appearanceStyle,
+      themePreference: themePreference ?? this.themePreference,
       playerBackgroundStyle: playerBackgroundStyle ?? this.playerBackgroundStyle,
+      miniPlayerBackgroundStyle:
+          miniPlayerBackgroundStyle ?? this.miniPlayerBackgroundStyle,
       miniPlayerDynamicBg: miniPlayerDynamicBg ?? this.miniPlayerDynamicBg,
       sliderStyle: sliderStyle ?? this.sliderStyle,
       autoSkipOnError: autoSkipOnError ?? this.autoSkipOnError,
       persistentQueue: persistentQueue ?? this.persistentQueue,
       appLanguage: appLanguage ?? this.appLanguage,
+      lyricsOffsetMs: lyricsOffsetMs ?? this.lyricsOffsetMs,
+      showIntervalIndicator:
+          showIntervalIndicator ?? this.showIntervalIndicator,
+      aiTranslateLyrics: aiTranslateLyrics ?? this.aiTranslateLyrics,
+      agentPositionSync: agentPositionSync ?? this.agentPositionSync,
+      romanizeLyrics: romanizeLyrics ?? this.romanizeLyrics,
+      lyricsSourceName: lyricsSourceName ?? this.lyricsSourceName,
+      defaultSleepMinutes: defaultSleepMinutes ?? this.defaultSleepMinutes,
+      pauseWatchHistory: pauseWatchHistory ?? this.pauseWatchHistory,
+      pauseSearchHistory: pauseSearchHistory ?? this.pauseSearchHistory,
+      androidAutoEnabled: androidAutoEnabled ?? this.androidAutoEnabled,
+      spotifyConnected: spotifyConnected ?? this.spotifyConnected,
+      spotifyDisplayName: spotifyDisplayName ?? this.spotifyDisplayName,
+      eqEnabled: eqEnabled ?? this.eqEnabled,
+      eqPreset: eqPreset ?? this.eqPreset,
+      eqBands: eqBands ?? this.eqBands,
+      showStreakOnHome: showStreakOnHome ?? this.showStreakOnHome,
     );
   }
 }
 
 class SettingsNotifier extends StateNotifier<AppSettingsState> {
   final SharedPreferences _prefs;
+
+  static List<double> _loadEqBands(SharedPreferences prefs) {
+    final raw = prefs.getStringList('eq_bands');
+    if (raw == null || raw.length != 5) return const [0.0, 0.0, 0.0, 0.0, 0.0];
+    return raw.map((e) => (double.tryParse(e) ?? 0.0).clamp(-12.5, 12.5)).toList();
+  }
 
   SettingsNotifier(this._prefs)
       : super(
@@ -73,37 +162,122 @@ class SettingsNotifier extends StateNotifier<AppSettingsState> {
               _prefs.getString('server_url') ?? AppConfig.defaultBaseUrl,
             ),
             apiKey: _prefs.getString('api_key') ?? AppConfig.defaultApiKey,
+            serverManualOverride: _prefs.getBool('server_manual_override') ?? false,
             audioQuality: AudioQuality.fromString(_prefs.getString('audio_quality')),
             dynamicAlbumColors: _prefs.getBool('dynamic_colors') ?? true,
             autoRadio: _prefs.getBool('auto_radio') ?? true,
+            appearanceStyle: AppAppearanceStyle.fromString(_prefs.getString('appearance_style')),
+            themePreference: AppThemePreference.fromString(_prefs.getString('theme_preference')),
             playerBackgroundStyle: PlayerBackgroundStyle.fromString(
               _prefs.getString('player_bg_style'),
             ),
-            miniPlayerDynamicBg: _prefs.getBool('mini_player_dynamic_bg') ?? true,
+            miniPlayerBackgroundStyle: MiniPlayerBackgroundStyle.fromString(
+              _prefs.getString('mini_player_bg_style'),
+              fallbackDynamic: _prefs.getBool('mini_player_dynamic_bg') ?? false,
+            ),
+            miniPlayerDynamicBg: (_prefs.getString('mini_player_bg_style') ?? 'blur') != 'blur',
             sliderStyle: PlayerSliderStyle.fromString(_prefs.getString('slider_style')),
             autoSkipOnError: _prefs.getBool('auto_skip_error') ?? true,
             persistentQueue: _prefs.getBool('persistent_queue') ?? true,
             appLanguage: AppLanguageOption.fromString(_prefs.getString('app_language')),
+            lyricsOffsetMs: (_prefs.getInt('lyrics_offset_ms') ?? 0).clamp(-3000, 3000),
+            showIntervalIndicator: _prefs.getBool('lyrics_interval_indicator') ?? true,
+            aiTranslateLyrics: _prefs.getBool('lyrics_ai_translate') ?? false,
+            agentPositionSync: _prefs.getBool('lyrics_agent_sync') ?? false,
+            romanizeLyrics: _prefs.getBool('lyrics_romanize') ?? true,
+            lyricsSourceName: _prefs.getString('lyrics_source_name') ?? 'Lunarellys Sync',
+            defaultSleepMinutes: (_prefs.getInt('default_sleep_minutes') ?? 30).clamp(5, 120),
+            pauseWatchHistory: _prefs.getBool('pause_watch_history') ?? false,
+            pauseSearchHistory: _prefs.getBool('pause_search_history') ?? false,
+            androidAutoEnabled: _prefs.getBool('android_auto_enabled') ?? true,
+            spotifyConnected: _prefs.getBool('spotify_connected') ?? false,
+            spotifyDisplayName: _prefs.getString('spotify_display_name') ?? '',
+            eqEnabled: _prefs.getBool('eq_enabled') ?? false,
+            eqPreset: _prefs.getString('eq_preset') ?? 'Datar',
+            eqBands: _loadEqBands(_prefs),
+            showStreakOnHome: _prefs.getBool('show_streak_home') ?? true,
           ),
-        );
+        ) {
+    unawaited(syncRemoteNodeConfig());
+  }
 
-  Future<void> setServerConfig({required String url, required String apiKey}) async {
+  Future<bool> syncRemoteNodeConfig({bool force = false}) async {
+    if (!force && state.serverManualOverride) return false;
+    // Bootstrap: node tersimpan -> default build -> preset node. Yang pertama
+    // menjawab /api/node/config dipakai.
+    final bootstraps = <String>[];
+    for (final raw in [state.serverUrl, AppConfig.defaultBaseUrl, AppConfig.pterodactylExampleUrl]) {
+      final n = AppConfig.normalizeServerUrl(raw);
+      if (!bootstraps.contains(n)) bootstraps.add(n);
+    }
+    for (final boot in bootstraps) {
+      try {
+        final client = MusicApiClient(baseUrl: boot);
+        final remote = await client.fetchRemoteNodeConfig(bootstrapUrl: boot);
+        if (!mounted) return false;
+        final resolvedUrl = remote.serverUrl.isNotEmpty
+            ? AppConfig.normalizeServerUrl(remote.serverUrl)
+            : boot;
+        final resolvedKey = remote.apiKey.trim();
+        await _prefs.setString('server_url', resolvedUrl);
+        await _prefs.setString('api_key', resolvedKey);
+        await _prefs.setBool('server_manual_override', false);
+        if (resolvedUrl != state.serverUrl ||
+            resolvedKey != state.apiKey ||
+            state.serverManualOverride) {
+          state = state.copyWith(
+            serverUrl: resolvedUrl,
+            apiKey: resolvedKey,
+            serverManualOverride: false,
+          );
+        }
+        return true;
+      } catch (_) {
+        continue;
+      }
+    }
+    return false;
+  }
+
+  Future<void> setServerConfig({
+    required String url,
+    required String apiKey,
+    bool manualOverride = true,
+  }) async {
     final clean = url.trim().isEmpty
         ? AppConfig.defaultBaseUrl
         : AppConfig.normalizeServerUrl(url);
     final cleanKey = apiKey.trim();
     await _prefs.setString('server_url', clean);
     await _prefs.setString('api_key', cleanKey);
-    state = state.copyWith(serverUrl: clean, apiKey: cleanKey);
+    await _prefs.setBool('server_manual_override', manualOverride);
+    state = state.copyWith(
+      serverUrl: clean,
+      apiKey: cleanKey,
+      serverManualOverride: manualOverride,
+    );
   }
 
   Future<void> resetServerConfig() async {
     await _prefs.remove('server_url');
     await _prefs.remove('api_key');
+    await _prefs.setBool('server_manual_override', false);
     state = state.copyWith(
       serverUrl: AppConfig.defaultBaseUrl,
       apiKey: AppConfig.defaultApiKey,
+      serverManualOverride: false,
     );
+    await syncRemoteNodeConfig(force: true);
+  }
+
+  Future<void> setAppearanceStyle(AppAppearanceStyle style) async {
+    await _prefs.setString('appearance_style', style.key);
+    state = state.copyWith(appearanceStyle: style);
+  }
+
+  Future<void> setThemePreference(AppThemePreference pref) async {
+    await _prefs.setString('theme_preference', pref.key);
+    state = state.copyWith(themePreference: pref);
   }
 
   Future<void> setAudioQuality(AudioQuality quality) async {
@@ -126,9 +300,18 @@ class SettingsNotifier extends StateNotifier<AppSettingsState> {
     state = state.copyWith(playerBackgroundStyle: style);
   }
 
+  Future<void> setMiniPlayerBackgroundStyle(MiniPlayerBackgroundStyle style) async {
+    await _prefs.setString('mini_player_bg_style', style.key);
+    await _prefs.setBool('mini_player_dynamic_bg', style != MiniPlayerBackgroundStyle.blur);
+    state = state.copyWith(
+      miniPlayerBackgroundStyle: style,
+      miniPlayerDynamicBg: style != MiniPlayerBackgroundStyle.blur,
+    );
+  }
+
   Future<void> setMiniPlayerDynamicBg(bool enabled) async {
-    await _prefs.setBool('mini_player_dynamic_bg', enabled);
-    state = state.copyWith(miniPlayerDynamicBg: enabled);
+    final style = enabled ? MiniPlayerBackgroundStyle.dynamic : MiniPlayerBackgroundStyle.blur;
+    await setMiniPlayerBackgroundStyle(style);
   }
 
   Future<void> setSliderStyle(PlayerSliderStyle style) async {
@@ -152,6 +335,90 @@ class SettingsNotifier extends StateNotifier<AppSettingsState> {
   Future<void> setAppLanguage(AppLanguageOption lang) async {
     await _prefs.setString('app_language', lang.code);
     state = state.copyWith(appLanguage: lang);
+  }
+
+  Future<void> setLyricsOffsetMs(int offsetMs) async {
+    final clamped = offsetMs.clamp(-3000, 3000);
+    await _prefs.setInt('lyrics_offset_ms', clamped);
+    state = state.copyWith(lyricsOffsetMs: clamped);
+  }
+
+  Future<void> setShowIntervalIndicator(bool enabled) async {
+    await _prefs.setBool('lyrics_interval_indicator', enabled);
+    state = state.copyWith(showIntervalIndicator: enabled);
+  }
+
+  Future<void> setAiTranslateLyrics(bool enabled) async {
+    await _prefs.setBool('lyrics_ai_translate', enabled);
+    state = state.copyWith(aiTranslateLyrics: enabled);
+  }
+
+  Future<void> setAgentPositionSync(bool enabled) async {
+    await _prefs.setBool('lyrics_agent_sync', enabled);
+    state = state.copyWith(agentPositionSync: enabled);
+  }
+
+  Future<void> setRomanizeLyrics(bool enabled) async {
+    await _prefs.setBool('lyrics_romanize', enabled);
+    state = state.copyWith(romanizeLyrics: enabled);
+  }
+
+  Future<void> setLyricsSourceName(String name) async {
+    await _prefs.setString('lyrics_source_name', name);
+    state = state.copyWith(lyricsSourceName: name);
+  }
+
+  Future<void> setDefaultSleepMinutes(int minutes) async {
+    final clamped = minutes.clamp(5, 120);
+    await _prefs.setInt('default_sleep_minutes', clamped);
+    state = state.copyWith(defaultSleepMinutes: clamped);
+  }
+
+  Future<void> setPauseWatchHistory(bool enabled) async {
+    await _prefs.setBool('pause_watch_history', enabled);
+    state = state.copyWith(pauseWatchHistory: enabled);
+  }
+
+  Future<void> setPauseSearchHistory(bool enabled) async {
+    await _prefs.setBool('pause_search_history', enabled);
+    state = state.copyWith(pauseSearchHistory: enabled);
+  }
+
+  Future<void> setAndroidAutoEnabled(bool enabled) async {
+    await _prefs.setBool('android_auto_enabled', enabled);
+    state = state.copyWith(androidAutoEnabled: enabled);
+  }
+
+  Future<void> setSpotifyConnection({required bool connected, String displayName = ''}) async {
+    await _prefs.setBool('spotify_connected', connected);
+    await _prefs.setString('spotify_display_name', displayName);
+    state = state.copyWith(spotifyConnected: connected, spotifyDisplayName: displayName);
+  }
+
+  Future<void> setEqEnabled(bool enabled) async {
+    await _prefs.setBool('eq_enabled', enabled);
+    state = state.copyWith(eqEnabled: enabled);
+  }
+
+  Future<void> setEqPreset(String preset, List<double> bands) async {
+    final clamped = bands.map((b) => b.clamp(-12.5, 12.5)).toList();
+    await _prefs.setString('eq_preset', preset);
+    await _prefs.setStringList('eq_bands', clamped.map((b) => b.toStringAsFixed(1)).toList());
+    state = state.copyWith(eqPreset: preset, eqBands: clamped);
+  }
+
+  Future<void> setEqBand(int index, double value) async {
+    if (index < 0 || index >= 5) return;
+    final next = List<double>.from(state.eqBands);
+    next[index] = value.clamp(-12.5, 12.5);
+    await _prefs.setString('eq_preset', 'Kustom');
+    await _prefs.setStringList('eq_bands', next.map((b) => b.toStringAsFixed(1)).toList());
+    state = state.copyWith(eqPreset: 'Kustom', eqBands: next);
+  }
+
+  Future<void> setShowStreakOnHome(bool enabled) async {
+    await _prefs.setBool('show_streak_home', enabled);
+    state = state.copyWith(showStreakOnHome: enabled);
   }
 }
 
