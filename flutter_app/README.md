@@ -1,13 +1,14 @@
 # Lunarellys Music — Flutter Client
 
-A cross-platform Flutter music streaming client inspired by **Metrolist** (Material 3 Expressive, dynamic album art theming, synced lyrics), **Auralis** (charcoal & violet aesthetics, gesture-driven mini-player, adaptive phone/desktop navigation), and **Spotify** (quick-picks grid, editorial layout, seamless queue & radio).
+A cross-platform Flutter music streaming client developed by **Ikhwan Romadon**, combining obsidian emerald editorial layouts, dynamic album artwork theming, synced LRC lyrics, customizable player styles, and seamless Pterodactyl self-hosted node support.
 
 ## Features
-- **Live Streaming & Range Proxy**: Connects to the Lunarellys Node.js backend (`/api/music/proxy-stream`) for zero-CORS, seekable audio playback via `just_audio` + `just_audio_background` lockscreen/notification controls.
+- **Live Streaming & Range Proxy**: Connects to your Lunarellys Node.js / Pterodactyl backend (`/api/music/proxy-stream`) for zero-CORS, seekable audio playback via `just_audio` + `just_audio_background`.
 - **Synced & Plain Lyrics**: Real-time LRC lyrics via `/api/music/lyrics` with auto-highlighting and tap-to-seek.
-- **Dynamic Material 3 Colors**: Extracts dominant/vibrant colors from currently playing album artwork (`palette_generator`).
-- **Offline Downloads**: Download tracks directly to device storage (`path_provider`) and play offline.
-- **Pterodactyl Ready**: Configure your Pterodactyl Node.js panel URL (`http://IP:PORT` or `https://domain.com`) and optional API key directly inside **Library → Settings**, or pass `--dart-define=API_BASE_URL=...` at build time.
+- **Customizable Player & Slider Styles**: Switch between **Blur**, **Classic**, **Glow Animated**, and **Live Mesh** player backdrops plus **Default**, **Wavy**, **Slim**, and **Squiggly** progress sliders directly inside **Settings**.
+- **Dynamic Album Colors & Persistent Queue**: Extracts vibrant palette colors from album artwork (`palette_generator`) and restores your active queue across restarts.
+- **Offline Downloads**: Download tracks directly to device storage (`path_provider`) and listen offline.
+- **1-Tap Pterodactyl Setup**: Connect to any Pterodactyl node (e.g. `http://nodedenisrealbaik.sinar.bonus.smasnug.web.id:4686/`) inside **Settings → Server & Pterodactyl Setup** with live `/api/node/info` health probing, or bake it in at build time with `--dart-define=API_BASE_URL=...`.
 
 ## Build Android APK (Zero-Issue Setup)
 
@@ -19,9 +20,9 @@ A cross-platform Flutter music streaming client inspired by **Metrolist** (Mater
 
 2. (Optional) Bake your Pterodactyl backend URL directly into the APK:
    ```bash
-   flutter build apk --release --dart-define=API_BASE_URL=http://YOUR_SERVER_IP:PORT
+   flutter build apk --release --dart-define=API_BASE_URL=http://nodedenisrealbaik.sinar.bonus.smasnug.web.id:4686
    ```
-   Or build directly with default config (you can change the server URL anytime inside the app's Settings screen):
+   Or build directly with default config (admins and users can change or test the server URL anytime inside **Settings**):
    ```bash
    flutter build apk --release
    ```

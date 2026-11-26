@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:audio_session/audio_session.dart';
@@ -125,9 +126,65 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   final List<StreamSubscription<dynamic>> _subs = [];
   Timer? _sleepTimer;
   final Random _rng = Random();
+  int _consecutiveErrors = 0;
 
   PlayerNotifier(this._ref) : super(const PlayerState()) {
+    _restorePersistedQueue();
     _initAudio();
+  }
+
+  void _restorePersistedQueue() {
+    try {
+      final settings = _ref.read(settingsProvider);
+      if (!settings.persistentQueue) return;
+      final prefs = _ref.read(sharedPreferencesProvider);
+      final raw = prefs.getString('persisted_queue_v1');
+      if (raw == null || raw.isEmpty) return;
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return;
+      final rawQueue = decoded['queue'];
+      if (rawQueue is! List) return;
+      final queue = rawQueue
+          .whereType<Map<String, dynamic>>()
+          .map(MusicItem.fromJson)
+          .where((t) => t.id.isNotEmpty)
+          .toList();
+      if (queue.isEmpty) return;
+      final idx = ((decoded['currentIndex'] as num?)?.toInt() ?? 0).clamp(0, queue.length - 1);
+      final track = queue[idx];
+      final fallbackDur = track.durationSeconds != null
+          ? Duration(seconds: track.durationSeconds!)
+          : Duration.zero;
+      final ctx = (decoded['playingContext'] ?? 'Queue').toString();
+      final speed = ((decoded['playbackSpeed'] as num?)?.toDouble() ?? 1.0).clamp(0.5, 2.0);
+      state = state.copyWith(
+        currentTrack: track,
+        queue: queue,
+        currentIndex: idx,
+        playingContext: ctx,
+        duration: fallbackDur,
+        playbackSpeed: speed,
+      );
+      unawaited(_extractDynamicColor(track));
+    } catch (_) {}
+  }
+
+  void _persistQueueState() {
+    try {
+      if (!_ref.read(settingsProvider).persistentQueue) return;
+      final prefs = _ref.read(sharedPreferencesProvider);
+      if (state.queue.isEmpty) {
+        prefs.remove('persisted_queue_v1');
+        return;
+      }
+      final payload = jsonEncode({
+        'queue': state.queue.take(60).map((e) => e.toJson()).toList(),
+        'currentIndex': state.currentIndex.clamp(0, min(59, state.queue.length - 1)),
+        'playingContext': state.playingContext,
+        'playbackSpeed': state.playbackSpeed,
+      });
+      prefs.setString('persisted_queue_v1', payload);
+    } catch (_) {}
   }
 
   Future<void> _initAudio() async {
@@ -224,6 +281,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       clearSongDetail: true,
       clearError: true,
     );
+    _persistQueueState();
 
     unawaited(_ref.read(libraryProvider.notifier).recordPlay(track));
     unawaited(_extractDynamicColor(track));
@@ -258,8 +316,23 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       }
 
       await _player.setAudioSource(source);
+      if (state.playbackSpeed != 1.0) {
+        await _player.setSpeed(state.playbackSpeed);
+      }
       await _player.play();
+      _consecutiveErrors = 0;
     } catch (_) {
+      _consecutiveErrors += 1;
+      if (settings.autoSkipOnError && queue.length > 1 && _consecutiveErrors < 2) {
+        state = state.copyWith(
+          isBuffering: false,
+          isPlaying: false,
+          errorMessage: 'Track unavailable — skipping to next...',
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        await skipNext();
+        return;
+      }
       state = state.copyWith(
         isBuffering: false,
         isPlaying: false,
@@ -341,6 +414,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       final additions = radio.where((t) => !existing.contains(t.id)).toList();
       if (additions.isNotEmpty) {
         state = state.copyWith(queue: [...state.queue, ...additions]);
+        _persistQueueState();
       }
     } catch (_) {}
   }
@@ -361,7 +435,17 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   Future<void> togglePlayPause() async {
-    if (state.currentTrack == null) return;
+    final track = state.currentTrack;
+    if (track == null) return;
+    if (_player.processingState == ProcessingState.idle && !_player.playing) {
+      await _startTrackAt(
+        track,
+        state.queue,
+        state.currentIndex.clamp(0, state.queue.length - 1),
+        contextName: state.playingContext,
+      );
+      return;
+    }
     if (_player.playing) {
       await _player.pause();
     } else {
@@ -422,6 +506,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     final insertAt = (state.currentIndex + 1).clamp(0, list.length);
     list.insert(insertAt, track);
     state = state.copyWith(queue: list);
+    _persistQueueState();
   }
 
   void addToQueue(MusicItem track) {
@@ -430,6 +515,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       return;
     }
     state = state.copyWith(queue: [...state.queue, track]);
+    _persistQueueState();
   }
 
   void removeFromQueue(int index) {
@@ -437,6 +523,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     final list = List<MusicItem>.from(state.queue)..removeAt(index);
     final newIdx = index < state.currentIndex ? state.currentIndex - 1 : state.currentIndex;
     state = state.copyWith(queue: list, currentIndex: newIdx);
+    _persistQueueState();
   }
 
   Future<void> playShuffled(List<MusicItem> tracks, {String? contextName}) async {
@@ -451,6 +538,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     final clamped = speed.clamp(0.5, 2.0);
     await _player.setSpeed(clamped);
     state = state.copyWith(playbackSpeed: clamped);
+    _persistQueueState();
   }
 
   Future<void> startRadio(MusicItem seed) async {
@@ -486,15 +574,18 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       curIdx += 1;
     }
     state = state.copyWith(queue: list, currentIndex: curIdx);
+    _persistQueueState();
   }
 
   void clearUpcomingQueue() {
     final cur = state.currentTrack;
     if (cur == null) {
       state = state.copyWith(queue: const [], currentIndex: -1);
+      _persistQueueState();
       return;
     }
     state = state.copyWith(queue: [cur], currentIndex: 0);
+    _persistQueueState();
   }
 
   void setSleepAfterTrack(bool enabled) {

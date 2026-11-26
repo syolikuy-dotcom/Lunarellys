@@ -16,6 +16,9 @@ function readKeys() {
 }
 
 export const config = {
+  serviceName: 'Lunarellys',
+  appVersion: '1.2.0',
+  developer: 'Ikhwan Romadon',
   port: readInt(['PORT', 'SERVER_PORT'], 3000, 1, 65535),
   apiKeys: readKeys(),
   rateLimitWindowMs: readInt(['RATE_LIMIT_WINDOW_MS'], 60000, 1000, 3600000),

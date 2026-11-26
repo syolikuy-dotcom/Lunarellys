@@ -15,22 +15,28 @@ const PAGE = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Documentation — simple-ytapi</title>
-<meta name="description" content="Interactive REST API documentation and endpoint tester for simple-ytapi.">
+<title>Documentation — Lunarellys API</title>
+<meta name="description" content="Interactive REST API documentation and endpoint tester for Lunarellys Music.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Crect width='36' height='36' rx='10' fill='%230A0E11'/%3E%3Cpath d='M22.34 6.9A11.75 11.75 0 1 0 27.44 25.62A9.75 9.75 0 1 1 22.34 6.9Z' fill='%232EE89B'/%3E%3Crect x='21.25' y='10.75' width='2.8' height='11.5' rx='1.4' fill='white'/%3E%3Crect x='25.95' y='13.75' width='2.8' height='8.5' rx='1.4' fill='white'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #09090b;
-    --surface: #111114;
-    --surface-2: #16161a;
-    --border: rgba(255, 255, 255, 0.08);
+    --bg: #070a0d;
+    --surface: rgba(255, 255, 255, 0.055);
+    --surface-2: rgba(255, 255, 255, 0.09);
+    --surface-elevated: rgba(14, 21, 27, 0.72);
+    --border: rgba(255, 255, 255, 0.085);
     --border-strong: rgba(255, 255, 255, 0.14);
-    --fg: #f4f4f5;
-    --fg-secondary: #a1a1aa;
-    --fg-muted: #71717a;
-    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --specular: none;
+    --accent: #12d88a;
+    --accent-hi: #34f5a4;
+    --cyan: #38bdf8;
+    --fg: #f4f7f9;
+    --fg-secondary: #a8b6c4;
+    --fg-muted: #6c7a88;
+    --sans: 'Plus Jakarta Sans', 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
 
@@ -62,12 +68,12 @@ const PAGE = `<!doctype html>
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    background-image:
-      radial-gradient(ellipse 80% 45% at 50% -10%, rgba(255, 255, 255, 0.065), transparent 70%),
-      radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
-    background-size: 100% 100%, 24px 24px;
-    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.3) 65%, transparent 100%);
-    -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.3) 65%, transparent 100%);
+    background:
+      radial-gradient(ellipse 68% 48% at 14% -6%, rgba(18, 216, 138, 0.16), transparent 65%),
+      radial-gradient(ellipse 56% 42% at 88% 8%, rgba(56, 189, 248, 0.14), transparent 65%),
+      radial-gradient(ellipse 55% 45% at 50% 105%, rgba(18, 216, 138, 0.08), transparent 70%),
+      radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 100% 100%, 26px 26px;
   }
 
   a {
@@ -79,14 +85,17 @@ const PAGE = `<!doctype html>
     position: sticky;
     top: 0;
     z-index: 30;
-    background: rgba(9, 9, 11, 0.96);
+    background: rgba(9, 14, 19, 0.78);
+    backdrop-filter: blur(14px) saturate(145%);
+    -webkit-backdrop-filter: blur(14px) saturate(145%);
     border-bottom: 1px solid var(--border);
+    box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04), 0 12px 32px rgba(0, 0, 0, 0.35);
   }
 
   .topbar-inner {
     max-width: 1280px;
     margin: 0 auto;
-    padding: 13px 24px;
+    padding: 12px 24px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -96,28 +105,31 @@ const PAGE = `<!doctype html>
   .topbar-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 11px;
+    flex-wrap: wrap;
+    min-width: 0;
   }
 
   .brand {
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    font-family: var(--mono);
-    font-size: 13px;
-    font-weight: 600;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 700;
     letter-spacing: -0.02em;
   }
 
   .brand-mark {
-    width: 22px;
-    height: 22px;
-    border-radius: 6px;
-    background: linear-gradient(180deg, #27272a 0%, #18181b 100%);
-    border: 1px solid var(--border-strong);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: linear-gradient(145deg, #121a1e 0%, #0a0e11 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     display: grid;
     place-items: center;
+    color: #effff8;
+    flex-shrink: 0;
   }
 
   .sep {
@@ -137,20 +149,23 @@ const PAGE = `<!doctype html>
     align-items: center;
     justify-content: center;
     gap: 6px;
-    height: 32px;
-    padding: 0 10px;
-    border-radius: 7px;
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 12px;
     background: var(--surface);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
     border: 1px solid var(--border-strong);
+    box-shadow: var(--specular);
     color: var(--fg);
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
   }
 
   .shell {
     display: grid;
-    grid-template-columns: 268px 1fr;
+    grid-template-columns: 274px 1fr;
     max-width: 1280px;
     width: 100%;
     margin: 0 auto;
@@ -159,13 +174,14 @@ const PAGE = `<!doctype html>
 
   aside {
     border-right: 1px solid var(--border);
+    background: rgba(10, 15, 20, 0.65);
     position: sticky;
-    top: 49px;
-    height: calc(100vh - 49px);
+    top: 55px;
+    height: calc(100vh - 55px);
     overflow-y: auto;
     padding: 18px 14px 32px;
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+    scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
   }
 
   .search-wrap {
@@ -175,7 +191,7 @@ const PAGE = `<!doctype html>
 
   .search-wrap svg {
     position: absolute;
-    left: 10px;
+    left: 11px;
     top: 50%;
     transform: translateY(-50%);
     color: var(--fg-muted);
@@ -184,16 +200,17 @@ const PAGE = `<!doctype html>
 
   .search-input {
     width: 100%;
-    height: 34px;
-    background: var(--surface);
+    height: 38px;
+    background: rgba(255, 255, 255, 0.06);
     border: 1px solid var(--border);
-    border-radius: 7px;
-    padding: 0 10px 0 32px;
+    box-shadow: var(--specular);
+    border-radius: 12px;
+    padding: 0 12px 0 34px;
     color: var(--fg);
     font-family: var(--sans);
     font-size: 12.5px;
     outline: none;
-    transition: border-color 0.15s ease;
+    transition: border-color 0.18s ease, background-color 0.18s ease;
   }
 
   .search-input::placeholder {
@@ -201,7 +218,8 @@ const PAGE = `<!doctype html>
   }
 
   .search-input:focus {
-    border-color: var(--border-strong);
+    border-color: rgba(52, 245, 164, 0.45);
+    background: rgba(255, 255, 255, 0.09);
   }
 
   .nav-group {
@@ -217,19 +235,21 @@ const PAGE = `<!doctype html>
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 10px;
+    padding: 7px 10px;
     font-family: var(--mono);
     font-size: 11.5px;
     color: var(--fg-secondary);
-    border-radius: 6px;
-    transition: background-color 0.12s ease, color 0.12s ease;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .nav a:hover {
-    background: var(--surface-2);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.1);
     color: var(--fg);
   }
 
@@ -237,12 +257,12 @@ const PAGE = `<!doctype html>
     font-family: var(--mono);
     font-size: 9.5px;
     font-weight: 600;
-    padding: 2px 5px;
-    border-radius: 4px;
+    padding: 2px 6px;
+    border-radius: 6px;
     letter-spacing: 0.04em;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: var(--fg);
+    background: rgba(18, 216, 138, 0.14);
+    border: 1px solid rgba(52, 245, 164, 0.28);
+    color: var(--accent-hi);
     flex-shrink: 0;
   }
 
@@ -262,10 +282,10 @@ const PAGE = `<!doctype html>
   }
 
   .doc-header h1 {
-    font-size: clamp(22px, 3vw, 28px);
-    font-weight: 600;
+    font-size: clamp(24px, 3vw, 30px);
+    font-weight: 700;
     letter-spacing: -0.03em;
-    background: linear-gradient(180deg, #ffffff 30%, #a1a1aa 100%);
+    background: linear-gradient(135deg, #ffffff 25%, #b8f7dc 75%, #8ae2ff 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
@@ -284,34 +304,33 @@ const PAGE = `<!doctype html>
     color: var(--fg);
     background: var(--surface-2);
     border: 1px solid var(--border);
-    padding: 1px 5px;
-    border-radius: 4px;
+    padding: 1px 6px;
+    border-radius: 6px;
   }
 
   .badge {
     font-family: var(--mono);
     font-size: 11.5px;
-    padding: 5px 11px;
+    padding: 6px 12px;
     border: 1px solid var(--border-strong);
     border-radius: 999px;
     color: var(--fg-secondary);
-    background: var(--surface);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    background: rgba(18, 25, 32, 0.72);
     white-space: nowrap;
   }
 
   .badge b {
-    color: var(--fg);
+    color: var(--accent-hi);
     font-weight: 600;
   }
 
   .auth-bar {
     margin-top: 20px;
-    background: var(--surface);
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025));
     border: 1px solid var(--border);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    border-radius: 10px;
-    padding: 12px 16px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+    border-radius: 16px;
+    padding: 13px 16px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -324,11 +343,12 @@ const PAGE = `<!doctype html>
     align-items: center;
     gap: 10px;
     font-size: 12.5px;
+    font-weight: 500;
     color: var(--fg-secondary);
   }
 
   .auth-bar-left svg {
-    color: var(--fg-muted);
+    color: var(--accent-hi);
     flex-shrink: 0;
   }
 
@@ -342,19 +362,21 @@ const PAGE = `<!doctype html>
   }
 
   .auth-input-group input {
-    height: 34px;
+    height: 36px;
     font-family: var(--mono);
     font-size: 12px;
   }
 
   section.endpoint {
-    background: var(--surface);
+    background: linear-gradient(155deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025));
     border: 1px solid var(--border);
-    border-radius: 10px;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+    border-radius: 16px;
     margin-top: 12px;
     overflow: hidden;
     content-visibility: auto;
-    contain-intrinsic-size: 48px;
+    contain-intrinsic-size: 52px;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
   }
 
   section.endpoint:hover {
@@ -365,14 +387,14 @@ const PAGE = `<!doctype html>
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 13px 16px;
+    padding: 14px 16px;
     cursor: pointer;
     user-select: none;
-    transition: background-color 0.12s ease;
+    transition: background-color 0.15s ease;
   }
 
   .ep-head:hover {
-    background: var(--surface-2);
+    background: rgba(255, 255, 255, 0.045);
   }
 
   .ep-head h3 {
@@ -407,14 +429,14 @@ const PAGE = `<!doctype html>
 
   .endpoint.open .caret {
     transform: rotate(90deg);
-    color: var(--fg);
+    color: var(--accent-hi);
   }
 
   .ep-body {
     display: none;
     border-top: 1px solid var(--border);
     padding: 18px 16px;
-    background: rgba(0, 0, 0, 0.16);
+    background: rgba(5, 8, 11, 0.36);
   }
 
   .endpoint.open .ep-body {
@@ -431,8 +453,8 @@ const PAGE = `<!doctype html>
   .table-wrap {
     overflow-x: auto;
     border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--bg);
+    border-radius: 12px;
+    background: rgba(7, 10, 14, 0.72);
     margin-bottom: 16px;
   }
 
@@ -448,13 +470,13 @@ const PAGE = `<!doctype html>
     letter-spacing: 0.06em;
     color: var(--fg-muted);
     text-align: left;
-    padding: 8px 12px;
+    padding: 9px 12px;
     border-bottom: 1px solid var(--border);
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(255, 255, 255, 0.03);
   }
 
   .params td {
-    padding: 8px 12px;
+    padding: 9px 12px;
     border-bottom: 1px solid var(--border);
     font-size: 12.5px;
     color: var(--fg-secondary);
@@ -473,12 +495,12 @@ const PAGE = `<!doctype html>
 
   .req {
     font-family: var(--mono);
-    color: var(--fg);
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: var(--accent-hi);
+    background: rgba(18, 216, 138, 0.12);
+    border: 1px solid rgba(52, 245, 164, 0.25);
     font-size: 9.5px;
     padding: 1px 5px;
-    border-radius: 4px;
+    border-radius: 5px;
     margin-left: 6px;
   }
 
@@ -512,16 +534,17 @@ const PAGE = `<!doctype html>
 
   input, select, textarea {
     width: 100%;
-    height: 36px;
-    background: var(--bg);
-    border: 1px solid var(--border-strong);
-    border-radius: 7px;
+    height: 38px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    box-shadow: none;
+    border-radius: 11px;
     color: var(--fg);
-    padding: 0 11px;
+    padding: 0 12px;
     font-family: var(--mono);
     font-size: 12px;
     outline: none;
-    transition: border-color 0.15s ease;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
   }
 
   input::placeholder {
@@ -530,7 +553,8 @@ const PAGE = `<!doctype html>
   }
 
   input:focus, select:focus, textarea:focus {
-    border-color: rgba(255, 255, 255, 0.32);
+    border-color: rgba(52, 245, 164, 0.45);
+    background: rgba(255, 255, 255, 0.08);
   }
 
   .btn {
@@ -538,21 +562,22 @@ const PAGE = `<!doctype html>
     align-items: center;
     justify-content: center;
     gap: 7px;
-    height: 34px;
-    padding: 0 14px;
-    border-radius: 7px;
+    height: 36px;
+    padding: 0 16px;
+    border-radius: 999px;
     font-family: var(--sans);
     font-size: 12.5px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
-    transition: transform 0.12s ease, background-color 0.15s ease, border-color 0.15s ease;
-    background: #f4f4f5;
-    border: 1px solid #ffffff;
-    color: #09090b;
+    transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), filter 0.15s ease, background-color 0.15s ease;
+    background: linear-gradient(135deg, var(--accent-hi), var(--accent));
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 8px 20px rgba(18, 216, 138, 0.22);
+    color: #03150d;
   }
 
   .btn:hover {
-    background: #e4e4e7;
+    filter: brightness(1.06);
   }
 
   .btn:active {
@@ -565,15 +590,17 @@ const PAGE = `<!doctype html>
   }
 
   .btn-ghost {
-    background: var(--surface-2);
+    background: rgba(255, 255, 255, 0.07);
     border: 1px solid var(--border-strong);
+    box-shadow: var(--specular);
     color: var(--fg-secondary);
   }
 
   .btn-ghost:hover {
     color: var(--fg);
-    border-color: rgba(255, 255, 255, 0.24);
-    background: var(--surface-2);
+    border-color: rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.12);
+    filter: none;
   }
 
   .btn-row {
@@ -587,21 +614,21 @@ const PAGE = `<!doctype html>
   .status {
     font-family: var(--mono);
     font-size: 11.5px;
-    padding: 3px 8px;
-    border-radius: 5px;
+    padding: 4px 10px;
+    border-radius: 999px;
     display: none;
   }
 
   .status-ok {
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    color: var(--fg);
+    background: rgba(18, 216, 138, 0.14);
+    border: 1px solid rgba(52, 245, 164, 0.32);
+    color: var(--accent-hi);
     display: inline-block;
   }
 
   .status-err {
-    background: rgba(239, 68, 68, 0.12);
-    border: 1px solid rgba(239, 68, 68, 0.28);
+    background: rgba(239, 68, 68, 0.14);
+    border: 1px solid rgba(239, 68, 68, 0.32);
     color: #fca5a5;
     display: inline-block;
   }
@@ -623,9 +650,9 @@ const PAGE = `<!doctype html>
   }
 
   pre {
-    background: var(--bg);
+    background: rgba(7, 10, 14, 0.78);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 12px 14px;
     font-family: var(--mono);
     font-size: 12px;
@@ -662,6 +689,16 @@ const PAGE = `<!doctype html>
     gap: 6px;
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    * {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+
   @media (max-width: 900px) {
     .menu-toggle {
       display: inline-flex;
@@ -674,13 +711,15 @@ const PAGE = `<!doctype html>
     aside {
       display: none;
       position: fixed;
-      top: 49px;
+      top: 55px;
       left: 0;
       right: 0;
       bottom: 0;
-      height: calc(100vh - 49px);
+      height: calc(100vh - 55px);
       z-index: 25;
-      background: #09090b;
+      background: rgba(8, 12, 16, 0.94);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
       border-right: none;
       padding: 16px 20px 40px;
     }
@@ -729,13 +768,17 @@ const PAGE = `<!doctype html>
   <div class="topbar-inner">
     <div class="topbar-left">
       <a href="/" class="brand">
-        <span class="brand-mark">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 36 36" fill="none">
+            <path d="M22.34 6.9A11.75 11.75 0 1 0 27.44 25.62A9.75 9.75 0 1 1 22.34 6.9Z" fill="#2EE89B"/>
+            <rect x="21.25" y="10.75" width="2.8" height="11.5" rx="1.4" fill="#FFFFFF"/>
+            <rect x="25.95" y="13.75" width="2.8" height="8.5" rx="1.4" fill="#FFFFFF"/>
+          </svg>
         </span>
-        simple-ytapi
+        Lunarellys
       </a>
       <span class="sep">/</span>
-      <span class="page-label">Docs</span>
+      <span class="page-label">API Docs</span>
     </div>
     <button type="button" class="menu-toggle" id="menu-toggle" aria-expanded="false" aria-controls="sidebar">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
@@ -793,14 +836,16 @@ const PAGE = `<!doctype html>
             <div class="ex-label">Response</div>
             <pre>{
   "success": true,
-  "name": "YouTube REST API",
-  "version": "1.0.0",
-  "endpoints": [ ... ]
+  "name": "Lunarellys REST API",
+  "service": "lunarellys-api",
+  "version": "1.2.0",
+  "auth": "open",
+  "region": "ID"
 }</pre>
           </div>
         </div>
         <div class="btn-row">
-          <button type="button" class="btn" data-run-root="/">Send Request</button>
+          <button type="button" class="btn" data-run-root="/api/">Send Request</button>
           <span class="status" id="st-root"></span>
           <span class="elapsed" id="el-root"></span>
         </div>
@@ -811,7 +856,7 @@ const PAGE = `<!doctype html>
     <section id="sections"></section>
 
     <footer>
-      <span>simple ytapi — © Rex</span>
+      <span>Lunarellys Music API Documentation</span>
       <span>Responses are cached server-side. Stream URLs expire after ~6 hours.</span>
     </footer>
   </main>

@@ -7,14 +7,19 @@ export function route(method, path, description, params, example) {
   return path;
 }
 
-route('GET', '/', 'API information and endpoint list', [], {
+route('GET', '/', 'API information and developer metadata', [], {
   request: 'GET /api/',
-  response: '{ success, name, version, endpoints: [...] }'
+  response: '{ success, name, service, version, developer, auth, region }'
 });
 
-route('GET', '/health', 'Health check with cache stats', [], {
+route('GET', '/health', 'Health check with cache stats and node capabilities', [], {
   request: 'GET /api/health',
-  response: '{ success, uptime, cache: { entries, hits, misses } }'
+  response: '{ success, status, service, version, developer, uptime, authRequired, cache }'
+});
+
+route('GET', '/node/info', 'Public Pterodactyl / self-hosted node discovery & capability probe', [], {
+  request: 'GET /api/node/info',
+  response: '{ success, status, service, version, developer, region, baseUrl, authRequired, googleOAuthConfigured, callbackUrl }'
 });
 
 route('GET', '/search', 'YouTube search (all types combined)', [

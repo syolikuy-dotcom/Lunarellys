@@ -1,9 +1,10 @@
-import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/music_models.dart';
 import '../../state/settings_provider.dart';
+import '../widgets/liquid_glass.dart';
 import '../widgets/media_card.dart';
 import '../widgets/user_avatar_button.dart';
 import 'detail_screens.dart';
@@ -34,193 +35,353 @@ final exploreProvider = FutureProvider<ExploreData>((ref) async {
   );
 });
 
-class ExploreScreen extends ConsumerWidget {
+class ExploreScreen extends ConsumerStatefulWidget {
   final VoidCallback onOpenDrawer;
   const ExploreScreen({super.key, required this.onOpenDrawer});
 
-  static const _moodPalette = [
-    Color(0xFF1E3264),
-    Color(0xFF8D67AB),
-    Color(0xFFBA5D07),
-    Color(0xFF148A08),
-    Color(0xFFE8115B),
-    Color(0xFF503750),
-    Color(0xFF0D73EC),
-    Color(0xFFAF2896),
+  @override
+  ConsumerState<ExploreScreen> createState() => _ExploreScreenState();
+}
+
+class _ExploreScreenState extends ConsumerState<ExploreScreen> {
+  final ScrollController _scrollCtrl = ScrollController();
+  final GlobalKey _chartsKey = GlobalKey();
+  final GlobalKey _moodsKey = GlobalKey();
+
+  static const _moodAccentPalette = [
+    Color(0xFFF5B400),
+    Color(0xFF12D88A),
+    Color(0xFF38BDF8),
+    Color(0xFFA855F7),
+    Color(0xFFEF4444),
+    Color(0xFFF97316),
+    Color(0xFF14B8A6),
+    Color(0xFFEC4899),
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  void _scrollToSection(GlobalKey key) {
+    final ctx = key.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 360),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final asyncData = ref.watch(exploreProvider);
 
-    return RefreshIndicator(
-      color: AppColors.spotifyGreen,
-      onRefresh: () => ref.refresh(exploreProvider.future),
-      child: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            floating: true,
-            titleSpacing: 16,
-            title: Row(
-              children: [
-                UserAvatarButton(size: 34, onTap: onOpenDrawer),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text(
-                    'Explore & Charts',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+    return LiquidGlassAmbientBackground(
+      child: RefreshIndicator(
+        color: AppColors.brandGreenBright,
+        onRefresh: () => ref.refresh(exploreProvider.future),
+        child: CustomScrollView(
+          controller: _scrollCtrl,
+          slivers: [
+            SliverAppBar(
+              floating: true,
+              snap: true,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              toolbarHeight: 68,
+              titleSpacing: 16,
+              flexibleSpace: RepaintBoundary(
+                child: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0x880B0F14),
+                      border: Border(
+                        bottom: BorderSide(color: Colors.white.withAlpha(12), width: 0.7),
+                      ),
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ),
-          asyncData.when(
-            loading: () => const SliverFillRemaining(
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.spotifyGreen),
+              ),
+              ),
+              title: Row(
+                children: [
+                  UserAvatarButton(size: 36, onTap: widget.onOpenDrawer),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Explore',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                        ),
+                        Text(
+                          'New releases, charts & moods',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            error: (err, _) => SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Failed to load Explore', style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 10),
-                    FilledButton(
-                      onPressed: () => ref.invalidate(exploreProvider),
-                      child: const Text('Retry'),
-                    ),
-                  ],
+            asyncData.when(
+              loading: () => const SliverFillRemaining(
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.brandGreenBright),
                 ),
               ),
-            ),
-            data: (data) {
-              final allSections = [...data.explore, ...data.charts];
-              return SliverList(
-                delegate: SliverChildListDelegate([
-                  if (data.moods.isNotEmpty) ...[
+              error: (err, _) => SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Failed to load Explore', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 10),
+                      FilledButton(
+                        onPressed: () => ref.invalidate(exploreProvider),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              data: (data) {
+                return SliverList(
+                  delegate: SliverChildListDelegate([
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                      child: Text('Moods & Genres', style: Theme.of(context).textTheme.titleLarge),
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _QuickExploreCard(
+                              icon: Icons.new_releases_outlined,
+                              label: 'New\nReleases',
+                              accent: AppColors.brandGreenBright,
+                              onTap: () => _scrollCtrl.animateTo(
+                                0,
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeOut,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _QuickExploreCard(
+                              icon: Icons.trending_up_rounded,
+                              label: 'Top\nCharts',
+                              accent: AppColors.lunarCyan,
+                              onTap: () => _scrollToSection(_chartsKey),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _QuickExploreCard(
+                              icon: Icons.sentiment_satisfied_alt_rounded,
+                              label: 'Moods &\nGenres',
+                              accent: const Color(0xFFF5B400),
+                              onTap: () => _scrollToSection(_moodsKey),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: data.moods.take(12).length,
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                          mainAxisExtent: 82,
+                    ...data.explore.map((sec) => _buildSectionCarousel(context, sec)),
+                    if (data.moods.isNotEmpty) ...[
+                      Padding(
+                        key: _moodsKey,
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                        child: Text(
+                          'Moods & Genres',
+                          style: Theme.of(context).textTheme.titleLarge,
                         ),
-                        itemBuilder: (ctx, i) {
-                          final mood = data.moods[i];
-                          final color = _moodPalette[i % _moodPalette.length];
-                          return InkWell(
-                            borderRadius: BorderRadius.circular(10),
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => MoodPlaylistsScreen(mood: mood),
-                                ),
-                              );
-                            },
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Container(
-                                color: color,
-                                child: Stack(
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: data.moods.take(14).length,
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                            mainAxisExtent: 58,
+                          ),
+                          itemBuilder: (ctx, i) {
+                            final mood = data.moods[i];
+                            final stripColor = _moodAccentPalette[i % _moodAccentPalette.length];
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(14),
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => MoodPlaylistsScreen(mood: mood),
+                                  ),
+                                );
+                              },
+                              child: LiquidGlassSurface(
+                                borderRadius: 14,
+                                blurSigma: 18,
+                                child: Row(
                                   children: [
-                                    Positioned(
-                                      right: -12,
-                                      bottom: -10,
-                                      child: Transform.rotate(
-                                        angle: math.pi / 7,
-                                        child: Container(
-                                          width: 56,
-                                          height: 56,
-                                          decoration: BoxDecoration(
-                                            color: Colors.black.withAlpha(55),
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: const Icon(
-                                            Icons.music_note_rounded,
-                                            color: Colors.white54,
-                                            size: 26,
-                                          ),
+                                    Container(
+                                      width: 5,
+                                      height: 58,
+                                      decoration: BoxDecoration(
+                                        color: stripColor,
+                                        borderRadius: const BorderRadius.horizontal(
+                                          left: Radius.circular(14),
                                         ),
                                       ),
                                     ),
-                                    Padding(
-                                      padding: const EdgeInsets.fromLTRB(12, 12, 46, 12),
-                                      child: Text(
-                                        mood.name,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 14,
-                                          height: 1.2,
-                                          color: Colors.white,
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(right: 10),
+                                        child: Text(
+                                          mood.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 13.5,
+                                            color: Colors.white,
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 28),
-                  ],
-                  ...allSections.map(
-                    (sec) => Padding(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(
-                              sec.title.isEmpty ? 'Discover' : sec.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            height: 238,
-                            child: ListView.separated(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              scrollDirection: Axis.horizontal,
-                              itemCount: sec.items.length,
-                              separatorBuilder: (_, __) => const SizedBox(width: 14),
-                              itemBuilder: (ctx, i) => MediaCard(
-                                item: sec.items[i],
-                                contextQueue: sec.items,
-                                width: 148,
-                                contextLabel: sec.title.isEmpty ? 'Explore' : sec.title,
-                              ),
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 26),
+                    ],
+                    if (data.charts.isNotEmpty)
+                      Container(
+                        key: _chartsKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: data.charts
+                              .map((sec) => _buildSectionCarousel(context, sec, fallbackTitle: 'Charts'))
+                              .toList(),
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 132),
-                ]),
-              );
-            },
+                    const SizedBox(height: 164),
+                  ]),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionCarousel(
+    BuildContext context,
+    MusicSection sec, {
+    String fallbackTitle = 'Discover',
+  }) {
+    final title = sec.title.isEmpty ? fallbackTitle : sec.title;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 238,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              scrollDirection: Axis.horizontal,
+              itemCount: sec.items.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 14),
+              itemBuilder: (ctx, i) => MediaCard(
+                item: sec.items[i],
+                contextQueue: sec.items,
+                width: 148,
+                contextLabel: title,
+              ),
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _QuickExploreCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color accent;
+  final VoidCallback onTap;
+
+  const _QuickExploreCard({
+    required this.icon,
+    required this.label,
+    required this.accent,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: LiquidGlassSurface(
+        borderRadius: 18,
+        blurSigma: 20,
+        padding: const EdgeInsets.all(13),
+        child: SizedBox(
+          height: 68,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(icon, size: 22, color: accent),
+              Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  height: 1.2,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

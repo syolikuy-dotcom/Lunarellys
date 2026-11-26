@@ -2,25 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
-  static const Color background = Color(0xFF121212);
-  static const Color backgroundDeep = Color(0xFF090C0A);
-  static const Color surface = Color(0xFF181818);
-  static const Color surfaceElevated = Color(0xFF242424);
-  static const Color surfaceHigh = Color(0xFF2E2E2E);
+  static const Color background = Color(0xFF0A0D10);
+  static const Color backgroundDeep = Color(0xFF050709);
+  static const Color surface = Color(0xFF11161B);
+  static const Color surfaceElevated = Color(0xFF182028);
+  static const Color surfaceHigh = Color(0xFF222C36);
 
-  static const Color border = Color(0x14FFFFFF);
-  static const Color borderStrong = Color(0x26FFFFFF);
+  static const Color border = Color(0x1EFFFFFF);
+  static const Color borderStrong = Color(0x38FFFFFF);
+  static const Color specularRim = Color(0x4DFFFFFF);
 
-  static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFFB3B3B3);
-  static const Color textMuted = Color(0xFF7D7D7D);
+  static const Color glassFill = Color(0x66161D24);
+  static const Color glassFillStrong = Color(0x9912181E);
+  static const Color glassTint = Color(0x22FFFFFF);
 
-  static const Color brandGreen = Color(0xFF1DB954);
-  static const Color brandGreenBright = Color(0xFF1ED760);
-  static const Color brandDeep = Color(0xFF14833B);
+  static const Color textPrimary = Color(0xFFF8FAFC);
+  static const Color textSecondary = Color(0xFFAEBAC7);
+  static const Color textMuted = Color(0xFF73808E);
 
-  static const Color error = Color(0xFFF15E6C);
-  static const Color success = Color(0xFF1DB954);
+  // Bespoke Lunarellys Aurora Emerald & Lunar Cyan palette
+  static const Color brandGreen = Color(0xFF12D88A);
+  static const Color brandGreenBright = Color(0xFF34F5A4);
+  static const Color brandDeep = Color(0xFF0B6E4F);
+  static const Color lunarCyan = Color(0xFF38BDF8);
+
+  static const Color error = Color(0xFFF87171);
+  static const Color success = Color(0xFF12D88A);
 }
 
 class AppTheme {
@@ -31,7 +38,7 @@ class AppTheme {
       brightness: Brightness.dark,
       surface: AppColors.surface,
       primary: accent,
-      secondary: AppColors.brandGreen,
+      secondary: AppColors.lunarCyan,
       onPrimary: Colors.black,
     );
 
@@ -45,8 +52,8 @@ class AppTheme {
       scaffoldBackgroundColor: AppColors.background,
       canvasColor: AppColors.background,
       dividerColor: AppColors.border,
-      splashColor: accent.withAlpha(28),
-      highlightColor: Colors.white.withAlpha(14),
+      splashColor: accent.withAlpha(32),
+      highlightColor: Colors.white.withAlpha(18),
       textTheme: baseText.copyWith(
         headlineLarge: displayStyle.copyWith(
           fontSize: 28,
@@ -81,7 +88,7 @@ class AppTheme {
         ),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.background,
+        backgroundColor: Colors.transparent,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -108,6 +115,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.textPrimary,
+          backgroundColor: Colors.white.withAlpha(14),
           side: const BorderSide(color: AppColors.borderStrong),
           textStyle: displayStyle.copyWith(
             fontSize: 13.5,
@@ -118,7 +126,7 @@ class AppTheme {
         ),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: AppColors.surfaceElevated,
+        backgroundColor: Colors.white.withAlpha(20),
         selectedColor: AppColors.brandGreenBright,
         labelStyle: GoogleFonts.dmSans(
           fontSize: 13,
@@ -130,15 +138,15 @@ class AppTheme {
           fontWeight: FontWeight.w700,
           color: Colors.black,
         ),
-        side: BorderSide.none,
+        side: const BorderSide(color: AppColors.border, width: 0.8),
         shape: const StadiumBorder(),
         showCheckmark: false,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: const Color(0xF00B0B0B),
-        indicatorColor: Colors.transparent,
-        height: 64,
+        backgroundColor: Colors.transparent,
+        indicatorColor: Colors.white.withAlpha(24),
+        height: 62,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return GoogleFonts.dmSans(
@@ -150,8 +158,8 @@ class AppTheme {
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return IconThemeData(
-            size: 24,
-            color: selected ? AppColors.textPrimary : AppColors.textSecondary,
+            size: 23,
+            color: selected ? AppColors.brandGreenBright : AppColors.textSecondary,
           );
         }),
       ),
@@ -166,43 +174,50 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surfaceElevated,
+        fillColor: Colors.white.withAlpha(18),
         hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.brandGreenBright, width: 1.5),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.surfaceHigh,
+        backgroundColor: AppColors.surfaceElevated,
         contentTextStyle: GoogleFonts.dmSans(
           fontSize: 13.5,
           fontWeight: FontWeight.w500,
           color: AppColors.textPrimary,
         ),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppColors.borderStrong),
+        ),
       ),
       bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: AppColors.surfaceElevated,
+        backgroundColor: Color(0xE612181F),
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          side: BorderSide(color: AppColors.borderStrong, width: 0.9),
         ),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: AppColors.surfaceElevated,
+        backgroundColor: const Color(0xEC141B23),
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: const BorderSide(color: AppColors.borderStrong),
+        ),
       ),
     );
   }

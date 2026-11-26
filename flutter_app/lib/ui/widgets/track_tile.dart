@@ -10,6 +10,7 @@ import '../../state/player_provider.dart';
 import '../screens/detail_screens.dart';
 import 'animated_eq.dart';
 import 'artwork_image.dart';
+import 'liquid_glass.dart';
 
 class TrackTile extends ConsumerWidget {
   final MusicItem track;
@@ -52,8 +53,11 @@ class TrackTile extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: isPlayingThis ? Colors.white.withAlpha(14) : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
+          color: isPlayingThis ? Colors.white.withAlpha(22) : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          border: isPlayingThis
+              ? Border.all(color: AppColors.brandGreenBright.withAlpha(75), width: 0.9)
+              : null,
         ),
         child: Row(
           children: [
@@ -212,14 +216,12 @@ class TrackTile extends ConsumerWidget {
     final isDownloaded = library.isDownloaded(track.id);
     final isLiked = library.isLiked(track.id);
 
-    showModalBottomSheet<void>(
+    showLiquidGlassSheet<void>(
       context: context,
-      isScrollControlled: true,
       builder: (sheetCtx) {
-        return SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Column(
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
@@ -350,7 +352,6 @@ class TrackTile extends ConsumerWidget {
                 ),
               ],
             ),
-          ),
         );
       },
     );
@@ -363,14 +364,12 @@ class TrackTile extends ConsumerWidget {
 
 void showTrackPlaylistPicker(BuildContext context, WidgetRef ref, MusicItem track) {
   final playlists = ref.read(libraryProvider).playlists;
-  showModalBottomSheet<void>(
+  showLiquidGlassSheet<void>(
     context: context,
-    isScrollControlled: true,
     builder: (ctx) {
-      return SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -419,9 +418,8 @@ void showTrackPlaylistPicker(BuildContext context, WidgetRef ref, MusicItem trac
               ),
             ],
           ),
-        ),
-      );
-    },
+        );
+      },
   );
 }
 

@@ -21,6 +21,7 @@ app.set('trust proxy', 1);
 
 app.use(helmet({
   referrerPolicy: { policy: 'no-referrer' },
+  xFrameOptions: false,
   contentSecurityPolicy: {
     useDefaults: true,
     directives: {
@@ -29,10 +30,11 @@ app.use(helmet({
       'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
       'script-src': ["'self'", "'unsafe-inline'"],
       'script-src-attr': ["'unsafe-inline'"],
-      'img-src': ["'self'", 'https:', 'data:', 'blob:'],
-      'media-src': ["'self'", 'https:', 'blob:'],
-      'connect-src': ["'self'", 'https:'],
-      'upgrade-insecure-requests': []
+      'img-src': ["'self'", 'https:', 'http:', 'data:', 'blob:'],
+      'media-src': ["'self'", 'https:', 'http:', 'blob:'],
+      'connect-src': ["'self'", 'https:', 'http:'],
+      'frame-ancestors': null,
+      'upgrade-insecure-requests': null
     }
   },
   crossOriginResourcePolicy: { policy: 'cross-origin' }
@@ -54,7 +56,7 @@ app.use((req, res, next) => {
     res.setHeader('Vary', 'Origin');
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, HEAD, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Key, X-User-Token, X-Admin-Passcode, Authorization, Range');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Key, X-Web-Token, X-User-Token, X-Admin-Passcode, Authorization, Range');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges, Content-Type');
   res.setHeader('Access-Control-Max-Age', '86400');
   if (req.method === 'OPTIONS') {
@@ -81,8 +83,8 @@ app.use('/', rateLimit, apiKeyAuth, validateInput, apiRouter);
 app.use(notFound);
 app.use(errorHandler);
 
-const server = app.listen(config.port, () => {
-  console.log(`[lunarellys-api] listening on :${config.port} (env=${config.nodeEnv}, auth=${config.apiKeys.length ? 'on' : 'off'})`);
+const server = app.listen(config.port, '0.0.0.0', () => {
+  console.log(`[lunarellys-api] listening on 0.0.0.0:${config.port} (env=${config.nodeEnv}, auth=${config.apiKeys.length ? 'on' : 'off'})`);
 });
 server.headersTimeout = 15000;
 server.keepAliveTimeout = 65000;

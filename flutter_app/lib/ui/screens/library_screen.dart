@@ -5,6 +5,7 @@ import '../../data/models/music_models.dart';
 import '../../state/library_provider.dart';
 import '../../state/player_provider.dart';
 import '../widgets/artwork_image.dart';
+import '../widgets/liquid_glass.dart';
 import '../widgets/track_tile.dart';
 import '../widgets/user_avatar_button.dart';
 import 'detail_screens.dart';
@@ -67,9 +68,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   Widget build(BuildContext context) {
     final library = ref.watch(libraryProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 16,
+    return LiquidGlassAmbientBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          titleSpacing: 16,
         title: _searching
             ? TextField(
                 controller: _searchCtrl,
@@ -189,6 +192,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -272,7 +276,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       );
     }
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 132),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 164),
       itemCount: items.length,
       itemBuilder: (ctx, i) {
         final item = items[i];
@@ -319,7 +323,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         : library.playlists.where((p) => p.name.toLowerCase().contains(q)).toList();
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 132),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 164),
       children: [
         _PinnedCollectionTile(
           title: 'Liked Songs',
@@ -438,7 +442,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       );
     }
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 132),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 164),
       children: [_buildPlaylistCollection(context, playlists, savedPlaylists)],
     );
   }
@@ -457,7 +461,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           crossAxisCount: 2,
           crossAxisSpacing: 12,
           mainAxisSpacing: 14,
-          mainAxisExtent: 220,
+          mainAxisExtent: 232,
         ),
         itemBuilder: (ctx, i) {
           if (i < playlists.length) {
@@ -719,46 +723,51 @@ class _PinnedCollectionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(16),
       onTap: onTap,
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: gradient,
+      child: LiquidGlassSurface(
+        borderRadius: 16,
+        blurSigma: 18,
+        padding: const EdgeInsets.all(8),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: gradient,
+                ),
+                borderRadius: BorderRadius.circular(12),
               ),
-              borderRadius: BorderRadius.circular(6),
+              child: Icon(icon, color: Colors.white, size: 24),
             ),
-            child: Icon(icon, color: Colors.white, size: 26),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
-                ),
-              ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
-        ],
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+          ],
+        ),
       ),
     );
   }
@@ -800,7 +809,7 @@ class _TrackCollectionView extends ConsumerWidget {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 132),
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 164),
       itemCount: tracks.length + 1,
       itemBuilder: (ctx, i) {
         if (i == 0) {
@@ -820,7 +829,7 @@ class _TrackCollectionView extends ConsumerWidget {
                     onPressed: onClearHistory,
                   ),
                 IconButton(
-                  icon: const Icon(Icons.shuffle_rounded, color: AppColors.spotifyGreen),
+                  icon: const Icon(Icons.shuffle_rounded, color: AppColors.brandGreen),
                   tooltip: 'Shuffle',
                   onPressed: () => ref
                       .read(playerProvider.notifier)
@@ -836,7 +845,7 @@ class _TrackCollectionView extends ConsumerWidget {
                     width: 46,
                     height: 46,
                     decoration: const BoxDecoration(
-                      color: AppColors.spotifyGreen,
+                      color: AppColors.brandGreen,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.play_arrow_rounded, color: Colors.black, size: 28),

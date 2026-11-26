@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,9 +12,13 @@ import '../../state/player_provider.dart';
 import '../../state/settings_provider.dart';
 import '../widgets/artwork_image.dart';
 import '../widgets/google_logo.dart';
+import '../widgets/liquid_glass.dart';
+import '../widgets/lunarellys_logo.dart';
 import '../widgets/media_card.dart';
 import '../widgets/track_tile.dart';
 import 'auth_screen.dart';
+import 'explore_screen.dart';
+import 'home_screen.dart';
 
 class ArtistScreen extends ConsumerWidget {
   final String artistId;
@@ -26,12 +31,14 @@ class ArtistScreen extends ConsumerWidget {
     final isFollowed = ref.watch(libraryProvider.select((l) => l.isArtistFollowed(artistId)));
 
     return Scaffold(
-      body: FutureBuilder<MusicArtistDetail>(
+      backgroundColor: AppColors.background,
+      body: LiquidGlassAmbientBackground(
+        child: FutureBuilder<MusicArtistDetail>(
         future: future,
         builder: (ctx, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return const Center(
-              child: CircularProgressIndicator(color: AppColors.spotifyGreen),
+              child: CircularProgressIndicator(color: AppColors.brandGreen),
             );
           }
           if (snap.hasError || !snap.hasData) {
@@ -39,6 +46,7 @@ class ArtistScreen extends ConsumerWidget {
                 ? (snap.error as MusicApiException).message
                 : 'Unable to load artist right now.';
             return Scaffold(
+              backgroundColor: Colors.transparent,
               appBar: AppBar(title: const Text('Artist')),
               body: Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(msg, textAlign: TextAlign.center))),
             );
@@ -54,7 +62,7 @@ class ArtistScreen extends ConsumerWidget {
               SliverAppBar(
                 expandedHeight: 270,
                 pinned: true,
-                backgroundColor: AppColors.background,
+                backgroundColor: const Color(0xCC0A0D10),
                 flexibleSpace: LayoutBuilder(
                   builder: (_, constraints) {
                     final collapsed = constraints.biggest.height <=
@@ -64,13 +72,13 @@ class ArtistScreen extends ConsumerWidget {
                           ? Text(artist.name, maxLines: 1, overflow: TextOverflow.ellipsis)
                           : null,
                       background: Container(
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           gradient: LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              Color(0xFF2E3A4D),
-                              AppColors.background,
+                              const Color(0xFF1D3B46).withAlpha(190),
+                              Colors.transparent,
                             ],
                           ),
                         ),
@@ -108,14 +116,14 @@ class ArtistScreen extends ConsumerWidget {
                                 .toggleFollowArtist(artist.toMusicItem()),
                             style: OutlinedButton.styleFrom(
                               side: BorderSide(
-                                color: isFollowed ? AppColors.spotifyGreen : AppColors.borderStrong,
+                                color: isFollowed ? AppColors.brandGreen : AppColors.borderStrong,
                               ),
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             ),
                             child: Text(
                               isFollowed ? 'Following' : 'Follow',
                               style: TextStyle(
-                                color: isFollowed ? AppColors.spotifyGreenBright : Colors.white,
+                                color: isFollowed ? AppColors.brandGreenBright : Colors.white,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -125,7 +133,7 @@ class ArtistScreen extends ConsumerWidget {
                             IconButton(
                               icon: Icon(
                                 Icons.shuffle_rounded,
-                                color: shuffleActive ? AppColors.spotifyGreen : AppColors.textSecondary,
+                                color: shuffleActive ? AppColors.brandGreen : AppColors.textSecondary,
                               ),
                               tooltip: 'Shuffle Artist',
                               onPressed: () => ref
@@ -142,7 +150,7 @@ class ArtistScreen extends ConsumerWidget {
                                 width: 52,
                                 height: 52,
                                 decoration: const BoxDecoration(
-                                  color: AppColors.spotifyGreen,
+                                  color: AppColors.brandGreen,
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(Icons.play_arrow_rounded, color: Colors.black, size: 32),
@@ -208,10 +216,11 @@ class ArtistScreen extends ConsumerWidget {
                   childCount: artist.sections.length,
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 132)),
+              const SliverToBoxAdapter(child: SizedBox(height: 164)),
             ],
           );
         },
+      ),
       ),
     );
   }
@@ -290,22 +299,28 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
 
     if (_loading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.spotifyGreen)),
+        backgroundColor: AppColors.background,
+        body: LiquidGlassAmbientBackground(
+          child: Center(child: CircularProgressIndicator(color: AppColors.brandGreen)),
+        ),
       );
     }
     if (_error != null || _album == null) {
       return Scaffold(
+        backgroundColor: AppColors.background,
         appBar: AppBar(title: const Text('Album')),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(_error ?? 'Unable to load album right now.', textAlign: TextAlign.center),
-                const SizedBox(height: 12),
-                FilledButton(onPressed: _loadInitial, child: const Text('Retry')),
-              ],
+        body: LiquidGlassAmbientBackground(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_error ?? 'Unable to load album right now.', textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  FilledButton(onPressed: _loadInitial, child: const Text('Retry')),
+                ],
+              ),
             ),
           ),
         ),
@@ -321,12 +336,14 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
     ].join(' · ');
 
     return Scaffold(
-      body: CustomScrollView(
+      backgroundColor: AppColors.background,
+      body: LiquidGlassAmbientBackground(
+        child: CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 280,
             pinned: true,
-            backgroundColor: AppColors.background,
+            backgroundColor: const Color(0xCC0A0D10),
             flexibleSpace: LayoutBuilder(
               builder: (_, constraints) {
                 final collapsed = constraints.biggest.height <=
@@ -336,13 +353,13 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
                       ? Text(album.title, maxLines: 1, overflow: TextOverflow.ellipsis)
                       : null,
                   background: Container(
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Color(0xFF3A3054),
-                          AppColors.background,
+                          const Color(0xFF28264A).withAlpha(190),
+                          Colors.transparent,
                         ],
                       ),
                     ),
@@ -397,7 +414,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
                       IconButton(
                         icon: Icon(
                           isSaved ? Icons.check_circle_rounded : Icons.add_circle_outline_rounded,
-                          color: isSaved ? AppColors.spotifyGreen : AppColors.textSecondary,
+                          color: isSaved ? AppColors.brandGreen : AppColors.textSecondary,
                           size: 26,
                         ),
                         tooltip: isSaved ? 'Saved in Library' : 'Save Album',
@@ -420,7 +437,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
                         IconButton(
                           icon: Icon(
                             Icons.shuffle_rounded,
-                            color: shuffleActive ? AppColors.spotifyGreen : AppColors.textSecondary,
+                            color: shuffleActive ? AppColors.brandGreen : AppColors.textSecondary,
                           ),
                           tooltip: 'Shuffle Album',
                           onPressed: () => ref
@@ -437,7 +454,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
                             width: 52,
                             height: 52,
                             decoration: const BoxDecoration(
-                              color: AppColors.spotifyGreen,
+                              color: AppColors.brandGreen,
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(Icons.play_arrow_rounded, color: Colors.black, size: 32),
@@ -475,15 +492,16 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.spotifyGreen),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.brandGreen),
                           )
                         : const Text('Load More Tracks'),
                   ),
                 ),
               ),
             ),
-          const SliverToBoxAdapter(child: SizedBox(height: 132)),
+          const SliverToBoxAdapter(child: SizedBox(height: 164)),
         ],
+      ),
       ),
     );
   }
@@ -562,22 +580,28 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
 
     if (_loading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.spotifyGreen)),
+        backgroundColor: AppColors.background,
+        body: LiquidGlassAmbientBackground(
+          child: Center(child: CircularProgressIndicator(color: AppColors.brandGreen)),
+        ),
       );
     }
     if (_error != null || _playlist == null) {
       return Scaffold(
+        backgroundColor: AppColors.background,
         appBar: AppBar(title: const Text('Playlist')),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(_error ?? 'Unable to load playlist right now.', textAlign: TextAlign.center),
-                const SizedBox(height: 12),
-                FilledButton(onPressed: _loadInitial, child: const Text('Retry')),
-              ],
+        body: LiquidGlassAmbientBackground(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_error ?? 'Unable to load playlist right now.', textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  FilledButton(onPressed: _loadInitial, child: const Text('Retry')),
+                ],
+              ),
             ),
           ),
         ),
@@ -586,12 +610,14 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
 
     final pl = _playlist!;
     return Scaffold(
-      body: CustomScrollView(
+      backgroundColor: AppColors.background,
+      body: LiquidGlassAmbientBackground(
+        child: CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 280,
             pinned: true,
-            backgroundColor: AppColors.background,
+            backgroundColor: const Color(0xCC0A0D10),
             flexibleSpace: LayoutBuilder(
               builder: (_, constraints) {
                 final collapsed = constraints.biggest.height <=
@@ -601,13 +627,13 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
                       ? Text(pl.title, maxLines: 1, overflow: TextOverflow.ellipsis)
                       : null,
                   background: Container(
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Color(0xFF1E4638),
-                          AppColors.background,
+                          const Color(0xFF153E36).withAlpha(190),
+                          Colors.transparent,
                         ],
                       ),
                     ),
@@ -654,7 +680,7 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
                       IconButton(
                         icon: Icon(
                           isSaved ? Icons.check_circle_rounded : Icons.add_circle_outline_rounded,
-                          color: isSaved ? AppColors.spotifyGreen : AppColors.textSecondary,
+                          color: isSaved ? AppColors.brandGreen : AppColors.textSecondary,
                           size: 26,
                         ),
                         tooltip: isSaved ? 'Saved in Library' : 'Save Playlist',
@@ -677,7 +703,7 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
                         IconButton(
                           icon: Icon(
                             Icons.shuffle_rounded,
-                            color: shuffleActive ? AppColors.spotifyGreen : AppColors.textSecondary,
+                            color: shuffleActive ? AppColors.brandGreen : AppColors.textSecondary,
                           ),
                           tooltip: 'Shuffle Playlist',
                           onPressed: () => ref
@@ -694,7 +720,7 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
                             width: 52,
                             height: 52,
                             decoration: const BoxDecoration(
-                              color: AppColors.spotifyGreen,
+                              color: AppColors.brandGreen,
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(Icons.play_arrow_rounded, color: Colors.black, size: 32),
@@ -727,15 +753,16 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.spotifyGreen),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.brandGreen),
                           )
                         : const Text('Load More Tracks'),
                   ),
                 ),
               ),
             ),
-          const SliverToBoxAdapter(child: SizedBox(height: 132)),
+          const SliverToBoxAdapter(child: SizedBox(height: 164)),
         ],
+      ),
       ),
     );
   }
@@ -768,7 +795,9 @@ class LocalPlaylistScreen extends ConsumerWidget {
     final coverUrl = playlist.tracks.isNotEmpty ? playlist.tracks.first.bestThumbUrl(size: 500) : null;
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
+        backgroundColor: const Color(0x990A0D10),
         title: Text(playlist.name),
         actions: [
           IconButton(
@@ -778,11 +807,12 @@ class LocalPlaylistScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: playlist.tracks.isEmpty
-          ? const Center(child: Text('No songs in this playlist yet'))
-          : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 132),
-              itemCount: playlist.tracks.length + 1,
+      body: LiquidGlassAmbientBackground(
+        child: playlist.tracks.isEmpty
+            ? const Center(child: Text('No songs in this playlist yet'))
+            : ListView.builder(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 164),
+                itemCount: playlist.tracks.length + 1,
               itemBuilder: (ctx, i) {
                 if (i == 0) {
                   return Padding(
@@ -815,7 +845,7 @@ class LocalPlaylistScreen extends ConsumerWidget {
                             IconButton(
                               icon: Icon(
                                 Icons.shuffle_rounded,
-                                color: shuffleActive ? AppColors.spotifyGreen : AppColors.textSecondary,
+                                color: shuffleActive ? AppColors.brandGreen : AppColors.textSecondary,
                               ),
                               onPressed: () => ref
                                   .read(playerProvider.notifier)
@@ -833,7 +863,7 @@ class LocalPlaylistScreen extends ConsumerWidget {
                                 width: 50,
                                 height: 50,
                                 decoration: const BoxDecoration(
-                                  color: AppColors.spotifyGreen,
+                                  color: AppColors.brandGreen,
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(Icons.play_arrow_rounded, color: Colors.black, size: 30),
@@ -861,6 +891,7 @@ class LocalPlaylistScreen extends ConsumerWidget {
                 );
               },
             ),
+      ),
     );
   }
 
@@ -901,13 +932,18 @@ class MoodPlaylistsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final future = ref.watch(apiClientProvider).getMoodPlaylists(mood.browseId, mood.params);
     return Scaffold(
-      appBar: AppBar(title: Text(mood.name)),
-      body: FutureBuilder<List<MusicSection>>(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: const Color(0x990A0D10),
+        title: Text(mood.name),
+      ),
+      body: LiquidGlassAmbientBackground(
+        child: FutureBuilder<List<MusicSection>>(
         future: future,
         builder: (ctx, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return const Center(
-              child: CircularProgressIndicator(color: AppColors.spotifyGreen),
+              child: CircularProgressIndicator(color: AppColors.brandGreen),
             );
           }
           if (snap.hasError || !snap.hasData) {
@@ -918,7 +954,7 @@ class MoodPlaylistsScreen extends ConsumerWidget {
           }
           final sections = snap.data!;
           return ListView.builder(
-            padding: const EdgeInsets.only(bottom: 132),
+            padding: const EdgeInsets.only(bottom: 164),
             itemCount: sections.length,
             itemBuilder: (ctx, idx) {
               final sec = sections[idx];
@@ -957,6 +993,7 @@ class MoodPlaylistsScreen extends ConsumerWidget {
           );
         },
       ),
+      ),
     );
   }
 }
@@ -972,30 +1009,27 @@ class ProfileScreen extends ConsumerWidget {
     final isGoogle = auth.isSignedInGoogle;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 48),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: const Color(0x990A0D10),
+        title: const Text('Profile'),
+      ),
+      body: LiquidGlassAmbientBackground(
+        child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 164),
         children: [
-          Container(
+          LiquidGlassSurface(
+            borderRadius: 24,
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.spotifyGreen.withAlpha(55),
-                  AppColors.surfaceElevated,
-                ],
-              ),
-              borderRadius: BorderRadius.circular(18),
-            ),
+            tintColor: AppColors.brandDeep,
+            borderColor: AppColors.brandGreen.withAlpha(88),
             child: Column(
               children: [
                 Container(
                   width: 82,
                   height: 82,
                   decoration: BoxDecoration(
-                    color: isGoogle ? AppColors.surfaceHigh : AppColors.spotifyGreen,
+                    color: isGoogle ? AppColors.surfaceHigh : AppColors.brandGreen,
                     shape: BoxShape.circle,
                   ),
                   clipBehavior: Clip.antiAlias,
@@ -1081,13 +1115,15 @@ class ProfileScreen extends ConsumerWidget {
           const SizedBox(height: 22),
           Text('Your Library Summary', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 12),
-          GridView.count(
+          GridView(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: 2.1,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              mainAxisExtent: 82,
+            ),
             children: [
               _statTile('Liked Songs', '${library.likedSongs.length}', Icons.favorite_rounded),
               _statTile('Playlists', '${library.playlists.length}', Icons.queue_music_rounded),
@@ -1097,19 +1133,17 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ],
       ),
+      ),
     );
   }
 
   Widget _statTile(String label, String value, IconData icon) {
-    return Container(
+    return LiquidGlassSurface(
+      borderRadius: 18,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
-        borderRadius: BorderRadius.circular(12),
-      ),
       child: Row(
         children: [
-          Icon(icon, color: AppColors.spotifyGreen, size: 22),
+          Icon(icon, color: AppColors.brandGreenBright, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -1158,184 +1192,488 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _lastTapAt = now;
     if (_aboutTapCount >= 7) {
       _aboutTapCount = 0;
-      _openAdminAccessDialog();
+      _openAdminNodeSheet();
     }
   }
 
-  void _openAdminAccessDialog() {
+  void _openAdminNodeSheet() {
+    final cur = ref.read(settingsProvider);
+    final urlCtrl = TextEditingController(text: cur.serverUrl);
+    final keyCtrl = TextEditingController(text: cur.apiKey);
     final passCtrl = TextEditingController();
-    final urlCtrl = TextEditingController();
-    final keyCtrl = TextEditingController();
     var busy = false;
-    String? statusMsg;
-    var ok = false;
+    NodeProbeResult? probeResult;
+    String? adminMsg;
+    var adminOk = false;
 
-    showModalBottomSheet<void>(
+    showLiquidGlassSheet<void>(
       context: context,
-      isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => SafeArea(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              20,
-              18,
-              20,
-              MediaQuery.viewInsetsOf(ctx).bottom + 24,
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.admin_panel_settings_rounded, color: AppColors.spotifyGreen),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text('Admin Access', style: Theme.of(ctx).textTheme.titleLarge),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Enter your server ADMIN_PASSCODE to verify node health or apply a private endpoint override.',
-                    style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: passCtrl,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Admin Passcode',
-                      hintText: 'Required',
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            18,
+            20,
+            MediaQuery.viewInsetsOf(ctx).bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(99),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: urlCtrl,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Custom Node URL (optional)',
-                      hintText: 'Leave blank to keep active build URL',
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: keyCtrl,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'API Key Override (optional)',
-                      hintText: 'Leave blank to keep current key',
-                    ),
-                  ),
-                  if (statusMsg != null) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      statusMsg!,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: ok ? AppColors.spotifyGreenBright : AppColors.error,
+                ),
+                Row(
+                  children: [
+                    const Icon(Icons.admin_panel_settings_rounded, color: AppColors.brandGreenBright),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Admin & Node Setup',
+                        style: Theme.of(ctx).textTheme.titleLarge,
                       ),
                     ),
                   ],
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: busy
-                              ? null
-                              : () async {
-                                  final pass = passCtrl.text.trim();
-                                  final customUrl = urlCtrl.text.trim();
-                                  final customKey = keyCtrl.text.trim();
-                                  if (pass.isEmpty) {
-                                    setSheetState(() {
-                                      ok = false;
-                                      statusMsg = 'Admin passcode is required.';
-                                    });
-                                    return;
-                                  }
-                                  if (customUrl.isNotEmpty &&
-                                      !customUrl.startsWith('http://') &&
-                                      !customUrl.startsWith('https://')) {
-                                    setSheetState(() {
-                                      ok = false;
-                                      statusMsg = 'Custom URL must start with http:// or https://';
-                                    });
-                                    return;
-                                  }
-                                  setSheetState(() {
-                                    busy = true;
-                                    statusMsg = null;
-                                  });
-                                  try {
-                                    final api = ref.read(apiClientProvider);
-                                    final stats = await api.verifyAdminAndFetchStats(
-                                      passcode: pass,
-                                      overrideBaseUrl: customUrl,
-                                      overrideApiKey: customKey,
-                                    );
-                                    if (!mounted || !ctx.mounted) return;
-                                    if (customUrl.isNotEmpty || customKey.isNotEmpty) {
-                                      final cur = ref.read(settingsProvider);
-                                      await ref.read(settingsProvider.notifier).setServerConfig(
-                                            url: customUrl.isNotEmpty ? customUrl : cur.serverUrl,
-                                            apiKey: customKey.isNotEmpty ? customKey : cur.apiKey,
-                                          );
-                                    }
-                                    if (!ctx.mounted) return;
-                                    setSheetState(() {
-                                      busy = false;
-                                      ok = true;
-                                      statusMsg =
-                                          'Verified · Node ${stats['node'] ?? ''} · Uptime ${stats['uptime'] ?? 0}s · Mem ${stats['memoryMb'] ?? 0}MB';
-                                    });
-                                  } catch (err) {
-                                    if (!ctx.mounted) return;
-                                    setSheetState(() {
-                                      busy = false;
-                                      ok = false;
-                                      statusMsg = err.toString();
-                                    });
-                                  }
-                                },
-                          child: busy
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
-                                )
-                              : const Text('Verify & Apply'),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Configure your Pterodactyl / self-hosted node endpoint (HTTP/HTTPS & custom ports) or run admin diagnostics.',
+                  style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary, height: 1.4),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    ActionChip(
+                      avatar: const Icon(Icons.bolt_rounded, size: 16, color: AppColors.brandGreenBright),
+                      label: const Text('Pterodactyl Preset (:4686)'),
+                      onPressed: () {
+                        urlCtrl.text = AppConfig.pterodactylExampleUrl;
+                      },
+                    ),
+                    ActionChip(
+                      avatar: const Icon(Icons.restore_rounded, size: 16, color: AppColors.textSecondary),
+                      label: const Text('Build Default'),
+                      onPressed: () {
+                        urlCtrl.text = AppConfig.defaultBaseUrl;
+                        keyCtrl.text = AppConfig.defaultApiKey;
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: urlCtrl,
+                  keyboardType: TextInputType.url,
+                  decoration: const InputDecoration(
+                    labelText: 'Node Base URL',
+                    hintText: AppConfig.pterodactylExampleUrl,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: keyCtrl,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'API Key (optional)',
+                    hintText: 'Leave blank if API_KEYS is empty',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: passCtrl,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Admin Passcode (for diagnostics)',
+                    hintText: 'ADMIN_PASSCODE',
+                  ),
+                ),
+                if (probeResult != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: (probeResult!.ok ? AppColors.brandGreen : AppColors.error).withAlpha(28),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: (probeResult!.ok ? AppColors.brandGreen : AppColors.error).withAlpha(90),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          probeResult!.ok
+                              ? '${probeResult!.service} v${probeResult!.version} · ${probeResult!.message}'
+                              : 'Connection Failed · ${probeResult!.message}',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: probeResult!.ok ? AppColors.brandGreenBright : AppColors.error,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      OutlinedButton(
-                        onPressed: busy
-                            ? null
-                            : () async {
-                                await ref.read(settingsProvider.notifier).resetServerConfig();
-                                if (!ctx.mounted) return;
-                                setSheetState(() {
-                                  ok = true;
-                                  statusMsg = 'Restored build default endpoint.';
-                                });
-                              },
-                        child: const Text('Reset'),
-                      ),
-                    ],
+                        if (probeResult!.ok) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Region: ${probeResult!.region} · OAuth: ${probeResult!.googleOAuthConfigured ? 'Ready' : 'Off'}',
+                            style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ],
-              ),
+                if (adminMsg != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: (adminOk ? AppColors.brandGreen : AppColors.error).withAlpha(24),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: (adminOk ? AppColors.brandGreen : AppColors.error).withAlpha(90),
+                      ),
+                    ),
+                    child: Text(
+                      adminMsg!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: adminOk ? AppColors.brandGreenBright : AppColors.error,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton(
+                      onPressed: busy
+                          ? null
+                          : () async {
+                              setSheetState(() {
+                                busy = true;
+                                adminMsg = null;
+                              });
+                              final res = await ref.read(apiClientProvider).probeNode(
+                                    overrideBaseUrl: urlCtrl.text,
+                                    overrideApiKey: keyCtrl.text,
+                                  );
+                              if (!ctx.mounted) return;
+                              setSheetState(() {
+                                busy = false;
+                                probeResult = res;
+                              });
+                            },
+                      child: const Text('Test Node'),
+                    ),
+                    OutlinedButton(
+                      onPressed: busy
+                          ? null
+                          : () async {
+                              final pass = passCtrl.text.trim();
+                              if (pass.isEmpty) {
+                                setSheetState(() {
+                                  adminOk = false;
+                                  adminMsg = 'Enter ADMIN_PASSCODE to run diagnostics.';
+                                });
+                                return;
+                              }
+                              setSheetState(() {
+                                busy = true;
+                                adminMsg = null;
+                              });
+                              try {
+                                final stats = await ref.read(apiClientProvider).verifyAdminAndFetchStats(
+                                      passcode: pass,
+                                      overrideBaseUrl: urlCtrl.text.trim(),
+                                      overrideApiKey: keyCtrl.text.trim(),
+                                    );
+                                if (!ctx.mounted) return;
+                                setSheetState(() {
+                                  busy = false;
+                                  adminOk = true;
+                                  adminMsg =
+                                      'Verified · Node ${stats['node'] ?? ''} · Uptime ${stats['uptime'] ?? 0}s · Mem ${stats['memoryMb'] ?? 0}MB';
+                                });
+                              } catch (err) {
+                                if (!ctx.mounted) return;
+                                setSheetState(() {
+                                  busy = false;
+                                  adminOk = false;
+                                  adminMsg = err.toString();
+                                });
+                              }
+                            },
+                      child: const Text('Verify Admin'),
+                    ),
+                    OutlinedButton(
+                      onPressed: busy
+                          ? null
+                          : () async {
+                              await ref.read(settingsProvider.notifier).resetServerConfig();
+                              urlCtrl.text = AppConfig.defaultBaseUrl;
+                              keyCtrl.text = AppConfig.defaultApiKey;
+                              ref.invalidate(homeFeedProvider);
+                              ref.invalidate(homeMoodsProvider);
+                              ref.invalidate(exploreProvider);
+                              if (!ctx.mounted) return;
+                              setSheetState(() {
+                                adminOk = true;
+                                adminMsg = 'Restored build default endpoint.';
+                              });
+                            },
+                      child: const Text('Reset'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: busy
+                        ? null
+                        : () async {
+                            await ref.read(settingsProvider.notifier).setServerConfig(
+                                  url: urlCtrl.text,
+                                  apiKey: keyCtrl.text,
+                                );
+                            ref.invalidate(homeFeedProvider);
+                            ref.invalidate(homeMoodsProvider);
+                            ref.invalidate(exploreProvider);
+                            if (!mounted || !ctx.mounted) return;
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Connected to ${AppConfig.normalizeServerUrl(urlCtrl.text)}',
+                                ),
+                              ),
+                            );
+                          },
+                    child: busy
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                          )
+                        : const Text('Save & Apply Node'),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       ),
     ).whenComplete(() {
-      passCtrl.dispose();
       urlCtrl.dispose();
       keyCtrl.dispose();
+      passCtrl.dispose();
     });
+  }
+
+  void _showPlayerBgPicker(AppSettingsState settings) {
+    showLiquidGlassSheet<void>(
+      context: context,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Player background style', style: Theme.of(ctx).textTheme.titleLarge),
+            const SizedBox(height: 10),
+            ...PlayerBackgroundStyle.values.map((style) {
+              final selected = settings.playerBackgroundStyle == style;
+              return RadioListTile<PlayerBackgroundStyle>(
+                value: style,
+                groupValue: settings.playerBackgroundStyle,
+                activeColor: AppColors.brandGreenBright,
+                title: Text(style.label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(
+                  style.description,
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+                selected: selected,
+                onChanged: (val) {
+                  if (val != null) {
+                    ref.read(settingsProvider.notifier).setPlayerBackgroundStyle(val);
+                    Navigator.pop(ctx);
+                  }
+                },
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSliderStylePicker(AppSettingsState settings) {
+    showLiquidGlassSheet<void>(
+      context: context,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Player slider style', style: Theme.of(ctx).textTheme.titleLarge),
+            const SizedBox(height: 14),
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              mainAxisExtent: 104,
+              children: PlayerSliderStyle.values.map((style) {
+                final selected = settings.sliderStyle == style;
+                return InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () {
+                    ref.read(settingsProvider.notifier).setSliderStyle(style);
+                    Navigator.pop(ctx);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? AppColors.brandGreen.withAlpha(32)
+                          : Colors.white.withAlpha(14),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: selected ? AppColors.brandGreenBright : AppColors.border,
+                        width: selected ? 1.8 : 1.0,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          height: 26,
+                          width: double.infinity,
+                          child: CustomPaint(
+                            painter: _SliderStylePreviewPainter(
+                              style: style,
+                              activeColor: selected ? AppColors.brandGreenBright : Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          style.label,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                            color: selected ? AppColors.brandGreenBright : Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAudioQualityPicker(AppSettingsState settings) {
+    showLiquidGlassSheet<void>(
+      context: context,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Audio quality preference', style: Theme.of(ctx).textTheme.titleLarge),
+            const SizedBox(height: 10),
+            ...AudioQuality.values.map((q) {
+              return RadioListTile<AudioQuality>(
+                value: q,
+                groupValue: settings.audioQuality,
+                activeColor: AppColors.brandGreenBright,
+                title: Text(q.label),
+                onChanged: (val) {
+                  if (val != null) {
+                    ref.read(settingsProvider.notifier).setAudioQuality(val);
+                    Navigator.pop(ctx);
+                  }
+                },
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLanguagePicker(AppSettingsState settings) {
+    showLiquidGlassSheet<void>(
+      context: context,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.language_rounded, color: AppColors.brandGreenBright),
+                const SizedBox(width: 10),
+                Text('Application language', style: Theme.of(ctx).textTheme.titleLarge),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ...AppLanguageOption.values.map((lang) {
+              return RadioListTile<AppLanguageOption>(
+                value: lang,
+                groupValue: settings.appLanguage,
+                activeColor: AppColors.brandGreenBright,
+                title: Text(lang.label),
+                subtitle: Text(
+                  lang.subtitle,
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+                onChanged: (val) {
+                  if (val != null) {
+                    ref.read(settingsProvider.notifier).setAppLanguage(val);
+                    Navigator.pop(ctx);
+                  }
+                },
+              );
+            }),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -1345,122 +1683,446 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final downloadsCount = ref.watch(libraryProvider.select((l) => l.downloadedTracks.length));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 48),
-        children: [
-          Text('Account & Sync', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceElevated,
-              borderRadius: BorderRadius.circular(14),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: const Color(0x990A0D10),
+        title: const Text('Settings'),
+      ),
+      body: LiquidGlassAmbientBackground(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 164),
+          children: [
+            GestureDetector(
+              onTap: _handleAboutTap,
+              child: LiquidGlassSurface(
+                borderRadius: 22,
+                padding: const EdgeInsets.all(18),
+                tintColor: AppColors.brandDeep,
+                borderColor: AppColors.brandGreen.withAlpha(88),
+                child: Row(
+                  children: [
+                    const LunarellysLogo(size: 52),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                AppConfig.appName,
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.brandGreen.withAlpha(42),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppColors.brandGreen.withAlpha(90)),
+                                ),
+                                child: const Text(
+                                  'v${AppConfig.appVersion}',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.brandGreenBright,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'The world of music dedicated to you',
+                            style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            child: Row(
+            const SizedBox(height: 20),
+            _sectionTitle(context, 'Interface'),
+            _SettingsGroupCard(
               children: [
-                const GoogleLogoIcon(size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                _SettingsSwitchRow(
+                  icon: Icons.layers_outlined,
+                  title: 'Mini-player dynamic background',
+                  subtitle: 'Tint mini-player with album palette',
+                  value: settings.miniPlayerDynamicBg,
+                  onChanged: (v) => ref.read(settingsProvider.notifier).setMiniPlayerDynamicBg(v),
+                ),
+                _SettingsTapRow(
+                  icon: Icons.blur_on_rounded,
+                  title: 'Player background style',
+                  subtitle: settings.playerBackgroundStyle.label,
+                  onTap: () => _showPlayerBgPicker(settings),
+                ),
+                _SettingsTapRow(
+                  icon: Icons.tune_rounded,
+                  title: 'Player slider style',
+                  subtitle: settings.sliderStyle.label,
+                  onTap: () => _showSliderStylePicker(settings),
+                ),
+                _SettingsSwitchRow(
+                  icon: Icons.palette_outlined,
+                  title: 'Dynamic album colors',
+                  subtitle: 'Adapt app accent from playing artwork',
+                  value: settings.dynamicAlbumColors,
+                  onChanged: (v) => ref.read(settingsProvider.notifier).setDynamicColors(v),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _sectionTitle(context, 'Player'),
+            _SettingsGroupCard(
+              children: [
+                _SettingsTapRow(
+                  icon: Icons.music_note_rounded,
+                  title: 'Audio quality preference',
+                  subtitle: settings.audioQuality.label,
+                  onTap: () => _showAudioQualityPicker(settings),
+                ),
+                _SettingsSwitchRow(
+                  icon: Icons.radio_rounded,
+                  title: 'Autoplay Radio',
+                  subtitle: 'Queue similar tracks automatically when queue ends',
+                  value: settings.autoRadio,
+                  onChanged: (v) => ref.read(settingsProvider.notifier).setAutoRadio(v),
+                ),
+                _SettingsSwitchRow(
+                  icon: Icons.skip_next_rounded,
+                  title: 'Auto-skip on error',
+                  subtitle: 'Automatically skip to next track if stream fails',
+                  value: settings.autoSkipOnError,
+                  onChanged: (v) => ref.read(settingsProvider.notifier).setAutoSkipOnError(v),
+                ),
+                _SettingsSwitchRow(
+                  icon: Icons.queue_music_rounded,
+                  title: 'Persistent queue',
+                  subtitle: 'Restore active queue and speed on restart',
+                  value: settings.persistentQueue,
+                  onChanged: (v) => ref.read(settingsProvider.notifier).setPersistentQueue(v),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _sectionTitle(context, 'App language'),
+            _SettingsGroupCard(
+              children: [
+                _SettingsTapRow(
+                  icon: Icons.translate_rounded,
+                  title: 'Application language',
+                  subtitle: settings.appLanguage.label,
+                  onTap: () => _showLanguagePicker(settings),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _sectionTitle(context, 'Account & Sync'),
+            _SettingsGroupCard(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
                     children: [
-                      Text(
-                        auth.isSignedInGoogle ? (auth.user?.name ?? 'Google Account') : 'Guest Listener',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
+                      const GoogleLogoIcon(size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              auth.isSignedInGoogle ? (auth.user?.name ?? 'Google Account') : 'Guest Listener',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
+                            ),
+                            Text(
+                              auth.isSignedInGoogle
+                                  ? (auth.user?.email ?? 'Cloud library sync active')
+                                  : 'Sign in with Google to sync liked songs & playlists',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
                       ),
-                      Text(
-                        auth.isSignedInGoogle
-                            ? (auth.user?.email ?? 'Cloud library sync active')
-                            : 'Sign in with Google to sync liked songs & playlists',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                      ),
+                      const SizedBox(width: 8),
+                      if (auth.isSignedInGoogle)
+                        TextButton(
+                          onPressed: () async {
+                            await ref.read(authProvider.notifier).signOut();
+                            if (context.mounted) {
+                              Navigator.of(context).popUntil((route) => route.isFirst);
+                            }
+                          },
+                          child: const Text('Log out'),
+                        )
+                      else
+                        FilledButton(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const AuthScreen(allowBack: true),
+                              ),
+                            );
+                          },
+                          child: const Text('Sign in'),
+                        ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                if (auth.isSignedInGoogle)
-                  TextButton(
-                    onPressed: () async {
-                      await ref.read(authProvider.notifier).signOut();
-                      if (context.mounted) {
-                        Navigator.of(context).popUntil((route) => route.isFirst);
-                      }
-                    },
-                    child: const Text('Log out'),
-                  )
-                else
-                  FilledButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const AuthScreen(allowBack: true),
-                        ),
-                      );
-                    },
-                    child: const Text('Sign in'),
-                  ),
               ],
             ),
-          ),
-          const Divider(height: 36),
-          Text('Playback & Appearance', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 10),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Audio Streaming Quality'),
-            subtitle: Text(settings.audioQuality.label),
-            trailing: DropdownButton<AudioQuality>(
-              value: settings.audioQuality,
-              dropdownColor: AppColors.surfaceElevated,
-              onChanged: (q) {
-                if (q != null) ref.read(settingsProvider.notifier).setAudioQuality(q);
-              },
-              items: AudioQuality.values
-                  .map((q) => DropdownMenuItem(value: q, child: Text(q.label)))
-                  .toList(),
+            const SizedBox(height: 20),
+            _sectionTitle(context, 'Storage & About'),
+            _SettingsGroupCard(
+              children: [
+                _SettingsTapRow(
+                  icon: Icons.folder_outlined,
+                  title: 'Offline Storage',
+                  subtitle: '$downloadsCount downloaded tracks saved locally',
+                  onTap: () {},
+                ),
+                _SettingsTapRow(
+                  icon: Icons.info_outline_rounded,
+                  title: '${AppConfig.appName} v${AppConfig.appVersion}',
+                  subtitle: 'Audio streaming & offline library',
+                  onTap: _handleAboutTap,
+                ),
+              ],
             ),
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            activeTrackColor: AppColors.spotifyGreen,
-            title: const Text('Dynamic Album Colors'),
-            subtitle: const Text('Tint Now Playing backdrop from album artwork'),
-            value: settings.dynamicAlbumColors,
-            onChanged: (v) => ref.read(settingsProvider.notifier).setDynamicColors(v),
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            activeTrackColor: AppColors.spotifyGreen,
-            title: const Text('Autoplay Radio'),
-            subtitle: const Text('Keep playing similar songs when your queue ends'),
-            value: settings.autoRadio,
-            onChanged: (v) => ref.read(settingsProvider.notifier).setAutoRadio(v),
-          ),
-          const Divider(height: 32),
-          Text('Storage', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 4),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Offline Storage'),
-            subtitle: Text('$downloadsCount downloaded tracks saved locally'),
-            trailing: const Icon(Icons.folder_outlined, color: AppColors.textSecondary),
-          ),
-          const Divider(height: 32),
-          Text('About', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 4),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text(AppConfig.appName),
-            subtitle: const Text('Version 1.0.0'),
-            onTap: _handleAboutTap,
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _sectionTitle(BuildContext context, String text) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 13.5,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsGroupCard extends StatelessWidget {
+  final List<Widget> children;
+  const _SettingsGroupCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return LiquidGlassSurface(
+      borderRadius: 20,
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: children,
+      ),
+    );
+  }
+}
+
+class _SettingsTapRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _SettingsTapRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(20),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border, width: 0.7),
+              ),
+              child: Icon(icon, size: 20, color: Colors.white),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsSwitchRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _SettingsSwitchRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => onChanged(!value),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(20),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border, width: 0.7),
+              ),
+              child: Icon(icon, size: 20, color: Colors.white),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Switch(
+              value: value,
+              activeColor: AppColors.brandGreenBright,
+              onChanged: onChanged,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SliderStylePreviewPainter extends CustomPainter {
+  final PlayerSliderStyle style;
+  final Color activeColor;
+
+  const _SliderStylePreviewPainter({
+    required this.style,
+    required this.activeColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cy = size.height / 2;
+    final activeX = size.width * 0.56;
+
+    final trackPaint = Paint()
+      ..color = Colors.white.withAlpha(48)
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = style == PlayerSliderStyle.slim ? 4.0 : 5.0;
+
+    final actPaint = Paint()
+      ..color = activeColor
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = style == PlayerSliderStyle.slim ? 4.4 : 3.6;
+
+    canvas.drawLine(Offset(6, cy), Offset(size.width - 6, cy), trackPaint);
+
+    if (style == PlayerSliderStyle.wavy || style == PlayerSliderStyle.squiggly) {
+      final path = Path();
+      final amp = style == PlayerSliderStyle.squiggly ? 4.0 : 3.2;
+      final freq = style == PlayerSliderStyle.squiggly ? 0.28 : 0.2;
+      for (var i = 0; i <= 40; i++) {
+        final x = 6 + ((activeX - 6) * i / 40);
+        final y = cy + math.sin((x - 6) * freq) * amp;
+        if (i == 0) {
+          path.moveTo(x, y);
+        } else {
+          path.lineTo(x, y);
+        }
+      }
+      canvas.drawPath(path, actPaint);
+    } else {
+      canvas.drawLine(Offset(6, cy), Offset(activeX, cy), actPaint);
+    }
+
+    final thumbPaint = Paint()..color = activeColor;
+    if (style == PlayerSliderStyle.standard || style == PlayerSliderStyle.squiggly) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(center: Offset(activeX, cy), width: 4.0, height: 18.0),
+          const Radius.circular(2),
+        ),
+        thumbPaint,
+      );
+    } else if (style == PlayerSliderStyle.wavy) {
+      canvas.drawCircle(Offset(activeX, cy), 6.0, thumbPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SliderStylePreviewPainter oldDelegate) {
+    return oldDelegate.style != style || oldDelegate.activeColor != activeColor;
   }
 }

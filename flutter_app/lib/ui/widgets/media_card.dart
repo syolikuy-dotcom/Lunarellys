@@ -8,6 +8,7 @@ import '../../state/player_provider.dart';
 import '../screens/detail_screens.dart';
 import 'animated_eq.dart';
 import 'artwork_image.dart';
+import 'liquid_glass.dart';
 
 class MediaCard extends ConsumerStatefulWidget {
   final MusicItem item;
@@ -61,12 +62,11 @@ class _MediaCardState extends ConsumerState<MediaCard> {
     HapticFeedback.mediumImpact();
     final isLiked = ref.read(libraryProvider).isLiked(item.id);
 
-    showModalBottomSheet<void>(
+    showLiquidGlassSheet<void>(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Column(
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
@@ -130,7 +130,6 @@ class _MediaCardState extends ConsumerState<MediaCard> {
             ],
           ),
         ),
-      ),
     );
   }
 
@@ -173,7 +172,7 @@ class _MediaCardState extends ConsumerState<MediaCard> {
                   ArtworkImage(
                     url: item.bestThumbUrl(size: 400),
                     size: widget.width,
-                    radius: 8,
+                    radius: 14,
                     isCircle: isArtist,
                   ),
                   if (item.isPlayable)
@@ -184,8 +183,12 @@ class _MediaCardState extends ConsumerState<MediaCard> {
                         width: 36,
                         height: 36,
                         decoration: BoxDecoration(
-                          color: isCurrent ? AppColors.brandGreenBright : Colors.black.withAlpha(190),
+                          color: isCurrent ? AppColors.brandGreenBright : const Color(0xCC0D131A),
                           shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isCurrent ? Colors.white.withAlpha(140) : Colors.white.withAlpha(65),
+                            width: 1.0,
+                          ),
                           boxShadow: const [
                             BoxShadow(
                               color: Color(0x66000000),

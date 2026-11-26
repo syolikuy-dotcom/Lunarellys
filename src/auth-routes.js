@@ -11,12 +11,14 @@ import { asyncHandler, strictAuthRateLimit, adminRateLimit, requireAdminAuth } f
 import { HttpError } from './lib/http.js';
 import { upsertUserProfile, getUserById, updateUserLibrary, getUserStats } from './lib/user-store.js';
 
-function resolveBaseUrl(req) {
+export function resolveBaseUrl(req) {
   if (config.publicBaseUrl) return config.publicBaseUrl;
-  const rawProto = req.get('x-forwarded-proto')?.split(',')[0]?.trim() || req.protocol || 'https';
-  const proto = rawProto === 'http' ? 'http' : 'https';
+  const forwardedProto = req.get('x-forwarded-proto')?.split(',')[0]?.trim()?.toLowerCase();
   const rawHost = String(req.get('x-forwarded-host')?.split(',')[0]?.trim() || req.get('host') || 'localhost:3000');
   const host = rawHost.replace(/[^a-zA-Z0-9.:_-]/g, '');
+  const proto = forwardedProto
+    ? (forwardedProto === 'http' ? 'http' : 'https')
+    : (req.secure ? 'https' : (req.protocol === 'https' ? 'https' : 'http'));
   return `${proto}://${host}`;
 }
 
@@ -42,9 +44,12 @@ function requireUserAuth(req) {
 const router = Router();
 
 router.get('/auth/status', strictAuthRateLimit, (req, res) => {
+  const baseUrl = resolveBaseUrl(req);
   res.json({
     success: true,
-    googleOAuthConfigured: googleOAuthEnabled()
+    googleOAuthConfigured: googleOAuthEnabled(),
+    callbackUrl: `${baseUrl}/api/auth/google/callback`,
+    deepLinkScheme: 'lunarellys://auth'
   });
 });
 

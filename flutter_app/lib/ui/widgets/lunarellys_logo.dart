@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
+/// Clean minimalist Lunarellys emblem: sculptural crescent paired with dual
+/// harmonic sound bars on a deep obsidian squircle.
 class LunarellysLogo extends StatelessWidget {
   final double size;
-  final Color? discColor;
-  final Color waveColor;
+  final Color? accentColor;
 
   const LunarellysLogo({
     super.key,
     this.size = 40,
-    this.discColor,
-    this.waveColor = AppColors.backgroundDeep,
+    this.accentColor,
   });
 
   @override
@@ -20,8 +20,7 @@ class LunarellysLogo extends StatelessWidget {
       height: size,
       child: CustomPaint(
         painter: _LunarellysLogoPainter(
-          discColor: discColor ?? AppColors.brandGreenBright,
-          waveColor: waveColor,
+          accentColor: accentColor ?? AppColors.brandGreenBright,
         ),
       ),
     );
@@ -29,68 +28,72 @@ class LunarellysLogo extends StatelessWidget {
 }
 
 class _LunarellysLogoPainter extends CustomPainter {
-  final Color discColor;
-  final Color waveColor;
+  final Color accentColor;
 
-  const _LunarellysLogoPainter({
-    required this.discColor,
-    required this.waveColor,
-  });
+  const _LunarellysLogoPainter({required this.accentColor});
 
   @override
   void paint(Canvas canvas, Size size) {
     final s = size.shortestSide;
-    final center = Offset(size.width / 2, size.height / 2);
+    final rect = Offset.zero & Size(s, s);
+    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(s * 0.26));
 
-    final discPaint = Paint()
-      ..color = discColor
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, s * 0.5, discPaint);
+    // Clean deep obsidian squircle background
+    final bgPaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFF121A1E),
+          Color(0xFF0A0E11),
+        ],
+      ).createShader(rect);
+    canvas.drawRRect(rrect, bgPaint);
 
-    void drawWave({
-      required Offset start,
-      required Offset control,
-      required Offset end,
-      required double strokeScale,
-    }) {
-      final path = Path()
-        ..moveTo(start.dx * s, start.dy * s)
-        ..quadraticBezierTo(
-          control.dx * s,
-          control.dy * s,
-          end.dx * s,
-          end.dy * s,
-        );
-      final paint = Paint()
-        ..color = waveColor
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..strokeWidth = s * strokeScale;
-      canvas.drawPath(path, paint);
-    }
+    // Subtle crisp glass edge
+    final borderPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = (s * 0.03).clamp(0.8, 2.0)
+      ..color = Colors.white.withAlpha(24);
+    canvas.drawRRect(rrect.deflate(s * 0.015), borderPaint);
 
-    drawWave(
-      start: const Offset(0.24, 0.37),
-      control: const Offset(0.51, 0.25),
-      end: const Offset(0.77, 0.39),
-      strokeScale: 0.088,
+    // Sculptural crescent (scaled cleanly inside squircle)
+    final outerMoon = Path()
+      ..addOval(Rect.fromCircle(
+        center: Offset(s * 0.514, s * 0.50),
+        radius: s * 0.326,
+      ));
+    final cutoutMoon = Path()
+      ..addOval(Rect.fromCircle(
+        center: Offset(s * 0.667, s * 0.458),
+        radius: s * 0.271,
+      ));
+    final crescent = Path.combine(PathOperation.difference, outerMoon, cutoutMoon);
+    canvas.drawPath(crescent, Paint()..color = accentColor);
+
+    // Two clean rounded harmonic bars inside crescent cavity
+    final barPaint = Paint()..color = Colors.white;
+    final barW = s * 0.078;
+    final barR = Radius.circular(barW / 2);
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(s * 0.590, s * 0.299, barW, s * 0.319),
+        barR,
+      ),
+      barPaint,
     );
-    drawWave(
-      start: const Offset(0.29, 0.52),
-      control: const Offset(0.51, 0.42),
-      end: const Offset(0.72, 0.54),
-      strokeScale: 0.076,
-    );
-    drawWave(
-      start: const Offset(0.34, 0.66),
-      control: const Offset(0.51, 0.58),
-      end: const Offset(0.67, 0.67),
-      strokeScale: 0.066,
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(s * 0.721, s * 0.382, barW, s * 0.236),
+        barR,
+      ),
+      barPaint,
     );
   }
 
   @override
   bool shouldRepaint(covariant _LunarellysLogoPainter oldDelegate) {
-    return oldDelegate.discColor != discColor || oldDelegate.waveColor != waveColor;
+    return oldDelegate.accentColor != accentColor;
   }
 }

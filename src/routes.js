@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { Readable } from 'node:stream';
-import { config } from './config.js';
+import { config, authEnabled, googleOAuthEnabled } from './config.js';
 import { TtlCache } from './lib/cache.js';
 import { asyncHandler, downloadRateLimit, requireAdminAuth, adminRateLimit } from './middleware.js';
 import { routes } from './routes-registry.js';
@@ -11,7 +11,7 @@ import { downloadV1 } from './scrapers/downloader-v1.js';
 import { downloadV2 } from './scrapers/downloader-v2.js';
 import { downloadV3 } from './scrapers/downloader-v3.js';
 import { HttpError, UpstreamError, extractVideoId } from './lib/http.js';
-import authRouter from './auth-routes.js';
+import authRouter, { resolveBaseUrl } from './auth-routes.js';
 
 const cache = new TtlCache(config.cacheMaxEntries);
 const TTL = config.cacheTtlMs;
@@ -81,7 +81,12 @@ router.use(authRouter);
 router.get('/', (req, res) => {
   res.json({
     success: true,
-    service: 'lunarellys-api'
+    name: `${config.serviceName} REST API`,
+    service: 'lunarellys-api',
+    version: config.appVersion,
+    developer: config.developer,
+    auth: authEnabled() ? 'API key required' : 'open',
+    region: config.defaultRegion
   });
 });
 
@@ -96,7 +101,33 @@ router.get('/admin/routes', adminRateLimit, requireAdminAuth, (req, res) => {
 router.get('/health', (req, res) => {
   res.json({
     success: true,
-    status: 'ok'
+    status: 'ok',
+    service: config.serviceName,
+    version: config.appVersion,
+    developer: config.developer,
+    uptime: Math.floor(process.uptime()),
+    region: config.defaultRegion,
+    authRequired: authEnabled(),
+    googleOAuthConfigured: googleOAuthEnabled(),
+    cache: cache.stats()
+  });
+});
+
+router.get(['/node/info', '/node/info/'], (req, res) => {
+  const baseUrl = resolveBaseUrl(req);
+  res.json({
+    success: true,
+    status: 'online',
+    service: config.serviceName,
+    version: config.appVersion,
+    developer: config.developer,
+    region: config.defaultRegion,
+    baseUrl,
+    authRequired: authEnabled(),
+    googleOAuthConfigured: googleOAuthEnabled(),
+    callbackUrl: `${baseUrl}/api/auth/google/callback`,
+    publicDocs: config.publicDocs,
+    uptime: Math.floor(process.uptime())
   });
 });
 

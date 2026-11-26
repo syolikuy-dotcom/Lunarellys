@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_theme.dart';
 import '../../state/auth_provider.dart';
 import '../widgets/google_logo.dart';
+import '../widgets/liquid_glass.dart';
 import '../widgets/lunarellys_logo.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
@@ -114,11 +115,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
   }
 
   void _showGoogleUnavailableSheet() {
-    showModalBottomSheet<void>(
+    showLiquidGlassSheet<void>(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,7 +154,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
             ],
           ),
         ),
-      ),
     );
   }
 
@@ -357,21 +356,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
                                 child: AnimatedScale(
                                   scale: _guestPressed ? 0.97 : 1.0,
                                   duration: const Duration(milliseconds: 110),
-                                  child: Container(
-                                    width: double.infinity,
-                                    height: 50,
-                                    decoration: BoxDecoration(
-                                      color: Colors.transparent,
-                                      borderRadius: BorderRadius.circular(999),
-                                      border: Border.all(color: AppColors.borderStrong, width: 1.3),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        'Continue as Guest',
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.white,
+                                  child: LiquidGlassCapsule(
+                                    blurSigma: 22,
+                                    child: SizedBox(
+                                      width: double.infinity,
+                                      height: 50,
+                                      child: Center(
+                                        child: Text(
+                                          'Continue as Guest',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                          ),
                                         ),
                                       ),
                                     ),

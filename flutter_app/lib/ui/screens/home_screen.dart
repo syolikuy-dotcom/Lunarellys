@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
@@ -9,6 +10,7 @@ import '../../state/player_provider.dart';
 import '../../state/settings_provider.dart';
 import '../widgets/animated_eq.dart';
 import '../widgets/artwork_image.dart';
+import '../widgets/liquid_glass.dart';
 import '../widgets/media_card.dart';
 import '../widgets/user_avatar_button.dart';
 import 'detail_screens.dart';
@@ -60,7 +62,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final library = ref.watch(libraryProvider);
     final recent = library.recentlyPlayed;
     final playerState = ref.watch(playerProvider);
-    final ambient = playerState.dynamicColor ?? const Color(0xFF1A4D2E);
+    final ambient = playerState.dynamicColor ?? AppColors.brandGreen;
 
     final feedSections = feedAsync.valueOrNull ?? const <MusicSection>[];
     final playableFromFeed = feedSections
@@ -74,19 +76,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final shufflePool = recent.isNotEmpty ? recent : playableFromFeed;
     final spotlightItem = playableFromFeed.isNotEmpty ? playableFromFeed.first : null;
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: const Alignment(0.2, 0.35),
-          colors: [
-            ambient.withAlpha(62),
-            AppColors.background,
-          ],
-        ),
-      ),
+    return LiquidGlassAmbientBackground(
+      accentColor: ambient,
       child: RefreshIndicator(
-        color: AppColors.spotifyGreen,
+        color: AppColors.brandGreenBright,
         onRefresh: () async {
           if (_selectedMood != null) {
             _selectMood(_selectedMood);
@@ -101,17 +94,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           slivers: [
             SliverAppBar(
               floating: true,
+              snap: true,
               backgroundColor: Colors.transparent,
+              elevation: 0,
+              toolbarHeight: 68,
               titleSpacing: 16,
+              flexibleSpace: RepaintBoundary(
+                child: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0x880B0F14),
+                      border: Border(
+                        bottom: BorderSide(color: Colors.white.withAlpha(12), width: 0.7),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              ),
               title: Row(
                 children: [
-                  UserAvatarButton(size: 34, onTap: widget.onOpenDrawer),
+                  UserAvatarButton(size: 36, onTap: widget.onOpenDrawer),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       _greeting(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 20.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                        height: 1.15,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ],
@@ -134,7 +152,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     );
                   },
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 6),
               ],
             ),
             moodsAsync.when(
@@ -143,9 +161,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 final topMoods = moods.take(10).toList();
                 return SliverToBoxAdapter(
                   child: SizedBox(
-                    height: 46,
+                    height: 50,
                     child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
                       scrollDirection: Axis.horizontal,
                       itemCount: topMoods.length + 1,
                       separatorBuilder: (_, __) => const SizedBox(width: 8),
@@ -184,30 +202,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     itemCount: rawShortcuts.length,
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                      mainAxisExtent: 58,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      mainAxisExtent: 60,
                     ),
                     itemBuilder: (ctx, i) {
                       final item = rawShortcuts[i];
                       final isCurrent = playerState.currentTrack?.id == item.id;
                       return InkWell(
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(14),
                         onTap: () => _openShortcut(context, item, rawShortcuts),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: isCurrent
-                                ? AppColors.surfaceHigh
-                                : AppColors.surfaceElevated.withAlpha(220),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          clipBehavior: Clip.antiAlias,
+                        child: LiquidGlassSurface(
+                          borderRadius: 14,
+                          blurSigma: 18,
+                          tintColor: isCurrent ? AppColors.brandDeep : null,
+                          borderColor: isCurrent
+                              ? AppColors.brandGreenBright.withAlpha(90)
+                              : Colors.white.withAlpha(20),
                           child: Row(
                             children: [
                               ArtworkImage(
                                 url: item.bestThumbUrl(size: 160),
-                                size: 58,
-                                radius: 0,
+                                size: 60,
+                                radius: 12,
                               ),
                               const SizedBox(width: 9),
                               Expanded(
@@ -222,7 +239,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       fontWeight: FontWeight.w700,
                                       height: 1.2,
                                       color: isCurrent
-                                          ? AppColors.spotifyGreenBright
+                                          ? AppColors.brandGreenBright
                                           : AppColors.textPrimary,
                                     ),
                                   ),
@@ -232,7 +249,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 Padding(
                                   padding: const EdgeInsets.only(right: 8),
                                   child: AnimatedEqualizer(
-                                    color: AppColors.spotifyGreenBright,
+                                    color: AppColors.brandGreenBright,
                                     isPlaying: playerState.isPlaying,
                                     size: 14,
                                   ),
@@ -345,7 +362,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   );
                 },
               ),
-            const SliverToBoxAdapter(child: SizedBox(height: 132)),
+            const SliverToBoxAdapter(child: SizedBox(height: 164)),
           ],
         ),
       ),
@@ -390,24 +407,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           Text('Picked for you', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 10),
           InkWell(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(20),
             onTap: () => ref.read(playerProvider.notifier).playTrack(
                   item,
                   queue: queue,
                   contextName: 'Picked for you',
                 ),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceElevated,
-                borderRadius: BorderRadius.circular(12),
-              ),
+            child: LiquidGlassSurface(
+              borderRadius: 20,
+              blurSigma: 22,
+              padding: const EdgeInsets.all(13),
               child: Row(
                 children: [
                   ArtworkImage(
                     url: item.bestThumbUrl(size: 320),
                     size: 92,
-                    radius: 8,
+                    radius: 12,
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -456,16 +471,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     ? Icons.check_circle_rounded
                                     : Icons.add_circle_outline_rounded,
                                 size: 22,
-                                color: isLiked ? AppColors.spotifyGreen : AppColors.textSecondary,
+                                color: isLiked ? AppColors.brandGreenBright : AppColors.textSecondary,
                               ),
                               onPressed: () =>
                                   ref.read(libraryProvider.notifier).toggleLike(item),
                             ),
                             Container(
-                              width: 38,
-                              height: 38,
+                              width: 40,
+                              height: 40,
                               decoration: const BoxDecoration(
-                                color: AppColors.spotifyGreen,
+                                gradient: LinearGradient(
+                                  colors: [AppColors.brandGreenBright, AppColors.brandGreen],
+                                ),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
@@ -549,7 +566,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     height: 20,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -563,7 +580,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         width: 148,
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                       ),
                     ),

@@ -9,6 +9,7 @@ import '../../state/library_provider.dart';
 import '../../state/player_provider.dart';
 import '../../state/settings_provider.dart';
 import '../widgets/artwork_image.dart';
+import '../widgets/liquid_glass.dart';
 import '../widgets/media_card.dart';
 import '../widgets/track_tile.dart';
 import '../widgets/user_avatar_button.dart';
@@ -162,71 +163,67 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final cards = allItems.where((i) => !i.isPlayable).toList();
     final isWide = MediaQuery.of(context).size.width >= 640;
 
-    return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 16,
-        title: Row(
-          children: [
-            UserAvatarButton(size: 34, onTap: widget.onOpenDrawer),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                'Search',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-            child: TextField(
-              controller: _controller,
-              textInputAction: TextInputAction.search,
-              style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w500),
-              onChanged: (v) {
-                setState(() {});
-                _onChanged(v);
-              },
-              onSubmitted: (v) => _performSearch(v),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.white,
-                hintText: 'What do you want to listen to?',
-                hintStyle: const TextStyle(color: Color(0xFF535353), fontWeight: FontWeight.w500),
-                prefixIcon: const Icon(Icons.search_rounded, color: Colors.black87),
-                suffixIcon: _controller.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.close_rounded, color: Colors.black87),
-                        onPressed: () {
-                          _controller.clear();
-                          setState(() {
-                            _result = null;
-                            _suggestions = const [];
-                            _extraItems = const [];
-                            _error = null;
-                          });
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
+    return LiquidGlassAmbientBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          titleSpacing: 16,
+          title: Row(
+            children: [
+              UserAvatarButton(size: 36, onTap: widget.onOpenDrawer),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Search',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ),
+            ],
           ),
+        ),
+        body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+              child: LiquidGlassCapsule(
+                blurSigma: 13,
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                child: TextField(
+                  controller: _controller,
+                  textInputAction: TextInputAction.search,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                  onChanged: (v) {
+                    setState(() {});
+                    _onChanged(v);
+                  },
+                  onSubmitted: (v) => _performSearch(v),
+                  decoration: InputDecoration(
+                    filled: false,
+                    hintText: 'What do you want to listen to?',
+                    hintStyle: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                    prefixIcon: const Icon(Icons.search_rounded, color: AppColors.brandGreenBright),
+                    suffixIcon: _controller.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                            onPressed: () {
+                              _controller.clear();
+                              setState(() {
+                                _result = null;
+                                _suggestions = const [];
+                                _extraItems = const [];
+                                _error = null;
+                              });
+                            },
+                          )
+                        : null,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                  ),
+                ),
+              ),
+            ),
           if (_result != null || _controller.text.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -257,11 +254,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           Expanded(
             child: _loading
                 ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.spotifyGreen),
+                    child: CircularProgressIndicator(color: AppColors.brandGreen),
                   )
                 : _suggestions.isNotEmpty
                     ? ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 120),
+                        padding: const EdgeInsets.only(bottom: 164),
                         itemCount: _suggestions.length,
                         itemBuilder: (ctx, i) {
                           final s = _suggestions[i];
@@ -290,26 +287,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         : _result == null
                             ? _buildBrowseIdle(history, moodsAsync.valueOrNull ?? const [])
                             : ListView(
-                                padding: const EdgeInsets.fromLTRB(16, 6, 16, 132),
+                                padding: const EdgeInsets.fromLTRB(16, 6, 16, 164),
                                 children: [
                                   if (_result!.topResult != null && _filter == 'all') ...[
                                     Text('Top result', style: Theme.of(context).textTheme.titleLarge),
                                     const SizedBox(height: 10),
                                     InkWell(
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(20),
                                       onTap: () => _openItem(_result!.topResult!, playable),
-                                      child: Container(
+                                      child: LiquidGlassSurface(
+                                        borderRadius: 20,
+                                        blurSigma: 22,
                                         padding: const EdgeInsets.all(16),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.surfaceElevated,
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
                                         child: Row(
                                           children: [
                                             ArtworkImage(
                                               url: _result!.topResult!.bestThumbUrl(size: 240),
                                               size: 76,
-                                              radius: 8,
+                                              radius: 12,
                                               isCircle: _result!.topResult!.type == 'artist',
                                             ),
                                             const SizedBox(width: 14),
@@ -338,7 +333,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                               width: 44,
                                               height: 44,
                                               decoration: const BoxDecoration(
-                                                color: AppColors.spotifyGreen,
+                                                color: AppColors.brandGreenBright,
                                                 shape: BoxShape.circle,
                                               ),
                                               child: const Icon(
@@ -373,7 +368,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                         crossAxisCount: isWide ? 4 : 2,
                                         crossAxisSpacing: 12,
                                         mainAxisSpacing: 14,
-                                        mainAxisExtent: 248,
+                                        mainAxisExtent: 256,
                                       ),
                                       itemBuilder: (ctx, i) => LayoutBuilder(
                                         builder: (_, box) => Center(
@@ -397,7 +392,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                                   height: 18,
                                                   child: CircularProgressIndicator(
                                                     strokeWidth: 2,
-                                                    color: AppColors.spotifyGreen,
+                                                    color: AppColors.brandGreen,
                                                   ),
                                                 )
                                               : const Text('Load More'),
@@ -409,12 +404,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 
   Widget _buildBrowseIdle(List<String> history, List<MusicMood> moods) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 132),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 164),
       children: [
         if (history.isNotEmpty) ...[
           Text('Recent searches', style: Theme.of(context).textTheme.titleLarge),
@@ -463,7 +459,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               final mood = moods[i];
               final color = _browseColors[i % _browseColors.length];
               return InkWell(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(16),
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
@@ -471,48 +467,48 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     ),
                   );
                 },
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    color: color,
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          right: -12,
-                          bottom: -10,
-                          child: Transform.rotate(
-                            angle: math.pi / 7,
-                            child: Container(
-                              width: 56,
-                              height: 56,
-                              decoration: BoxDecoration(
-                                color: Colors.black.withAlpha(55),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.graphic_eq_rounded,
-                                color: Colors.white54,
-                                size: 26,
-                              ),
+                child: LiquidGlassSurface(
+                  borderRadius: 16,
+                  blurSigma: 18,
+                  tintColor: color,
+                  borderColor: Colors.white.withAlpha(24),
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        right: -12,
+                        bottom: -10,
+                        child: Transform.rotate(
+                          angle: math.pi / 7,
+                          child: Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withAlpha(55),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.graphic_eq_rounded,
+                              color: Colors.white60,
+                              size: 26,
                             ),
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 12, 44, 12),
-                          child: Text(
-                            mood.name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14.5,
-                              height: 1.2,
-                              color: Colors.white,
-                            ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 12, 44, 12),
+                        child: Text(
+                          mood.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14.5,
+                            height: 1.2,
+                            color: Colors.white,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               );
