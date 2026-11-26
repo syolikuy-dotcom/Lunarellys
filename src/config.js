@@ -26,6 +26,8 @@ export const config = {
   cacheTtlMs: readInt(['CACHE_TTL_MS'], 300000, 1000, 3600000),
   cacheMaxEntries: readInt(['CACHE_MAX_ENTRIES'], 500, 10, 100000),
   defaultRegion: (process.env.DEFAULT_REGION || 'ID').slice(0, 2).toUpperCase(),
+  defaultNodeUrl: (process.env.DEFAULT_NODE_URL || '').trim().replace(/\/+$/, ''),
+  defaultNodeApiKey: (process.env.DEFAULT_NODE_API_KEY || '').trim(),
   corsOrigin: process.env.CORS_ORIGIN || '*',
   logLevel: (process.env.LOG_LEVEL || 'info').toLowerCase(),
   nodeEnv: process.env.NODE_ENV || 'production',
