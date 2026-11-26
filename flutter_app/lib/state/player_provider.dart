@@ -9,8 +9,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:palette_generator/palette_generator.dart';
+import '../core/config/app_config.dart';
 import '../core/theme/app_theme.dart';
-import '../data/models/music_models.dart';
+import '../models/music_models.dart';
 import 'library_provider.dart';
 import 'settings_provider.dart';
 
@@ -35,6 +36,10 @@ class PlayerState {
   final String? errorMessage;
   final Duration? sleepTimerRemaining;
   final double playbackSpeed;
+  final double pitch;
+  final double volume;
+  final SoundStylePreset soundStyle;
+  final bool queueLocked;
   final bool isLoadingRadio;
   final bool stopAfterCurrentTrack;
 
@@ -42,7 +47,7 @@ class PlayerState {
     this.currentTrack,
     this.queue = const [],
     this.currentIndex = -1,
-    this.playingContext = 'Queue',
+    this.playingContext = 'Antrean',
     this.isPlaying = false,
     this.isBuffering = false,
     this.position = Duration.zero,
@@ -57,6 +62,10 @@ class PlayerState {
     this.errorMessage,
     this.sleepTimerRemaining,
     this.playbackSpeed = 1.0,
+    this.pitch = 1.0,
+    this.volume = 0.85,
+    this.soundStyle = SoundStylePreset.normal,
+    this.queueLocked = false,
     this.isLoadingRadio = false,
     this.stopAfterCurrentTrack = false,
   });
@@ -91,6 +100,10 @@ class PlayerState {
     Duration? sleepTimerRemaining,
     bool clearSleepTimer = false,
     double? playbackSpeed,
+    double? pitch,
+    double? volume,
+    SoundStylePreset? soundStyle,
+    bool? queueLocked,
     bool? isLoadingRadio,
     bool? stopAfterCurrentTrack,
   }) {
@@ -114,6 +127,10 @@ class PlayerState {
       sleepTimerRemaining:
           clearSleepTimer ? null : (sleepTimerRemaining ?? this.sleepTimerRemaining),
       playbackSpeed: playbackSpeed ?? this.playbackSpeed,
+      pitch: pitch ?? this.pitch,
+      volume: volume ?? this.volume,
+      soundStyle: soundStyle ?? this.soundStyle,
+      queueLocked: queueLocked ?? this.queueLocked,
       isLoadingRadio: isLoadingRadio ?? this.isLoadingRadio,
       stopAfterCurrentTrack: stopAfterCurrentTrack ?? this.stopAfterCurrentTrack,
     );
@@ -155,8 +172,12 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       final fallbackDur = track.durationSeconds != null
           ? Duration(seconds: track.durationSeconds!)
           : Duration.zero;
-      final ctx = (decoded['playingContext'] ?? 'Queue').toString();
+      final ctx = (decoded['playingContext'] ?? 'Antrean').toString();
       final speed = ((decoded['playbackSpeed'] as num?)?.toDouble() ?? 1.0).clamp(0.5, 2.0);
+      final pitch = ((decoded['pitch'] as num?)?.toDouble() ?? 1.0).clamp(0.5, 1.5);
+      final vol = ((decoded['volume'] as num?)?.toDouble() ?? 0.85).clamp(0.0, 1.0);
+      final style = SoundStylePreset.fromString(decoded['soundStyle']?.toString());
+      final locked = decoded['queueLocked'] == true;
       state = state.copyWith(
         currentTrack: track,
         queue: queue,
@@ -164,7 +185,12 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         playingContext: ctx,
         duration: fallbackDur,
         playbackSpeed: speed,
+        pitch: pitch,
+        volume: vol,
+        soundStyle: style,
+        queueLocked: locked,
       );
+      unawaited(_player.setVolume(vol).catchError((_) {}));
       unawaited(_extractDynamicColor(track));
     } catch (_) {}
   }
@@ -182,6 +208,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         'currentIndex': state.currentIndex.clamp(0, min(59, state.queue.length - 1)),
         'playingContext': state.playingContext,
         'playbackSpeed': state.playbackSpeed,
+        'pitch': state.pitch,
+        'volume': state.volume,
+        'soundStyle': state.soundStyle.key,
+        'queueLocked': state.queueLocked,
       });
       prefs.setString('persisted_queue_v1', payload);
     } catch (_) {}
@@ -272,7 +302,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       currentTrack: track,
       queue: queue,
       currentIndex: index,
-      playingContext: contextName ?? track.album?.name ?? 'Queue',
+      playingContext: contextName ?? track.album?.name ?? 'Mix ${track.title}',
       position: Duration.zero,
       duration: fallbackDuration,
       isBuffering: true,
@@ -316,8 +346,12 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       }
 
       await _player.setAudioSource(source);
+      await _player.setVolume(state.volume).catchError((_) {});
       if (state.playbackSpeed != 1.0) {
-        await _player.setSpeed(state.playbackSpeed);
+        await _player.setSpeed(state.playbackSpeed).catchError((_) {});
+      }
+      if (state.pitch != 1.0) {
+        await _player.setPitch(state.pitch).catchError((_) {});
       }
       await _player.play();
       _consecutiveErrors = 0;
@@ -327,7 +361,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         state = state.copyWith(
           isBuffering: false,
           isPlaying: false,
-          errorMessage: 'Track unavailable — skipping to next...',
+          errorMessage: 'Lagu tidak tersedia — melompat ke berikutnya...',
         );
         await Future<void>.delayed(const Duration(milliseconds: 500));
         await skipNext();
@@ -336,7 +370,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       state = state.copyWith(
         isBuffering: false,
         isPlaying: false,
-        errorMessage: 'Unable to play this track right now. Please try another song.',
+        errorMessage: 'Tidak dapat memutar lagu ini sekarang. Coba lagu lain.',
       );
     }
 
@@ -367,8 +401,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       if (picked != null) {
         final hsl = HSLColor.fromColor(picked);
         final balanced = hsl
-            .withSaturation(hsl.saturation.clamp(0.35, 0.78))
-            .withLightness(hsl.lightness.clamp(0.42, 0.62))
+            .withSaturation(hsl.saturation.clamp(0.28, 0.72))
+            .withLightness(hsl.lightness.clamp(0.38, 0.58))
             .toColor();
         state = state.copyWith(dynamicColor: balanced);
       } else {
@@ -376,7 +410,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       }
     } catch (_) {
       if (state.currentTrack?.id == track.id) {
-        state = state.copyWith(dynamicColor: AppColors.brandGreen);
+        state = state.copyWith(dynamicColor: AppColors.horizonBlue);
       }
     }
   }
@@ -396,6 +430,13 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         state = state.copyWith(loadingLyrics: false);
       }
     }
+  }
+
+  Future<void> refreshLyrics() async {
+    final track = state.currentTrack;
+    if (track == null) return;
+    state = state.copyWith(loadingLyrics: true, clearLyrics: true);
+    await _fetchLyrics(track);
   }
 
   Future<void> _fetchSongDetail(MusicItem track) async {
@@ -475,7 +516,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         }
       }
     }
-    await _startTrackAt(state.queue[nextIdx], state.queue, nextIdx);
+    await _startTrackAt(state.queue[nextIdx], state.queue, nextIdx, contextName: state.playingContext);
   }
 
   Future<void> skipPrevious() async {
@@ -485,7 +526,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       return;
     }
     final prevIdx = state.currentIndex > 0 ? state.currentIndex - 1 : state.queue.length - 1;
-    await _startTrackAt(state.queue[prevIdx], state.queue, prevIdx);
+    await _startTrackAt(state.queue[prevIdx], state.queue, prevIdx, contextName: state.playingContext);
   }
 
   void toggleShuffle() {
@@ -495,6 +536,11 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   void cycleRepeat() {
     final next = RepeatSetting.values[(state.repeat.index + 1) % RepeatSetting.values.length];
     state = state.copyWith(repeat: next);
+  }
+
+  void toggleQueueLock() {
+    state = state.copyWith(queueLocked: !state.queueLocked);
+    _persistQueueState();
   }
 
   void playNextInQueue(MusicItem track) {
@@ -519,6 +565,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   void removeFromQueue(int index) {
+    if (state.queueLocked) return;
     if (index < 0 || index >= state.queue.length || index == state.currentIndex) return;
     final list = List<MusicItem>.from(state.queue)..removeAt(index);
     final newIdx = index < state.currentIndex ? state.currentIndex - 1 : state.currentIndex;
@@ -534,11 +581,40 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     await playTrack(playable.first, queue: playable, contextName: contextName);
   }
 
+  Future<void> setVolume(double vol) async {
+    final clamped = vol.clamp(0.0, 1.0);
+    await _player.setVolume(clamped).catchError((_) {});
+    state = state.copyWith(volume: clamped);
+    _persistQueueState();
+  }
+
   Future<void> setPlaybackSpeed(double speed) async {
     final clamped = speed.clamp(0.5, 2.0);
-    await _player.setSpeed(clamped);
+    await _player.setSpeed(clamped).catchError((_) {});
     state = state.copyWith(playbackSpeed: clamped);
     _persistQueueState();
+  }
+
+  Future<void> setPitch(double pitch) async {
+    final clamped = pitch.clamp(0.5, 1.5);
+    await _player.setPitch(clamped).catchError((_) {});
+    state = state.copyWith(pitch: clamped);
+    _persistQueueState();
+  }
+
+  Future<void> setSoundStyle(SoundStylePreset style) async {
+    await _player.setSpeed(style.speed).catchError((_) {});
+    await _player.setPitch(style.pitch).catchError((_) {});
+    state = state.copyWith(
+      soundStyle: style,
+      playbackSpeed: style.speed,
+      pitch: style.pitch,
+    );
+    _persistQueueState();
+  }
+
+  Future<void> resetTempoPitch() async {
+    await setSoundStyle(SoundStylePreset.normal);
   }
 
   Future<void> startRadio(MusicItem seed) async {
@@ -550,14 +626,15 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         ...radio.where((t) => t.id != seed.id),
       ];
       state = state.copyWith(isLoadingRadio: false);
-      await playTrack(seed, queue: combined, contextName: '${seed.title} Radio');
+      await playTrack(seed, queue: combined, contextName: 'Mix ${seed.title}');
     } catch (_) {
       state = state.copyWith(isLoadingRadio: false);
-      await playTrack(seed, contextName: '${seed.title} Radio');
+      await playTrack(seed, contextName: 'Mix ${seed.title}');
     }
   }
 
   void reorderQueue(int oldIndex, int newIndex) {
+    if (state.queueLocked) return;
     if (oldIndex < 0 || oldIndex >= state.queue.length) return;
     if (newIndex > oldIndex) newIndex -= 1;
     if (newIndex < 0 || newIndex >= state.queue.length) return;
@@ -578,6 +655,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   void clearUpcomingQueue() {
+    if (state.queueLocked) return;
     final cur = state.currentTrack;
     if (cur == null) {
       state = state.copyWith(queue: const [], currentIndex: -1);
