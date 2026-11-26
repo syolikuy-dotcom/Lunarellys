@@ -1,268 +1,324 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../state/library_provider.dart';
 import '../../state/player_provider.dart';
 import '../../state/settings_provider.dart';
-import '../screens/now_playing_screen.dart';
 import 'artwork_image.dart';
+import 'liquid_glass.dart';
 import 'marquee_text.dart';
 
-class WithMiniPlayer extends ConsumerWidget {
-  final Widget child;
-  const WithMiniPlayer({super.key, required this.child});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final hasTrack = ref.watch(playerProvider.select((s) => s.currentTrack != null));
-    return Stack(
-      children: [
-        child,
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: SafeArea(
-            top: false,
-            child: IgnorePointer(
-              ignoring: !hasTrack,
-              child: AnimatedSlide(
-                offset: hasTrack ? Offset.zero : const Offset(0, 1.25),
-                duration: const Duration(milliseconds: 240),
-                curve: Curves.easeOutCubic,
-                child: AnimatedOpacity(
-                  opacity: hasTrack ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 180),
-                  child: const MiniPlayer(),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class MiniPlayer extends ConsumerWidget {
-  const MiniPlayer({super.key});
+  final VoidCallback onTap;
+  final bool compact;
 
-  void _openNowPlaying(BuildContext context) {
-    HapticFeedback.selectionClick();
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: false,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const NowPlayingScreen(),
-    );
-  }
+  const MiniPlayer({
+    super.key,
+    required this.onTap,
+    this.compact = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final playerState = ref.watch(playerProvider);
-    final track = playerState.currentTrack;
+    final player = ref.watch(playerProvider);
+    final track = player.currentTrack;
     if (track == null) return const SizedBox.shrink();
 
-    final isLiked = ref.watch(libraryProvider.select((l) => l.isLiked(track.id)));
-    final useDynamicMini = ref.watch(settingsProvider.select((s) => s.miniPlayerDynamicBg));
-    final accent = playerState.dynamicColor ?? AppColors.brandGreen;
-    final totalMs = playerState.duration.inMilliseconds;
-    final posMs = playerState.position.inMilliseconds;
+    final settings = ref.watch(settingsProvider);
+    final library = ref.watch(libraryProvider);
+    final isLiked = library.isLiked(track.id);
+    final isDark = AppColors.isDark(context);
+
+    final totalMs = player.duration.inMilliseconds;
+    final posMs = player.position.inMilliseconds;
     final progress = totalMs > 0 ? (posMs / totalMs).clamp(0.0, 1.0) : 0.0;
 
-    final leftTint = useDynamicMini
-        ? Color.lerp(const Color(0xFF161E26), accent, 0.36)!
-        : const Color(0xFF161E26);
-    final rightTint = useDynamicMini
-        ? Color.lerp(const Color(0xFF10161D), accent, 0.18)!
-        : const Color(0xFF10161D);
+    final ink = AppColors.inkOf(context);
+    final sub = AppColors.subOf(context);
+    final accent = player.dynamicColor ?? const Color(0xFF7FA3C7);
+    final useDynamicBg =
+        settings.miniPlayerBackgroundStyle != MiniPlayerBackgroundStyle.blur &&
+            player.dynamicColor != null;
 
-    return GestureDetector(
-      onTap: () => _openNowPlaying(context),
-      onHorizontalDragEnd: (details) {
-        final vx = details.primaryVelocity ?? 0;
-        if (vx < -220) {
-          HapticFeedback.lightImpact();
-          ref.read(playerProvider.notifier).skipNext();
-        } else if (vx > 220) {
-          HapticFeedback.lightImpact();
-          ref.read(playerProvider.notifier).skipPrevious();
-        }
-      },
-      onVerticalDragEnd: (details) {
-        if ((details.primaryVelocity ?? 0) < -220) {
-          _openNowPlaying(context);
-        }
-      },
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(110),
-              blurRadius: 24,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: RepaintBoundary(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 13, sigmaY: 13),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 280),
-                curve: Curves.easeOutCubic,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white.withAlpha(18),
-                    leftTint.withAlpha(182),
-                    rightTint.withAlpha(206),
-                  ],
-                  stops: const [0.0, 0.34, 1.0],
-                ),
-                border: Border.all(
-                  color: Colors.white.withAlpha(24),
-                  width: 0.9,
-                ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 8, 8, 7),
-                    child: Row(
+    final pillTint = useDynamicBg
+        ? Color.lerp(
+            isDark ? const Color(0xD81A1F26) : const Color(0xECFFFFFF),
+            accent,
+            isDark ? 0.24 : 0.12,
+          )
+        : (isDark ? const Color(0xD4171B22) : const Color(0xE2FFFFFF));
+
+    if (compact) {
+      return LiquidGlassTap(
+        onTap: onTap,
+        pressedScale: 0.97,
+        child: LiquidGlassSurface(
+          borderRadius: BorderRadius.circular(999),
+          blurSigma: 28,
+          tintColor: pillTint,
+          chromaticAccent: accent,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 2px progress indicator hugging the top edge
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: SizedBox(
+                    height: 2,
+                    child: Stack(
                       children: [
-                        Hero(
-                          tag: 'now_playing_art_${track.id}',
-                          child: ArtworkImage(
-                            url: track.bestThumbUrl(size: 160),
-                            size: 44,
-                            radius: 10,
-                          ),
+                        Container(color: Colors.transparent),
+                        FractionallySizedBox(
+                          widthFactor: progress,
+                          child: Container(color: ink.withAlpha(210)),
                         ),
-                        const SizedBox(width: 11),
-                        Expanded(
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 220),
-                            child: Align(
-                              key: ValueKey(track.id),
-                              alignment: Alignment.centerLeft,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  MarqueeText(
-                                    text: track.title,
-                                    style: const TextStyle(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 1),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.graphic_eq_rounded,
-                                        size: 12,
-                                        color: AppColors.brandGreenBright,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          track.artistDisplay,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.white.withAlpha(205),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
-                          padding: EdgeInsets.zero,
-                          icon: Icon(
-                            isLiked ? Icons.check_circle_rounded : Icons.add_circle_outline_rounded,
-                            size: 21,
-                            color: isLiked ? AppColors.brandGreenBright : Colors.white.withAlpha(225),
-                          ),
-                          onPressed: () {
-                            HapticFeedback.selectionClick();
-                            ref.read(libraryProvider.notifier).toggleLike(track);
-                          },
-                        ),
-                        if (playerState.isBuffering)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 10),
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.2,
-                                color: Colors.white,
-                              ),
-                            ),
-                          )
-                        else
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withAlpha(28),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white.withAlpha(48)),
-                            ),
-                            child: IconButton(
-                              constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
-                              padding: EdgeInsets.zero,
-                              icon: Icon(
-                                playerState.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                size: 24,
-                                color: Colors.white,
-                              ),
-                              onPressed: () {
-                                HapticFeedback.lightImpact();
-                                ref.read(playerProvider.notifier).togglePlayPause();
-                              },
-                            ),
-                          ),
                       ],
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(99),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 2.4,
-                        backgroundColor: Colors.white.withAlpha(36),
-                        valueColor: const AlwaysStoppedAnimation<Color>(AppColors.brandGreenBright),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(9, 6, 8, 8),
+                child: SizedBox(
+                  height: 44,
+                  child: Row(
+                    children: [
+                      ArtworkImage(
+                        url: track.bestThumbUrl(size: 160),
+                        size: 38,
+                        radius: 19,
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            MarqueeText(
+                              text: track.title,
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: ink,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                            Text(
+                              track.artistDisplay,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: sub,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        constraints: const BoxConstraints(minWidth: 28, minHeight: 32),
+                        onPressed: () => ref.read(libraryProvider.notifier).toggleLike(track),
+                        icon: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          child: Icon(
+                            isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                            key: ValueKey('clike_$isLiked'),
+                            color: isLiked ? const Color(0xFFE11D48) : ink,
+                            size: 19,
+                          ),
+                        ),
+                      ),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(99),
+                        onTap: () => ref.read(playerProvider.notifier).togglePlayPause(),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 160),
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: ink,
+                            shape: BoxShape.circle,
+                          ),
+                          child: player.isBuffering
+                              ? Padding(
+                                  padding: const EdgeInsets.all(9),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: isDark ? Colors.black : Colors.white,
+                                  ),
+                                )
+                              : AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 160),
+                                  child: Icon(
+                                    player.isPlaying
+                                        ? Icons.pause_rounded
+                                        : Icons.play_arrow_rounded,
+                                    key: ValueKey('cplay_${player.isPlaying}'),
+                                    color: isDark ? Colors.black : Colors.white,
+                                    size: 21,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        constraints: const BoxConstraints(minWidth: 28, minHeight: 32),
+                        onPressed: () => ref.read(playerProvider.notifier).skipNext(),
+                        icon: Icon(Icons.skip_next_rounded, color: ink, size: 22),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
+      );
+    }
+
+    return GestureDetector(
+      onVerticalDragEnd: (details) {
+        if ((details.primaryVelocity ?? 0) < -180) {
+          onTap();
+        }
+      },
+      onHorizontalDragEnd: (details) {
+        final v = details.primaryVelocity ?? 0;
+        if (v < -300) {
+          ref.read(playerProvider.notifier).skipNext();
+        } else if (v > 300) {
+          ref.read(playerProvider.notifier).skipPrevious();
+        }
+      },
+      child: LiquidGlassTap(
+        onTap: onTap,
+        pressedScale: 0.98,
+        child: LiquidGlassSurface(
+          borderRadius: BorderRadius.circular(32),
+          blurSigma: 28,
+          tintColor: pillTint,
+          chromaticAccent: accent,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 2px crisp dark progress bar hugging the top edge like screenshot
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: SizedBox(
+                    height: 2,
+                    child: Stack(
+                      children: [
+                        Container(color: Colors.transparent),
+                        FractionallySizedBox(
+                          widthFactor: progress,
+                          child: Container(color: ink.withAlpha(220)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 7, 10, 9),
+                child: Row(
+                  children: [
+                    ArtworkImage(
+                      url: track.bestThumbUrl(size: 180),
+                      size: 44,
+                      radius: 22,
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          MarqueeText(
+                            text: track.title,
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                              color: ink,
+                              letterSpacing: -0.25,
+                            ),
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            track.artistDisplay,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: sub,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => ref.read(libraryProvider.notifier).toggleLike(track),
+                      icon: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        child: Icon(
+                          isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          key: ValueKey('like_$isLiked'),
+                          color: isLiked ? const Color(0xFFE11D48) : ink,
+                          size: 21,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(99),
+                      onTap: () => ref.read(playerProvider.notifier).togglePlayPause(),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: ink,
+                          shape: BoxShape.circle,
+                        ),
+                        child: player.isBuffering
+                            ? Padding(
+                                padding: const EdgeInsets.all(10),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  color: isDark ? Colors.black : Colors.white,
+                                ),
+                              )
+                            : AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 160),
+                                child: Icon(
+                                  player.isPlaying
+                                      ? Icons.pause_rounded
+                                      : Icons.play_arrow_rounded,
+                                  key: ValueKey('play_${player.isPlaying}'),
+                                  color: isDark ? Colors.black : Colors.white,
+                                  size: 23,
+                                ),
+                              ),
+                      ),
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => ref.read(playerProvider.notifier).skipNext(),
+                      icon: Icon(Icons.skip_next_rounded, color: ink, size: 24),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
