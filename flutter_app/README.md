@@ -8,7 +8,7 @@ A cross-platform Flutter music streaming client developed by **Ikhwan Romadon**,
 - **Customizable Player & Slider Styles**: Switch between **Blur**, **Classic**, **Glow Animated**, and **Live Mesh** player backdrops plus **Default**, **Wavy**, **Slim**, and **Squiggly** progress sliders directly inside **Settings**.
 - **Dynamic Album Colors & Persistent Queue**: Extracts vibrant palette colors from album artwork (`palette_generator`) and restores your active queue across restarts.
 - **Offline Downloads**: Download tracks directly to device storage (`path_provider`) and listen offline.
-- **1-Tap Pterodactyl Setup**: Connect to any Pterodactyl node (e.g. `http://nodedenisrealbaik.sinar.bonus.smasnug.web.id:4686/`) inside **Settings → Server & Pterodactyl Setup** with live `/api/node/info` health probing, or bake it in at build time with `--dart-define=API_BASE_URL=...`.
+- **1-Tap Pterodactyl Setup**: Connect to any Pterodactyl node (e.g. `http://nodedenisrealbaik.sinar.bonus.smasnug.web.id:4686/`) via the hidden admin panel (tap the version card in **About** 7×, then enter the Admin Passcode) with live `/api/node/info` health probing, or bake it in at build time with `--dart-define=API_BASE_URL=...`.
 
 ## Build Android APK (Zero-Issue Setup)
 
