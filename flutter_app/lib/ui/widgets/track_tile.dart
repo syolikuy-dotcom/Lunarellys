@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/theme/app_theme.dart';
-import '../../data/models/music_models.dart';
+import '../../models/music_models.dart';
 import '../../state/library_provider.dart';
 import '../../state/player_provider.dart';
 import '../screens/detail_screens.dart';
@@ -19,6 +19,7 @@ class TrackTile extends ConsumerWidget {
   final Widget? trailingExtra;
   final int? trackNumber;
   final bool showArtwork;
+  final bool compact;
 
   const TrackTile({
     super.key,
@@ -28,6 +29,7 @@ class TrackTile extends ConsumerWidget {
     this.trailingExtra,
     this.trackNumber,
     this.showArtwork = true,
+    this.compact = false,
   });
 
   @override
@@ -35,12 +37,15 @@ class TrackTile extends ConsumerWidget {
     final playerState = ref.watch(playerProvider);
     final libraryState = ref.watch(libraryProvider);
     final isPlayingThis = playerState.currentTrack?.id == track.id;
-    final isLiked = libraryState.isLiked(track.id);
     final isDownloaded = libraryState.isDownloaded(track.id);
     final dlProgress = libraryState.downloadProgress[track.id];
 
+    final ink = AppColors.inkOf(context);
+    final sub = AppColors.subOf(context);
+    final isDark = AppColors.isDark(context);
+
     return InkWell(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(14),
       onTap: onTapOverride ??
           () {
             HapticFeedback.selectionClick();
@@ -48,16 +53,18 @@ class TrackTile extends ConsumerWidget {
           },
       onLongPress: () {
         HapticFeedback.mediumImpact();
-        _showTrackOptions(context, ref);
+        showTrackOptionsSheet(context, ref, track);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 6 : 10,
+          vertical: compact ? 6 : 8,
+        ),
         decoration: BoxDecoration(
-          color: isPlayingThis ? Colors.white.withAlpha(22) : Colors.transparent,
+          color: isPlayingThis
+              ? (isDark ? Colors.white.withAlpha(18) : AppColors.lightSurfaceMuted)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(14),
-          border: isPlayingThis
-              ? Border.all(color: AppColors.brandGreenBright.withAlpha(75), width: 0.9)
-              : null,
         ),
         child: Row(
           children: [
@@ -67,16 +74,16 @@ class TrackTile extends ConsumerWidget {
                 child: Center(
                   child: isPlayingThis
                       ? AnimatedEqualizer(
-                          color: AppColors.brandGreenBright,
+                          color: ink,
                           isPlaying: playerState.isPlaying,
                           size: 16,
                         )
                       : Text(
-                          '$trackNumber',
+                          trackNumber!.toString().padLeft(2, '0'),
                           style: GoogleFonts.jetBrainsMono(
-                            fontSize: 13.5,
+                            fontSize: 13,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.textSecondary,
+                            color: sub,
                             fontFeatures: const [FontFeature.tabularFigures()],
                           ),
                         ),
@@ -88,22 +95,22 @@ class TrackTile extends ConsumerWidget {
                 children: [
                   ArtworkImage(
                     url: track.bestThumbUrl(size: 160),
-                    size: 48,
-                    radius: 6,
+                    size: compact ? 48 : 50,
+                    radius: 8,
                   ),
                   if (isPlayingThis)
                     Container(
-                      width: 48,
-                      height: 48,
+                      width: compact ? 48 : 50,
+                      height: compact ? 48 : 50,
                       decoration: BoxDecoration(
-                        color: Colors.black.withAlpha(165),
-                        borderRadius: BorderRadius.circular(6),
+                        color: Colors.black.withAlpha(150),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Center(
                         child: AnimatedEqualizer(
-                          color: AppColors.brandGreenBright,
+                          color: Colors.white,
                           isPlaying: playerState.isPlaying,
-                          size: 18,
+                          size: 17,
                         ),
                       ),
                     ),
@@ -121,20 +128,21 @@ class TrackTile extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 14.5,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
                       color: isPlayingThis
-                          ? AppColors.brandGreenBright
-                          : AppColors.textPrimary,
+                          ? (isDark ? Colors.white : AppColors.horizonBlue)
+                          : ink,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Row(
                     children: [
                       if (isDownloaded) ...[
                         const Icon(
                           Icons.arrow_circle_down_rounded,
-                          size: 14,
-                          color: AppColors.brandGreen,
+                          size: 13.5,
+                          color: AppColors.horizonBlue,
                         ),
                         const SizedBox(width: 4),
                       ],
@@ -143,15 +151,15 @@ class TrackTile extends ConsumerWidget {
                           margin: const EdgeInsets.only(right: 5),
                           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0.5),
                           decoration: BoxDecoration(
-                            color: AppColors.textSecondary.withAlpha(48),
+                            color: sub.withAlpha(42),
                             borderRadius: BorderRadius.circular(3),
                           ),
-                          child: const Text(
+                          child: Text(
                             'E',
                             style: TextStyle(
                               fontSize: 9.5,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.textSecondary,
+                              color: sub,
                             ),
                           ),
                         ),
@@ -161,9 +169,9 @@ class TrackTile extends ConsumerWidget {
                           track.artistDisplay,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12.5,
-                            color: AppColors.textSecondary,
+                            color: sub,
                           ),
                         ),
                       ),
@@ -173,176 +181,131 @@ class TrackTile extends ConsumerWidget {
               ),
             ),
             if (dlProgress != null)
-              const Padding(
-                padding: EdgeInsets.only(right: 6),
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
                 child: SizedBox(
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: AppColors.brandGreen,
+                    color: ink,
                   ),
                 ),
               ),
             if (trailingExtra != null) trailingExtra!,
             IconButton(
-              constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+              constraints: const BoxConstraints(minWidth: 34, minHeight: 36),
               padding: EdgeInsets.zero,
               visualDensity: VisualDensity.compact,
-              icon: Icon(
-                isLiked ? Icons.check_circle_rounded : Icons.add_circle_outline_rounded,
-                size: 20,
-                color: isLiked ? AppColors.brandGreen : AppColors.textSecondary,
-              ),
-              onPressed: () => ref.read(libraryProvider.notifier).toggleLike(track),
-              tooltip: isLiked ? 'Remove from Liked Songs' : 'Save to Liked Songs',
-            ),
-            IconButton(
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 38),
-              padding: EdgeInsets.zero,
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.more_vert_rounded, size: 20, color: AppColors.textSecondary),
-              onPressed: () => _showTrackOptions(context, ref),
-              tooltip: 'More options',
+              icon: Icon(Icons.more_vert_rounded, size: 20, color: sub),
+              onPressed: () => showTrackOptionsSheet(context, ref, track),
+              tooltip: 'Opsi lainnya',
             ),
           ],
         ),
       ),
     );
   }
+}
 
-  void _showTrackOptions(BuildContext context, WidgetRef ref) {
-    final library = ref.read(libraryProvider);
-    final isDownloaded = library.isDownloaded(track.id);
-    final isLiked = library.isLiked(track.id);
+void showTrackOptionsSheet(BuildContext context, WidgetRef ref, MusicItem track) {
+  final library = ref.read(libraryProvider);
+  final isDownloaded = library.isDownloaded(track.id);
+  final isLiked = library.isLiked(track.id);
+  final isPinned = library.isPinnedSpeedDial(track.id);
+  final ink = AppColors.inkOf(context);
+  final sub = AppColors.subOf(context);
+  final border = AppColors.borderOf(context);
 
-    showLiquidGlassSheet<void>(
-      context: context,
-      builder: (sheetCtx) {
-        return SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Column(
-              mainAxisSize: MainAxisSize.min,
+  showLiquidGlassSheet<void>(
+    context: context,
+    builder: (sheetCtx) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
               children: [
-                Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(99),
+                ArtworkImage(url: track.bestThumbUrl(size: 160), size: 50, radius: 10),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        track.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, color: ink),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        [
+                          track.artistDisplay,
+                          if (track.duration != null) track.duration!,
+                        ].join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 13, color: sub),
+                      ),
+                    ],
                   ),
                 ),
-                ListTile(
-                  leading: ArtworkImage(url: track.bestThumbUrl(size: 160), size: 48, radius: 6),
-                  title: Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  subtitle: Text(
-                    [
-                      track.artistDisplay,
-                      if (track.duration != null) track.duration!,
-                    ].join(' · '),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: Icon(
-                    isLiked ? Icons.check_circle_rounded : Icons.add_circle_outline_rounded,
-                    color: isLiked ? AppColors.brandGreen : null,
-                  ),
-                  title: Text(isLiked ? 'Remove from Liked Songs' : 'Save to Liked Songs'),
-                  onTap: () {
-                    Navigator.pop(sheetCtx);
+                IconButton(
+                  onPressed: () {
                     ref.read(libraryProvider.notifier).toggleLike(track);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.playlist_add_rounded),
-                  title: const Text('Add to Playlist'),
-                  onTap: () {
                     Navigator.pop(sheetCtx);
-                    _showPlaylistPicker(context, ref);
                   },
+                  icon: Icon(
+                    isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    color: isLiked ? const Color(0xFFE11D48) : ink,
+                  ),
                 ),
-                ListTile(
-                  leading: const Icon(Icons.queue_play_next_rounded),
-                  title: const Text('Play Next'),
-                  onTap: () {
-                    Navigator.pop(sheetCtx);
-                    ref.read(playerProvider.notifier).playNextInQueue(track);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.queue_music_rounded),
-                  title: const Text('Add to Queue'),
-                  onTap: () {
-                    Navigator.pop(sheetCtx);
-                    ref.read(playerProvider.notifier).addToQueue(track);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.radio_rounded),
-                  title: const Text('Go to Song Radio'),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _quickActionBox(
+                  context,
+                  icon: Icons.radio_rounded,
+                  label: 'Mulai radio',
                   onTap: () {
                     Navigator.pop(sheetCtx);
                     ref.read(playerProvider.notifier).startRadio(track);
                   },
                 ),
-                ListTile(
-                  leading: Icon(
-                    isDownloaded ? Icons.delete_outline_rounded : Icons.arrow_circle_down_rounded,
-                    color: isDownloaded ? AppColors.error : null,
-                  ),
-                  title: Text(isDownloaded ? 'Remove Offline Download' : 'Download Offline'),
-                  onTap: () async {
+                const SizedBox(width: 8),
+                _quickActionBox(
+                  context,
+                  icon: Icons.playlist_add_rounded,
+                  label: 'Tambah ke\nplaylist',
+                  onTap: () {
                     Navigator.pop(sheetCtx);
-                    if (isDownloaded) {
-                      await ref.read(libraryProvider.notifier).removeDownload(track.id);
-                    } else {
-                      try {
-                        await ref.read(libraryProvider.notifier).downloadTrack(track);
-                      } catch (_) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Download unavailable right now. Please try again.'),
-                            ),
-                          );
-                        }
-                      }
-                    }
+                    showTrackPlaylistPicker(context, ref, track);
                   },
                 ),
-                if (track.artists.isNotEmpty && track.artists.first.id != null)
-                  ListTile(
-                    leading: const Icon(Icons.person_outline_rounded),
-                    title: Text('View ${track.artists.first.name}', maxLines: 1, overflow: TextOverflow.ellipsis),
-                    onTap: () {
-                      Navigator.pop(sheetCtx);
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => ArtistScreen(artistId: track.artists.first.id!),
-                        ),
-                      );
-                    },
-                  ),
-                if (track.album?.id != null)
-                  ListTile(
-                    leading: const Icon(Icons.album_outlined),
-                    title: Text('View ${track.album!.name}', maxLines: 1, overflow: TextOverflow.ellipsis),
-                    onTap: () {
-                      Navigator.pop(sheetCtx);
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => AlbumScreen(albumId: track.album!.id!),
-                        ),
-                      );
-                    },
-                  ),
-                ListTile(
-                  leading: const Icon(Icons.share_outlined),
-                  title: const Text('Share'),
+                const SizedBox(width: 8),
+                _quickActionBox(
+                  context,
+                  icon: Icons.link_rounded,
+                  label: 'Salin link',
+                  onTap: () {
+                    Clipboard.setData(
+                      ClipboardData(text: 'https://music.youtube.com/watch?v=${track.id}'),
+                    );
+                    Navigator.pop(sheetCtx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Tautan lagu disalin')),
+                    );
+                  },
+                ),
+                const SizedBox(width: 8),
+                _quickActionBox(
+                  context,
+                  icon: Icons.share_outlined,
+                  label: 'Bagikan',
                   onTap: () {
                     Navigator.pop(sheetCtx);
                     Share.share(
@@ -352,74 +315,226 @@ class TrackTile extends ConsumerWidget {
                 ),
               ],
             ),
-        );
-      },
-    );
-  }
+            const SizedBox(height: 10),
+            Divider(height: 1, color: border),
+            if (track.artists.isNotEmpty && track.artists.first.id != null)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Lihat artis', style: TextStyle(fontWeight: FontWeight.w600, color: ink)),
+                subtitle: Text(track.artists.first.name, style: TextStyle(color: sub)),
+                trailing: Icon(Icons.record_voice_over_outlined, color: ink),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => ArtistScreen(artistId: track.artists.first.id!),
+                    ),
+                  );
+                },
+              ),
+            if (track.album?.id != null)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Lihat album', style: TextStyle(fontWeight: FontWeight.w600, color: ink)),
+                subtitle: Text(track.album!.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: sub)),
+                trailing: Icon(Icons.album_outlined, color: ink),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => AlbumScreen(albumId: track.album!.id!),
+                    ),
+                  );
+                },
+              ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                isLiked ? 'Hapus dari pustaka Disukai' : 'Tambah ke pustaka',
+                style: TextStyle(fontWeight: FontWeight.w600, color: ink),
+              ),
+              trailing: Icon(
+                isLiked ? Icons.library_add_check_rounded : Icons.library_add_outlined,
+                color: ink,
+              ),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                ref.read(libraryProvider.notifier).toggleLike(track);
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                isPinned ? 'Lepas dari speed dial' : 'Sematkan ke speed dial',
+                style: TextStyle(fontWeight: FontWeight.w600, color: ink),
+              ),
+              trailing: Icon(
+                isPinned ? Icons.push_pin_rounded : Icons.add_rounded,
+                color: isPinned ? AppColors.horizonBlue : ink,
+              ),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                ref.read(libraryProvider.notifier).togglePinSpeedDial(track);
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('Putar berikutnya', style: TextStyle(fontWeight: FontWeight.w600, color: ink)),
+              trailing: Icon(Icons.queue_play_next_rounded, color: ink),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                ref.read(playerProvider.notifier).playNextInQueue(track);
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('Tambahkan ke antrean', style: TextStyle(fontWeight: FontWeight.w600, color: ink)),
+              trailing: Icon(Icons.queue_music_rounded, color: ink),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                ref.read(playerProvider.notifier).addToQueue(track);
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                isDownloaded ? 'Hapus unduhan offline' : 'Unduh',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: isDownloaded ? AppColors.error : ink,
+                ),
+              ),
+              trailing: Icon(
+                isDownloaded ? Icons.delete_outline_rounded : Icons.download_rounded,
+                color: isDownloaded ? AppColors.error : ink,
+              ),
+              onTap: () async {
+                Navigator.pop(sheetCtx);
+                if (isDownloaded) {
+                  await ref.read(libraryProvider.notifier).removeDownload(track.id);
+                } else {
+                  try {
+                    await ref.read(libraryProvider.notifier).downloadTrack(track);
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Unduhan belum tersedia saat ini.')),
+                      );
+                    }
+                  }
+                }
+              },
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
 
-  void _showPlaylistPicker(BuildContext context, WidgetRef ref) {
-    showTrackPlaylistPicker(context, ref, track);
-  }
+Widget _quickActionBox(
+  BuildContext context, {
+  required IconData icon,
+  required String label,
+  required VoidCallback onTap,
+}) {
+  final ink = AppColors.inkOf(context);
+  final pill = AppColors.pillOf(context);
+  return Expanded(
+    child: InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        decoration: BoxDecoration(
+          color: pill,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 22, color: ink),
+            const SizedBox(height: 5),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                height: 1.15,
+                color: ink,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 void showTrackPlaylistPicker(BuildContext context, WidgetRef ref, MusicItem track) {
   final playlists = ref.read(libraryProvider).playlists;
+  final ink = AppColors.inkOf(context);
+  final sub = AppColors.subOf(context);
+  final pill = AppColors.pillOf(context);
+
   showLiquidGlassSheet<void>(
     context: context,
     builder: (ctx) {
       return SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Add to playlist', style: Theme.of(ctx).textTheme.titleLarge),
-              const SizedBox(height: 10),
-              ListTile(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Tambah ke playlist', style: Theme.of(ctx).textTheme.titleLarge),
+            const SizedBox(height: 10),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: pill,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.add_rounded, color: ink),
+              ),
+              title: Text('Playlist Baru', style: TextStyle(fontWeight: FontWeight.w700, color: ink)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showQuickCreatePlaylist(context, ref, track);
+              },
+            ),
+            if (playlists.isNotEmpty) const Divider(height: 12),
+            ...playlists.map(
+              (pl) => ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Container(
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceHigh,
-                    borderRadius: BorderRadius.circular(8),
+                    color: pill,
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.add_rounded, color: AppColors.brandGreenBright),
+                  child: Icon(Icons.queue_music_rounded, color: sub),
                 ),
-                title: const Text('New Playlist', style: TextStyle(fontWeight: FontWeight.w600)),
+                title: Text(pl.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: ink)),
+                subtitle: Text('${pl.tracks.length} lagu', style: TextStyle(color: sub)),
                 onTap: () {
+                  ref.read(libraryProvider.notifier).addTrackToPlaylist(pl.id, track);
                   Navigator.pop(ctx);
-                  _showQuickCreatePlaylist(context, ref, track);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Ditambahkan ke ${pl.name}')),
+                  );
                 },
               ),
-              if (playlists.isNotEmpty) const Divider(height: 12),
-              ...playlists.map(
-                (pl) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceHigh,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.queue_music_rounded, color: AppColors.textSecondary),
-                  ),
-                  title: Text(pl.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  subtitle: Text('${pl.tracks.length} songs'),
-                  onTap: () {
-                    ref.read(libraryProvider.notifier).addTrackToPlaylist(pl.id, track);
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Added to ${pl.name}')),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+            ),
+          ],
+        ),
+      );
+    },
   );
 }
 
@@ -428,16 +543,16 @@ void _showQuickCreatePlaylist(BuildContext context, WidgetRef ref, MusicItem tra
   showDialog<void>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('New Playlist'),
+      title: const Text('Playlist Baru'),
       content: TextField(
         controller: ctrl,
         autofocus: true,
-        decoration: const InputDecoration(hintText: 'Give your playlist a name'),
+        decoration: const InputDecoration(hintText: 'Beri nama playlist kamu'),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx),
-          child: const Text('Cancel'),
+          child: const Text('Batal'),
         ),
         FilledButton(
           onPressed: () async {
@@ -450,7 +565,7 @@ void _showQuickCreatePlaylist(BuildContext context, WidgetRef ref, MusicItem tra
             }
             if (ctx.mounted) Navigator.pop(ctx);
           },
-          child: const Text('Create & Add'),
+          child: const Text('Buat & Tambah'),
         ),
       ],
     ),
