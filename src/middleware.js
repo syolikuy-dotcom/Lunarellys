@@ -81,6 +81,8 @@ export function apiKeyAuth(req, res, next) {
     req.path === '/health'
     || req.path === '/node/info'
     || req.path === '/node/info/'
+    || req.path === '/node/config'
+    || req.path === '/node/config/'
     || req.path === '/auth/google/start'
     || req.path === '/auth/google/callback'
     || req.path === '/auth/google/callback/'
