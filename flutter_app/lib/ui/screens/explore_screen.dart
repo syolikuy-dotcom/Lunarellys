@@ -1,8 +1,9 @@
 import 'dart:ui';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
-import '../../data/models/music_models.dart';
+import '../../models/music_models.dart';
 import '../../state/settings_provider.dart';
 import '../widgets/liquid_glass.dart';
 import '../widgets/media_card.dart';
@@ -80,6 +81,10 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   Widget build(BuildContext context) {
     final asyncData = ref.watch(exploreProvider);
 
+    final isDark = AppColors.isDark(context);
+    final ink = AppColors.inkOf(context);
+    final sub = AppColors.subOf(context);
+
     return LiquidGlassAmbientBackground(
       child: RefreshIndicator(
         color: AppColors.brandGreenBright,
@@ -97,23 +102,26 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               flexibleSpace: RepaintBoundary(
                 child: ClipRect(
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0x880B0F14),
-                      border: Border(
-                        bottom: BorderSide(color: Colors.white.withAlpha(12), width: 0.7),
+                    filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0x900B0F14) : const Color(0xCCF6F7F9),
+                        border: Border(
+                          bottom: BorderSide(
+                            color: AppColors.borderOf(context).withAlpha(110),
+                            width: 0.7,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-              ),
               title: Row(
                 children: [
                   UserAvatarButton(size: 36, onTap: widget.onOpenDrawer),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -122,16 +130,20 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                           'Explore',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: ink,
+                          ),
                         ),
                         Text(
-                          'New releases, charts & moods',
+                          'Rilis baru, tangga lagu & suasana',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.textSecondary,
+                            color: sub,
                           ),
                         ),
                       ],
@@ -143,7 +155,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             asyncData.when(
               loading: () => const SliverFillRemaining(
                 child: Center(
-                  child: CircularProgressIndicator(color: AppColors.brandGreenBright),
+                  child: CupertinoActivityIndicator(radius: 13),
                 ),
               ),
               error: (err, _) => SliverFillRemaining(
@@ -171,9 +183,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                         children: [
                           Expanded(
                             child: _QuickExploreCard(
-                              icon: Icons.new_releases_outlined,
+                              icon: CupertinoIcons.sparkles,
                               label: 'New\nReleases',
-                              accent: AppColors.brandGreenBright,
+                              accent: AppColors.iosGreen,
                               onTap: () => _scrollCtrl.animateTo(
                                 0,
                                 duration: const Duration(milliseconds: 300),
@@ -184,18 +196,18 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: _QuickExploreCard(
-                              icon: Icons.trending_up_rounded,
+                              icon: CupertinoIcons.chart_bar_fill,
                               label: 'Top\nCharts',
-                              accent: AppColors.lunarCyan,
+                              accent: AppColors.iosBlue,
                               onTap: () => _scrollToSection(_chartsKey),
                             ),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: _QuickExploreCard(
-                              icon: Icons.sentiment_satisfied_alt_rounded,
+                              icon: CupertinoIcons.music_note_2,
                               label: 'Moods &\nGenres',
-                              accent: const Color(0xFFF5B400),
+                              accent: AppColors.iosOrange,
                               onTap: () => _scrollToSection(_moodsKey),
                             ),
                           ),
@@ -237,8 +249,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                                 );
                               },
                               child: LiquidGlassSurface(
-                                borderRadius: 14,
-                                blurSigma: 18,
+                                borderRadius: BorderRadius.circular(14),
+                                useBackdropBlur: false,
+                                chromaticAccent: stripColor,
                                 child: Row(
                                   children: [
                                     Container(
@@ -259,10 +272,10 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                                           mood.name,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontWeight: FontWeight.w700,
                                             fontSize: 13.5,
-                                            color: Colors.white,
+                                            color: ink,
                                           ),
                                         ),
                                       ),
@@ -354,12 +367,13 @@ class _QuickExploreCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
+    final ink = AppColors.inkOf(context);
+    return LiquidGlassTap(
       onTap: onTap,
       child: LiquidGlassSurface(
-        borderRadius: 18,
-        blurSigma: 20,
+        borderRadius: BorderRadius.circular(20),
+        useBackdropBlur: false,
+        chromaticAccent: accent,
         padding: const EdgeInsets.all(13),
         child: SizedBox(
           height: 68,
@@ -372,11 +386,11 @@ class _QuickExploreCard extends StatelessWidget {
                 label,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12.5,
                   height: 1.2,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                  color: ink,
                 ),
               ),
             ],

@@ -84,7 +84,7 @@ router.get('/', (req, res) => {
   res.json({
     success: true,
     name: `${config.serviceName} REST API`,
-    service: 'lunarellys-api',
+    service: 'archys-api',
     version: config.appVersion,
     developer: config.developer,
     auth: authEnabled() ? 'API key required' : 'open',
@@ -147,16 +147,7 @@ router.get(['/node/config', '/node/config/'], (req, res) => {
   });
 });
 
-// PUT is the canonical method, but many reverse proxies / panels (Pterodactyl port
-// forwards, nginx, Cloudflare rules) reject PUT with HTTP 405. POST and PATCH are
-// accepted as equivalents so the APK can always publish the node config.
-router.all(['/admin/node-config', '/admin/node-config/'], (req, res, next) => {
-  if (!['PUT', 'POST', 'PATCH'].includes(req.method)) {
-    res.setHeader('Allow', 'PUT, POST, PATCH');
-    return res.status(405).json({ success: false, error: 'method not allowed, use PUT or POST' });
-  }
-  next();
-}, adminRateLimit, requireAdminAuth, (req, res) => {
+function handleSaveNodeConfig(req, res) {
   const baseUrl = resolveBaseUrl(req);
   if (req.body?.reset === true) {
     const cleared = resetRemoteNodeConfig();
@@ -191,7 +182,20 @@ router.all(['/admin/node-config', '/admin/node-config/'], (req, res, next) => {
     note: saved.note,
     updatedAt: saved.updatedAt
   });
-});
+}
+
+// PUT is the canonical method, but many reverse proxies / panels (Pterodactyl port
+// forwards, nginx, Cloudflare rules) reject PUT with HTTP 405. POST, PATCH, and
+// POST /admin/node-config/publish are accepted so the APK can always publish.
+router.all(['/admin/node-config', '/admin/node-config/'], (req, res, next) => {
+  if (!['PUT', 'POST', 'PATCH'].includes(req.method)) {
+    res.setHeader('Allow', 'PUT, POST, PATCH');
+    return res.status(405).json({ success: false, error: 'method not allowed, use PUT or POST' });
+  }
+  next();
+}, adminRateLimit, requireAdminAuth, handleSaveNodeConfig);
+
+router.post(['/admin/node-config/publish', '/admin/node-config/publish/'], adminRateLimit, requireAdminAuth, handleSaveNodeConfig);
 
 router.get('/search', asyncHandler(async (req, res) => {
   const q = requireQuery(req.query.q || req.query.query, 'q');
@@ -373,6 +377,209 @@ router.get('/music/lyrics', asyncHandler(async (req, res) => {
   const duration = req.query.duration ? Number(req.query.duration) : null;
   const data = await cachedMusicLyrics(id, title, artist, duration);
   res.json({ success: true, ...data });
+}));
+
+const HANGUL_INITIALS = [
+  'g', 'kk', 'n', 'd', 'tt', 'r', 'm', 'b', 'pp', 's', 'ss',
+  '', 'j', 'jj', 'ch', 'k', 't', 'p', 'h'
+];
+const HANGUL_MEDIALS = [
+  'a', 'ae', 'ya', 'yae', 'eo', 'e', 'yeo', 'ye', 'o', 'wa', 'wae',
+  'oe', 'yo', 'u', 'wo', 'we', 'wi', 'yu', 'eu', 'ui', 'i'
+];
+const HANGUL_FINALS = [
+  '', 'k', 'k', 'ks', 'n', 'nj', 'nh', 't', 'l', 'lk', 'lm', 'lb',
+  'ls', 'lt', 'lp', 'lh', 'm', 'p', 'ps', 't', 't', 'ng', 't', 't',
+  'k', 't', 'p', 't'
+];
+
+const KANA_MAP = {
+  // Hiragana basic & voiced
+  'あ': 'a', 'い': 'i', 'う': 'u', 'え': 'e', 'お': 'o',
+  'か': 'ka', 'き': 'ki', 'く': 'ku', 'け': 'ke', 'こ': 'ko',
+  'が': 'ga', 'ぎ': 'gi', 'ぐ': 'gu', 'げ': 'ge', 'ご': 'go',
+  'さ': 'sa', 'し': 'shi', 'す': 'su', 'せ': 'se', 'そ': 'so',
+  'ざ': 'za', 'じ': 'ji', 'ず': 'zu', 'ぜ': 'ze', 'ぞ': 'zo',
+  'た': 'ta', 'ち': 'chi', 'つ': 'tsu', 'て': 'te', 'と': 'to',
+  'だ': 'da', 'ぢ': 'ji', 'づ': 'zu', 'で': 'de', 'ど': 'do',
+  'な': 'na', 'に': 'ni', 'ぬ': 'nu', 'ね': 'ne', 'の': 'no',
+  'は': 'ha', 'ひ': 'hi', 'ふ': 'fu', 'へ': 'he', 'ほ': 'ho',
+  'ば': 'ba', 'び': 'bi', 'ぶ': 'bu', 'べ': 'be', 'ぼ': 'bo',
+  'ぱ': 'pa', 'ぴ': 'pi', 'ぷ': 'pu', 'ぺ': 'pe', 'ぽ': 'po',
+  'ま': 'ma', 'み': 'mi', 'む': 'mu', 'め': 'me', 'も': 'mo',
+  'や': 'ya', 'ゆ': 'yu', 'よ': 'yo',
+  'ら': 'ra', 'り': 'ri', 'る': 'ru', 'れ': 're', 'ろ': 'ro',
+  'わ': 'wa', 'を': 'o', 'ん': 'n',
+  'ぁ': 'a', 'ぃ': 'i', 'ぅ': 'u', 'ぇ': 'e', 'ぉ': 'o',
+  'ゃ': 'ya', 'ゅ': 'yu', 'ょ': 'yo', 'ゔ': 'vu',
+  // Katakana basic & voiced
+  'ア': 'a', 'イ': 'i', 'ウ': 'u', 'エ': 'e', 'オ': 'o',
+  'カ': 'ka', 'キ': 'ki', 'ク': 'ku', 'ケ': 'ke', 'コ': 'ko',
+  'ガ': 'ga', 'ギ': 'gi', 'グ': 'gu', 'ゲ': 'ge', 'ゴ': 'go',
+  'サ': 'sa', 'シ': 'shi', 'ス': 'su', 'セ': 'se', 'ソ': 'so',
+  'ザ': 'za', 'ジ': 'ji', 'ズ': 'zu', 'ゼ': 'ze', 'ゾ': 'zo',
+  'タ': 'ta', 'チ': 'chi', 'ツ': 'tsu', 'テ': 'te', 'ト': 'to',
+  'ダ': 'da', 'ヂ': 'ji', 'ヅ': 'zu', 'デ': 'de', 'ド': 'do',
+  'ナ': 'na', 'ニ': 'ni', 'ヌ': 'nu', 'ネ': 'ne', 'ノ': 'no',
+  'ハ': 'ha', 'ヒ': 'hi', 'フ': 'fu', 'ヘ': 'he', 'ホ': 'ho',
+  'バ': 'ba', 'ビ': 'bi', 'ブ': 'bu', 'ベ': 'be', 'ボ': 'bo',
+  'パ': 'pa', 'ピ': 'pi', 'プ': 'pu', 'ペ': 'pe', 'ポ': 'po',
+  'マ': 'ma', 'ミ': 'mi', 'ム': 'mu', 'メ': 'me', 'モ': 'mo',
+  'ヤ': 'ya', 'ユ': 'yu', 'ヨ': 'yo',
+  'ラ': 'ra', 'リ': 'ri', 'ル': 'ru', 'レ': 're', 'ロ': 'ro',
+  'ワ': 'wa', 'ヲ': 'o', 'ン': 'n',
+  'ァ': 'a', 'ィ': 'i', 'ゥ': 'u', 'ェ': 'e', 'ォ': 'o',
+  'ャ': 'ya', 'ュ': 'yu', 'ョ': 'yo', 'ヴ': 'vu'
+};
+
+const CYRILLIC_MAP = {
+  'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo',
+  'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+  'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+  'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch',
+  'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya'
+};
+
+function romanizeLyricText(input) {
+  const text = String(input || '').trim();
+  if (!text) return null;
+  const hasNonLatin = /[\u3040-\u30FF\uAC00-\uD7A3\u0400-\u04FF\u4E00-\u9FFF]/.test(text);
+  if (!hasNonLatin) return null;
+
+  let out = '';
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    const code = ch.charCodeAt(0);
+
+    // Hangul syllable decomposition
+    if (code >= 0xac00 && code <= 0xd7a3) {
+      const syl = code - 0xac00;
+      const ini = Math.floor(syl / 588);
+      const med = Math.floor((syl % 588) / 28);
+      const fin = syl % 28;
+      out += HANGUL_INITIALS[ini] + HANGUL_MEDIALS[med] + HANGUL_FINALS[fin];
+      continue;
+    }
+
+    // Small tsu (geminate consonant)
+    if (ch === 'っ' || ch === 'ッ') {
+      const next = KANA_MAP[text[i + 1]] || '';
+      if (next && /^[a-z]/.test(next)) out += next[0];
+      continue;
+    }
+
+    // Prolonged sound mark in Katakana
+    if (ch === 'ー') {
+      const lastVowel = out.match(/[aeiou]$/i);
+      if (lastVowel) out += lastVowel[0];
+      continue;
+    }
+
+    // Yoon combinations (e.g. きゃ -> kya)
+    if (i + 1 < text.length && 'ゃゅょャュョ'.includes(text[i + 1])) {
+      const base = KANA_MAP[ch];
+      const small = KANA_MAP[text[i + 1]];
+      if (base && small) {
+        out += base.slice(0, -1) + small;
+        i += 1;
+        continue;
+      }
+    }
+
+    if (KANA_MAP[ch]) {
+      out += KANA_MAP[ch];
+      continue;
+    }
+
+    const lower = ch.toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(CYRILLIC_MAP, lower)) {
+      const mapped = CYRILLIC_MAP[lower];
+      out += ch !== lower && mapped ? mapped[0].toUpperCase() + mapped.slice(1) : mapped;
+      continue;
+    }
+
+    out += ch;
+  }
+
+  const normalized = out.replace(/\s+/g, ' ').trim();
+  if (!normalized || normalized === text) return null;
+  return normalized;
+}
+
+async function translateLinesBatch(lines, targetLang) {
+  const joined = lines.join('\n');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4500);
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(joined)}`;
+    const upstream = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: controller.signal
+    });
+    if (!upstream.ok) return lines.map(() => null);
+    const json = await upstream.json();
+    const translatedJoined = Array.isArray(json?.[0])
+      ? json[0].map((seg) => (Array.isArray(seg) ? seg[0] || '' : '')).join('')
+      : '';
+    if (!translatedJoined) return lines.map(() => null);
+    const split = translatedJoined.split('\n');
+    if (split.length === lines.length) {
+      return split.map((s) => s.trim() || null);
+    }
+    return lines.map((_, idx) => (split[idx] ? split[idx].trim() : null));
+  } catch {
+    return lines.map(() => null);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+router.post('/music/lyrics-assist', asyncHandler(async (req, res) => {
+  const rawLines = Array.isArray(req.body?.lines) ? req.body.lines : null;
+  if (!rawLines || rawLines.length === 0) {
+    throw new HttpError('lines array is required', 400);
+  }
+  if (rawLines.length > 120) {
+    throw new HttpError('maximum 120 lines allowed per request', 400);
+  }
+
+  const cleanLines = rawLines.map((item) => String(item || '').trim().slice(0, 300));
+  const targetLang = ['id', 'en'].includes(req.body?.targetLang) ? req.body.targetLang : 'id';
+  const wantRomanize = req.body?.romanize !== false;
+  const wantTranslate = req.body?.translate === true;
+
+  const cacheKey = `lyrics-assist|${targetLang}|${wantRomanize ? 1 : 0}|${wantTranslate ? 1 : 0}|${cleanLines.join('\u0001')}`;
+  const hit = cache.get(cacheKey);
+  if (hit) {
+    return res.json({ success: true, ...hit });
+  }
+
+  let translated = cleanLines.map(() => null);
+  if (wantTranslate) {
+    const chunkSize = 15;
+    const chunks = [];
+    for (let i = 0; i < cleanLines.length; i += chunkSize) {
+      chunks.push(cleanLines.slice(i, i + chunkSize));
+    }
+    const results = await Promise.all(
+      chunks.map((chunk) => translateLinesBatch(chunk, targetLang))
+    );
+    translated = results.flat();
+  }
+
+  const lines = cleanLines.map((text, idx) => {
+    const tr = wantTranslate ? translated[idx] : null;
+    const cleanedTr = tr && tr.toLowerCase() !== text.toLowerCase() ? tr : null;
+    return {
+      text,
+      romanized: wantRomanize ? romanizeLyricText(text) : null,
+      translated: cleanedTr
+    };
+  });
+
+  const payload = { targetLang, lines };
+  cache.set(cacheKey, payload, 60 * 60 * 1000);
+  res.json({ success: true, ...payload });
 }));
 
 router.get('/music/radio', asyncHandler(async (req, res) => {

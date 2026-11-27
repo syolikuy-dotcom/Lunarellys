@@ -117,7 +117,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> _handleIncomingUri(Uri uri) async {
-    if (uri.scheme != 'lunarellys' || uri.host != 'auth') return;
+    if ((uri.scheme != 'archys' && uri.scheme != 'lunarellys') ||
+        uri.host != 'auth') {
+      return;
+    }
 
     final err = uri.queryParameters['error'];
     if (err != null && err.isNotEmpty) {
@@ -213,6 +216,59 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> completeYouTubeMusicLogin({
+    String? email,
+    String? name,
+    String? picture,
+    String? accountKey,
+  }) async {
+    state = state.copyWith(isAuthenticating: true, clearError: true);
+    final api = _ref.read(apiClientProvider);
+    final cleanEmail = (email ?? '').trim();
+    final cleanName = (name ?? '').trim();
+    final cleanPic = (picture ?? '').trim();
+
+    try {
+      final session = await api.createYtmSession(
+        email: cleanEmail,
+        name: cleanName,
+        picture: cleanPic,
+        accountKey: accountKey,
+      );
+      if (session.token.isNotEmpty) {
+        await _persistSession(user: session.user, token: session.token);
+        state = state.copyWith(
+          user: session.user,
+          sessionToken: session.token,
+          onboardingCompleted: true,
+          isAuthenticating: false,
+          clearError: true,
+        );
+        return;
+      }
+    } catch (_) {
+      // Fallback gracefully when node is offline or old server lacks ytm-session
+    }
+
+    final fallbackUser = AuthUser(
+      id: cleanEmail.isNotEmpty ? 'ytm:$cleanEmail' : 'ytm_connected',
+      name: cleanName.isNotEmpty
+          ? cleanName
+          : (cleanEmail.isNotEmpty ? cleanEmail.split('@').first : 'YouTube Music'),
+      email: cleanEmail.isNotEmpty ? cleanEmail : 'YouTube Music Terhubung',
+      picture: cleanPic,
+      isGuest: false,
+    );
+    await _persistSession(user: fallbackUser, token: 'ytm-local-session');
+    state = state.copyWith(
+      user: fallbackUser,
+      sessionToken: 'ytm-local-session',
+      onboardingCompleted: true,
+      isAuthenticating: false,
+      clearError: true,
+    );
+  }
+
   Future<void> continueAsGuest() async {
     const guest = AuthUser(
       id: 'guest',
@@ -235,6 +291,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _prefs.remove('auth_user_json');
     await _prefs.setBool('auth_onboarding_done', false);
     state = const AuthState(onboardingCompleted: false);
+  }
+
+  Future<void> adoptSession({
+    required AuthUser user,
+    required String token,
+  }) async {
+    await _persistSession(user: user, token: token);
+    state = state.copyWith(
+      user: user,
+      sessionToken: token,
+      onboardingCompleted: true,
+      clearError: true,
+    );
   }
 
   void setSyncStatus({required bool syncing, String? lastSyncAt}) {

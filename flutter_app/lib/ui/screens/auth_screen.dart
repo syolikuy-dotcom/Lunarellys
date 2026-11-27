@@ -1,8 +1,12 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../state/auth_provider.dart';
+import '../widgets/liquid_glass.dart';
 import '../widgets/lunarellys_logo.dart';
+import 'ytm_login_screen.dart';
 
 class AuthScreen extends ConsumerWidget {
   final bool allowBack;
@@ -13,25 +17,25 @@ class AuthScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
     final isDark = AppColors.isDark(context);
-    final bg = isDark ? AppColors.darkBackground : Colors.white;
-    final card = isDark ? AppColors.darkSurface : const Color(0xFFF7F8FA);
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
     final border = AppColors.borderOf(context);
 
     return Scaffold(
-      backgroundColor: bg,
+      backgroundColor: AppColors.bgOf(context),
       appBar: allowBack
           ? AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
               leading: IconButton(
-                icon: Icon(Icons.arrow_back_rounded, color: ink),
+                icon: Icon(CupertinoIcons.chevron_back, color: ink),
                 onPressed: () => Navigator.of(context).pop(),
               ),
             )
           : null,
-      body: SafeArea(
+      body: LiquidGlassAmbientBackground(
+        accentColor: AppColors.iosBlue,
+        child: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
@@ -49,7 +53,7 @@ class AuthScreen extends ConsumerWidget {
                         const LunarellysHorizonLogo(size: 88),
                         const SizedBox(height: 8),
                         Text(
-                          'Lunarellys',
+                          AppConfig.appName,
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -82,34 +86,32 @@ class AuthScreen extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 28),
-                        Container(
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: card,
-                            borderRadius: BorderRadius.circular(22),
-                            border: Border.all(color: border, width: 1),
-                          ),
+                        LiquidGlassCard(
+                          radius: 24,
                           child: Column(
                             children: [
                               _featureRow(
                                 context,
-                                icon: Icons.sync_rounded,
+                                icon: CupertinoIcons.arrow_2_circlepath,
+                                iconBg: AppColors.iosRed,
                                 title: 'Sinkron dengan YouTube Music',
                                 subtitle: 'Lagu disukai, playlist, dan pustaka ikut terbawa',
                               ),
                               Divider(height: 1, indent: 62, endIndent: 16, color: border),
                               _featureRow(
                                 context,
-                                icon: Icons.group_outlined,
+                                icon: CupertinoIcons.person_2_fill,
+                                iconBg: AppColors.iosGreen,
                                 title: 'Dengar bersama',
                                 subtitle: 'Satu ruangan, satu lagu, secara langsung',
                               ),
                               Divider(height: 1, indent: 62, endIndent: 16, color: border),
                               _featureRow(
                                 context,
-                                icon: Icons.palette_outlined,
-                                title: 'Dua tampilan',
-                                subtitle: 'Datar atau Kaca, ganti kapan saja',
+                                icon: CupertinoIcons.sparkles,
+                                iconBg: AppColors.iosBlue,
+                                title: 'Antarmuka Kaca Adaptif',
+                                subtitle: 'Tampilan kaca buram lembut atau mode Datar',
                               ),
                             ],
                           ),
@@ -147,28 +149,22 @@ class AuthScreen extends ConsumerWidget {
                             onPressed: auth.isAuthenticating
                                 ? null
                                 : () async {
-                                    final res = await ref
-                                        .read(authProvider.notifier)
-                                        .signInWithGoogle();
+                                    final loggedIn = await Navigator.of(context).push<bool>(
+                                      MaterialPageRoute<bool>(
+                                        builder: (_) => const YouTubeMusicLoginScreen(),
+                                      ),
+                                    );
                                     if (!context.mounted) return;
-                                    if (!res.launched && res.message != null) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text(res.message!)),
-                                      );
-                                    } else if (res.launched && allowBack) {
+                                    if (loggedIn == true && allowBack) {
                                       Navigator.of(context).pop();
                                     }
                                   },
                             icon: auth.isAuthenticating
-                                ? SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: isDark ? Colors.black : Colors.white,
-                                    ),
+                                ? CupertinoActivityIndicator(
+                                    radius: 9,
+                                    color: isDark ? Colors.black : Colors.white,
                                   )
-                                : const Icon(Icons.login_rounded, size: 20),
+                                : const Icon(CupertinoIcons.play_fill, size: 18),
                             label: Text(
                               auth.isAuthenticating
                                   ? 'Membuka halaman masuk...'
@@ -225,6 +221,7 @@ class AuthScreen extends ConsumerWidget {
             );
           },
         ),
+        ),
       ),
     );
   }
@@ -232,6 +229,7 @@ class AuthScreen extends ConsumerWidget {
   Widget _featureRow(
     BuildContext context, {
     required IconData icon,
+    required Color iconBg,
     required String title,
     required String subtitle,
   }) {
@@ -241,15 +239,7 @@ class AuthScreen extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: ink.withAlpha(14),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, size: 19, color: ink),
-          ),
+          IosSquircleBadge(icon: icon, color: iconBg, size: 34, iconSize: 18),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

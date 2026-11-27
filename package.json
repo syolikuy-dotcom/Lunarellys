@@ -1,7 +1,7 @@
 {
-  "name": "lunarellys-music-api",
+  "name": "archys-music-api",
   "version": "1.2.0",
-  "description": "Lunarellys Music Backend — YouTube Music & Media Streaming API for Flutter & Web by Ikhwan Romadon",
+  "description": "Archys Music Backend — YouTube Music & Media Streaming API for Flutter & Web by Ikhwan Romadon",
   "author": "Ikhwan Romadon",
   "type": "module",
   "main": "index.js",
@@ -11,8 +11,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "build": "node --check index.js src/server.js src/config.js src/middleware.js src/routes.js src/auth-routes.js src/lib/cache.js src/lib/http.js src/lib/user-store.js src/routes-registry.js src/docs.js src/index-page.js src/scrapers/music.js src/scrapers/search.js src/scrapers/youtube.js src/scrapers/downloader-v1.js src/scrapers/downloader-v2.js src/scrapers/downloader-v3.js",
-    "lint": "node --check index.js src/server.js src/config.js src/middleware.js src/routes.js src/auth-routes.js src/lib/cache.js src/lib/http.js src/lib/user-store.js src/routes-registry.js src/docs.js src/index-page.js src/scrapers/music.js src/scrapers/search.js src/scrapers/youtube.js src/scrapers/downloader-v1.js src/scrapers/downloader-v2.js src/scrapers/downloader-v3.js"
+    "build": "node --check index.js src/server.js src/config.js src/middleware.js src/routes.js src/auth-routes.js src/lib/cache.js src/lib/http.js src/lib/node-config-store.js src/lib/user-store.js src/routes-registry.js src/docs.js src/index-page.js src/scrapers/music.js src/scrapers/search.js src/scrapers/youtube.js src/scrapers/downloader-v1.js src/scrapers/downloader-v2.js src/scrapers/downloader-v3.js",
+    "lint": "node --check index.js src/server.js src/config.js src/middleware.js src/routes.js src/auth-routes.js src/lib/cache.js src/lib/http.js src/lib/node-config-store.js src/lib/user-store.js src/routes-registry.js src/docs.js src/index-page.js src/scrapers/music.js src/scrapers/search.js src/scrapers/youtube.js src/scrapers/downloader-v1.js src/scrapers/downloader-v2.js src/scrapers/downloader-v3.js"
   },
   "dependencies": {
     "@distube/ytdl-core": "^5.2.1",

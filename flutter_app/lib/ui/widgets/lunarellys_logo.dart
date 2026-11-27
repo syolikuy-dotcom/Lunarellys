@@ -2,115 +2,270 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
-class LunarellysHorizonLogo extends StatelessWidget {
+/// Minimalist Apple Liquid Glass Archys monogram:
+/// Sleek architectural "A" arch + inner acoustic resonance pearl + horizontal bridge.
+class ArchysHorizonLogo extends StatelessWidget {
   final double size;
   final Color? color;
+  final double animationProgress;
 
-  const LunarellysHorizonLogo({
+  const ArchysHorizonLogo({
     super.key,
     this.size = 76,
     this.color,
+    this.animationProgress = 1.0,
   });
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = color ?? AppColors.horizonBlue;
+    final isDark = AppColors.isDark(context);
+    final activeColor = color ??
+        (isDark ? const Color(0xFFF4F8FC) : const Color(0xFF0F172A));
+    final secondaryAccent = isDark
+        ? const Color(0xFF7EC8FF)
+        : const Color(0xFF2563EB);
+
     return CustomPaint(
       size: Size.square(size),
-      painter: _HorizonLogoPainter(color: activeColor),
+      painter: _ArchysEmblemPainter(
+        primaryColor: activeColor,
+        accentColor: secondaryAccent,
+        isDark: isDark,
+        progress: animationProgress.clamp(0.0, 1.0),
+      ),
     );
   }
 }
 
-class _HorizonLogoPainter extends CustomPainter {
-  final Color color;
-  const _HorizonLogoPainter({required this.color});
+class AnimatedArchysLogo extends StatefulWidget {
+  final double size;
+  final Color? color;
+  final bool loopPulse;
+
+  const AnimatedArchysLogo({
+    super.key,
+    this.size = 86,
+    this.color,
+    this.loopPulse = true,
+  });
+
+  @override
+  State<AnimatedArchysLogo> createState() => _AnimatedArchysLogoState();
+}
+
+class _AnimatedArchysLogoState extends State<AnimatedArchysLogo>
+    with TickerProviderStateMixin {
+  late final AnimationController _revealCtrl;
+  late final AnimationController _pulseCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _revealCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..forward();
+
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    );
+    if (widget.loopPulse) {
+      _pulseCtrl.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _revealCtrl.dispose();
+    _pulseCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_revealCtrl, _pulseCtrl]),
+        builder: (context, _) {
+          final reveal = Curves.easeOutCubic.transform(_revealCtrl.value);
+          final breathe = widget.loopPulse
+              ? 1.0 + (math.sin(_pulseCtrl.value * math.pi) * 0.03)
+              : 1.0;
+
+          return Transform.scale(
+            scale: (0.86 + 0.14 * reveal) * breathe,
+            child: Opacity(
+              opacity: reveal.clamp(0.0, 1.0),
+              child: ArchysHorizonLogo(
+                size: widget.size,
+                color: widget.color,
+                animationProgress: reveal,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ArchysEmblemPainter extends CustomPainter {
+  final Color primaryColor;
+  final Color accentColor;
+  final bool isDark;
+  final double progress;
+
+  const _ArchysEmblemPainter({
+    required this.primaryColor,
+    required this.accentColor,
+    required this.isDark,
+    required this.progress,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
     final cx = w * 0.5;
-    final baseY = h * 0.58;
-    final radius = w * 0.36;
+    final cy = h * 0.5;
 
-    canvas.save();
-    // Clip to top semicircle above baseY
-    final semiClip = Path()
-      ..moveTo(cx - radius, baseY)
-      ..arcTo(
-        Rect.fromCircle(center: Offset(cx, baseY), radius: radius),
-        math.pi,
-        math.pi,
-        false,
+    // 1. Subtle sapphire glass aura behind crest
+    final auraPaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          accentColor.withAlpha(((isDark ? 64 : 42) * progress).round()),
+          Colors.transparent,
+        ],
+      ).createShader(Rect.fromCircle(center: Offset(cx, cy), radius: w * 0.48));
+    canvas.drawCircle(Offset(cx, cy), w * 0.48, auraPaint);
+
+    // 2. Crisp geometric precision ring rim (subtle Liquid Glass perimeter)
+    final ringPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = (w * 0.022).clamp(0.9, 2.2)
+      ..color = accentColor.withAlpha((72 * progress).round());
+    canvas.drawCircle(Offset(cx, cy), w * 0.42 * progress, ringPaint);
+
+    // 3. Architectural "A" Arch Monogram
+    final archT = Curves.easeOutCubic.transform((progress * 1.12).clamp(0.0, 1.0));
+    final topY = h * 0.17;
+    final botY = h * 0.81;
+    final spanX = w * 0.30 * archT;
+    final legW = w * 0.095;
+
+    final archPath = Path()
+      ..moveTo(cx, topY)
+      ..cubicTo(
+        cx + w * 0.06,
+        topY,
+        cx + spanX * 0.45,
+        h * 0.34,
+        cx + spanX,
+        botY,
+      )
+      ..lineTo(cx + spanX - legW, botY)
+      ..lineTo(cx, h * 0.41)
+      ..lineTo(cx - spanX + legW, botY)
+      ..lineTo(cx - spanX, botY)
+      ..cubicTo(
+        cx - spanX * 0.45,
+        h * 0.34,
+        cx - w * 0.06,
+        topY,
+        cx,
+        topY,
       )
       ..close();
-    canvas.clipPath(semiClip);
 
-    final fillPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
+    final archPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          primaryColor,
+          Color.lerp(primaryColor, accentColor, 0.28) ?? primaryColor,
+        ],
+      ).createShader(Rect.fromLTWH(0, topY, w, botY - topY));
+    canvas.drawPath(archPath, archPaint);
 
-    // Draw horizontal stacked horizon slices inside semicircle (sunset stripes)
-    final sliceSpecs = [
-      (top: 0.0, height: 0.42),
-      (top: 0.49, height: 0.14),
-      (top: 0.70, height: 0.12),
-      (top: 0.89, height: 0.11),
-    ];
-    for (final s in sliceSpecs) {
-      final y0 = baseY - radius + (s.top * radius);
-      final sh = s.height * radius;
-      canvas.drawRect(Rect.fromLTWH(0, y0, w, sh), fillPaint);
+    // 4. Inner specular bevel highlight along upper-left arch slope
+    if (archT > 0.3) {
+      final bevelPath = Path()
+        ..moveTo(cx - w * 0.015, topY + h * 0.03)
+        ..quadraticBezierTo(
+          cx - spanX * 0.48,
+          h * 0.42,
+          cx - spanX * 0.82,
+          botY - h * 0.14,
+        );
+      canvas.drawPath(
+        bevelPath,
+        Paint()
+          ..color = Colors.white.withAlpha(((isDark ? 120 : 140) * progress).round())
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = (w * 0.025).clamp(0.9, 2.5),
+      );
     }
-    canvas.restore();
 
-    // Dark slate horizon line bar
-    final linePaint = Paint()
-      ..color = color.withAlpha(240)
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = (w * 0.048).clamp(2.2, 6.0)
-      ..style = PaintingStyle.stroke;
+    // 5. Harmonic acoustic bridge crossbar
+    final barT = Curves.easeOutCubic.transform(((progress - 0.15) / 0.85).clamp(0.0, 1.0));
+    if (barT > 0.02) {
+      final barHalfW = w * 0.155 * barT;
+      final barY = h * 0.635;
+      final barH = (h * 0.088).clamp(2.2, 8.5);
+      final barRRect = RRect.fromRectAndRadius(
+        Rect.fromCenter(center: Offset(cx, barY), width: barHalfW * 2, height: barH),
+        Radius.circular(barH * 0.5),
+      );
+      canvas.drawRRect(
+        barRRect,
+        Paint()
+          ..shader = LinearGradient(
+            colors: [
+              accentColor,
+              Color.lerp(accentColor, Colors.white, 0.22) ?? accentColor,
+            ],
+          ).createShader(barRRect.outerRect),
+      );
+    }
 
-    canvas.drawLine(
-      Offset(w * 0.08, baseY + h * 0.065),
-      Offset(w * 0.92, baseY + h * 0.065),
-      linePaint,
-    );
-
-    // Sharp ocean chevron / wave line below
-    final waveYTop = baseY + h * 0.14;
-    final waveYBot = baseY + h * 0.255;
-    final wavePath = Path()
-      ..moveTo(w * 0.12, waveYTop + (waveYBot - waveYTop) * 0.45)
-      ..lineTo(w * 0.25, waveYTop)
-      ..lineTo(w * 0.375, waveYBot)
-      ..lineTo(w * 0.50, waveYTop)
-      ..lineTo(w * 0.625, waveYBot)
-      ..lineTo(w * 0.75, waveYTop)
-      ..lineTo(w * 0.88, waveYTop + (waveYBot - waveYTop) * 0.55);
-
-    canvas.drawPath(
-      wavePath,
-      Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = (w * 0.048).clamp(2.2, 6.0)
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round,
-    );
+    // 6. Resonance pearl orb nestled cleanly inside arch apex
+    final orbT = Curves.easeOutBack.transform(((progress - 0.2) / 0.8).clamp(0.0, 1.0));
+    if (orbT > 0.01) {
+      final orbCenter = Offset(cx, h * 0.485);
+      final orbRadius = (w * 0.058) * orbT;
+      canvas.drawCircle(
+        orbCenter,
+        orbRadius,
+        Paint()
+          ..shader = RadialGradient(
+            center: const Alignment(-0.3, -0.35),
+            colors: [
+              Colors.white.withAlpha(230),
+              accentColor,
+              Color.lerp(accentColor, primaryColor, 0.35) ?? accentColor,
+            ],
+            stops: const [0.0, 0.5, 1.0],
+          ).createShader(Rect.fromCircle(center: orbCenter, radius: orbRadius)),
+      );
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _HorizonLogoPainter oldDelegate) =>
-      oldDelegate.color != color;
+  bool shouldRepaint(covariant _ArchysEmblemPainter oldDelegate) =>
+      oldDelegate.primaryColor != primaryColor ||
+      oldDelegate.accentColor != accentColor ||
+      oldDelegate.isDark != isDark ||
+      oldDelegate.progress != progress;
 }
 
-class LunarellysLogo extends StatelessWidget {
+class ArchysLogo extends StatelessWidget {
   final double size;
   final bool animate;
 
-  const LunarellysLogo({
+  const ArchysLogo({
     super.key,
     this.size = 48,
     this.animate = false,
@@ -118,12 +273,38 @@ class LunarellysLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = AppColors.isDark(context);
-    return LunarellysHorizonLogo(
-      size: size,
-      color: dark ? AppColors.horizonBlueSoft : AppColors.horizonBlue,
-    );
+    if (animate) {
+      return AnimatedArchysLogo(size: size);
+    }
+    return ArchysHorizonLogo(size: size);
   }
+}
+
+// Backward-compatible aliases so existing imports continue working cleanly
+class LunarellysHorizonLogo extends ArchysHorizonLogo {
+  const LunarellysHorizonLogo({
+    super.key,
+    super.size = 76,
+    super.color,
+    super.animationProgress = 1.0,
+  });
+}
+
+class AnimatedLunarellysLogo extends AnimatedArchysLogo {
+  const AnimatedLunarellysLogo({
+    super.key,
+    super.size = 86,
+    super.color,
+    super.loopPulse = true,
+  });
+}
+
+class LunarellysLogo extends ArchysLogo {
+  const LunarellysLogo({
+    super.key,
+    super.size = 48,
+    super.animate = false,
+  });
 }
 
 /// Custom slanted-book-shelf icon matching the Pustaka tab icon
@@ -172,7 +353,6 @@ class _LibraryBooksPainter extends CustomPainter {
     canvas.drawLine(Offset(x1, yTop), Offset(x1, yBot), stroke);
     canvas.drawLine(Offset(x2, yTop), Offset(x2, yBot), stroke);
     canvas.drawLine(Offset(x3, yTop), Offset(x3, yBot), stroke);
-    // Slanted 4th spine leaning right
     canvas.drawLine(Offset(w * 0.72, yTop + h * 0.02), Offset(w * 0.87, yBot), stroke);
   }
 
@@ -370,4 +550,3 @@ class _TikTokPainter extends CustomPainter {
   bool shouldRepaint(covariant _TikTokPainter oldDelegate) =>
       oldDelegate.color != color;
 }
-

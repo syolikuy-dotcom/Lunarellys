@@ -15,8 +15,8 @@ const PAGE = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Documentation — Lunarellys API</title>
-<meta name="description" content="Interactive REST API documentation and endpoint tester for Lunarellys Music.">
+<title>Documentation — Archys API</title>
+<meta name="description" content="Interactive REST API documentation and endpoint tester for Archys Music.">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Crect width='36' height='36' rx='10' fill='%230A0E11'/%3E%3Cpath d='M22.34 6.9A11.75 11.75 0 1 0 27.44 25.62A9.75 9.75 0 1 1 22.34 6.9Z' fill='%232EE89B'/%3E%3Crect x='21.25' y='10.75' width='2.8' height='11.5' rx='1.4' fill='white'/%3E%3Crect x='25.95' y='13.75' width='2.8' height='8.5' rx='1.4' fill='white'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -769,13 +769,12 @@ const PAGE = `<!doctype html>
     <div class="topbar-left">
       <a href="/" class="brand">
         <span class="brand-mark" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 36 36" fill="none">
-            <path d="M22.34 6.9A11.75 11.75 0 1 0 27.44 25.62A9.75 9.75 0 1 1 22.34 6.9Z" fill="#2EE89B"/>
-            <rect x="21.25" y="10.75" width="2.8" height="11.5" rx="1.4" fill="#FFFFFF"/>
-            <rect x="25.95" y="13.75" width="2.8" height="8.5" rx="1.4" fill="#FFFFFF"/>
+          <svg width="20" height="20" viewBox="0 0 108 108" fill="none">
+            <path d="M54 24L76 80H65L54 50L43 80H32L54 24Z" fill="#F5F8FC"/>
+            <rect x="42" y="60" width="24" height="7" rx="3.5" fill="#5DA7E8"/>
           </svg>
         </span>
-        Lunarellys
+        Archys
       </a>
       <span class="sep">/</span>
       <span class="page-label">API Docs</span>
@@ -836,9 +835,9 @@ const PAGE = `<!doctype html>
             <div class="ex-label">Response</div>
             <pre>{
   "success": true,
-  "name": "Lunarellys REST API",
-  "service": "lunarellys-api",
-  "version": "1.2.0",
+  "name": "Archys REST API",
+  "service": "archys-api",
+  "version": "4.3.6",
   "auth": "open",
   "region": "ID"
 }</pre>
@@ -856,7 +855,7 @@ const PAGE = `<!doctype html>
     <section id="sections"></section>
 
     <footer>
-      <span>Lunarellys Music API Documentation</span>
+      <span>Archys Music API Documentation</span>
       <span>Responses are cached server-side. Stream URLs expire after ~6 hours.</span>
     </footer>
   </main>

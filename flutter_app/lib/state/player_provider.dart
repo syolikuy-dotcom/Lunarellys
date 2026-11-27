@@ -42,6 +42,8 @@ class PlayerState {
   final bool queueLocked;
   final bool isLoadingRadio;
   final bool stopAfterCurrentTrack;
+  final Duration? loopStart;
+  final Duration? loopEnd;
 
   const PlayerState({
     this.currentTrack,
@@ -68,6 +70,8 @@ class PlayerState {
     this.queueLocked = false,
     this.isLoadingRadio = false,
     this.stopAfterCurrentTrack = false,
+    this.loopStart,
+    this.loopEnd,
   });
 
   bool get hasNext =>
@@ -106,6 +110,10 @@ class PlayerState {
     bool? queueLocked,
     bool? isLoadingRadio,
     bool? stopAfterCurrentTrack,
+    Duration? loopStart,
+    bool clearLoopStart = false,
+    Duration? loopEnd,
+    bool clearLoopEnd = false,
   }) {
     return PlayerState(
       currentTrack: currentTrack ?? this.currentTrack,
@@ -133,6 +141,8 @@ class PlayerState {
       queueLocked: queueLocked ?? this.queueLocked,
       isLoadingRadio: isLoadingRadio ?? this.isLoadingRadio,
       stopAfterCurrentTrack: stopAfterCurrentTrack ?? this.stopAfterCurrentTrack,
+      loopStart: clearLoopStart ? null : (loopStart ?? this.loopStart),
+      loopEnd: clearLoopEnd ? null : (loopEnd ?? this.loopEnd),
     );
   }
 }
@@ -239,6 +249,11 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }));
 
     _subs.add(_player.positionStream.listen((pos) {
+      final a = state.loopStart;
+      final b = state.loopEnd;
+      if (a != null && b != null && b > a && pos >= b && _player.playing) {
+        unawaited(_player.seek(a).catchError((_) {}));
+      }
       state = state.copyWith(position: pos);
     }));
 
@@ -310,6 +325,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       loadingLyrics: true,
       clearSongDetail: true,
       clearError: true,
+      clearLoopStart: true,
+      clearLoopEnd: true,
     );
     _persistQueueState();
 
@@ -326,7 +343,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       final thumbUrl = track.bestThumbUrl(size: 500);
       final mediaItem = MediaItem(
         id: track.id,
-        album: track.album?.name ?? 'Lunarellys',
+        album: track.album?.name ?? 'Archys',
         title: track.title,
         artist: track.artistDisplay,
         duration: fallbackDuration > Duration.zero ? fallbackDuration : null,
@@ -425,11 +442,51 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
           );
       if (state.currentTrack?.id != track.id) return;
       state = state.copyWith(lyrics: res, loadingLyrics: false);
+      await enrichLyrics();
     } catch (_) {
       if (state.currentTrack?.id == track.id) {
         state = state.copyWith(loadingLyrics: false);
       }
     }
+  }
+
+  Future<void> enrichLyrics() async {
+    final track = state.currentTrack;
+    final currentLyrics = state.lyrics;
+    if (track == null || currentLyrics == null || currentLyrics.lines.isEmpty) return;
+    final settings = _ref.read(settingsProvider);
+    final wantRomanize = settings.romanizeLyrics;
+    final wantTranslate = settings.aiTranslateLyrics;
+    if (!wantRomanize && !wantTranslate) return;
+
+    final alreadyHasRoman = !wantRomanize ||
+        currentLyrics.lines.any((l) => l.romanized != null && l.romanized!.isNotEmpty);
+    final alreadyHasTrans = !wantTranslate ||
+        currentLyrics.lines.any((l) => l.translated != null && l.translated!.isNotEmpty);
+    if (alreadyHasRoman && alreadyHasTrans) return;
+
+    try {
+      final targetLang = settings.appLanguage.code == 'en' ? 'en' : 'id';
+      final assisted = await _ref.read(apiClientProvider).getLyricsAssist(
+            lines: currentLyrics.lines.map((l) => l.text).toList(),
+            targetLang: targetLang,
+            romanize: wantRomanize,
+            translate: wantTranslate,
+          );
+      if (state.currentTrack?.id != track.id || assisted.isEmpty) return;
+      final updatedLines = <LyricLine>[];
+      for (var i = 0; i < currentLyrics.lines.length; i++) {
+        final orig = currentLyrics.lines[i];
+        final extra = i < assisted.length ? assisted[i] : null;
+        updatedLines.add(
+          orig.copyWith(
+            romanized: extra?.romanized ?? orig.romanized,
+            translated: extra?.translated ?? orig.translated,
+          ),
+        );
+      }
+      state = state.copyWith(lyrics: currentLyrics.copyWith(lines: updatedLines));
+    } catch (_) {}
   }
 
   Future<void> refreshLyrics() async {
@@ -496,6 +553,43 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   Future<void> seek(Duration position) async {
     await _player.seek(position);
+  }
+
+  Future<void> seekRelative(Duration delta) async {
+    final total = state.duration;
+    final targetMs = (state.position + delta).inMilliseconds;
+    final maxMs = total.inMilliseconds > 0 ? total.inMilliseconds : 1 << 30;
+    await _player.seek(Duration(milliseconds: targetMs.clamp(0, maxMs)));
+  }
+
+  void setLoopA() {
+    final pos = state.position;
+    final existingB = state.loopEnd;
+    if (existingB != null && pos >= existingB) {
+      state = state.copyWith(loopStart: pos, clearLoopEnd: true);
+    } else {
+      state = state.copyWith(loopStart: pos);
+    }
+  }
+
+  void setLoopB() {
+    final pos = state.position;
+    final existingA = state.loopStart;
+    if (existingA == null) {
+      final fallbackA = Duration(
+        milliseconds: (pos.inMilliseconds - 8000).clamp(0, pos.inMilliseconds),
+      );
+      state = state.copyWith(loopStart: fallbackA, loopEnd: pos);
+      return;
+    }
+    if (pos <= existingA + const Duration(milliseconds: 500)) {
+      return;
+    }
+    state = state.copyWith(loopEnd: pos);
+  }
+
+  void clearABLoop() {
+    state = state.copyWith(clearLoopStart: true, clearLoopEnd: true);
   }
 
   Future<void> skipNext() async {

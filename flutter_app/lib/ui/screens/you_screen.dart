@@ -1,235 +1,415 @@
 import 'dart:async';
+import 'dart:ui';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/music_models.dart';
+import '../../services/device_permissions_service.dart';
 import '../../state/auth_provider.dart';
 import '../../state/library_provider.dart';
 import '../../state/player_provider.dart';
 import '../../state/settings_provider.dart';
+import '../widgets/ios_control_center.dart';
 import '../widgets/liquid_glass.dart';
 import '../widgets/lunarellys_logo.dart';
+import '../widgets/permissions_sheet.dart';
+import '../widgets/subscreen_mini_player.dart';
 import '../widgets/track_tile.dart';
-import 'auth_screen.dart';
 import 'detail_screens.dart';
+import 'ytm_login_screen.dart';
 
-class YouScreen extends ConsumerWidget {
+class YouScreen extends ConsumerStatefulWidget {
   const YouScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<YouScreen> createState() => _YouScreenState();
+}
+
+class _YouScreenState extends ConsumerState<YouScreen> {
+  final ValueNotifier<double> _scrollOffset = ValueNotifier<double>(0);
+
+  @override
+  void dispose() {
+    _scrollOffset.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
-    final settings = ref.watch(settingsProvider);
-    final library = ref.watch(libraryProvider);
-    final T = AppStrings.of(settings.appLanguage);
+    final appLanguage = ref.watch(
+      settingsProvider.select((s) => s.appLanguage),
+    );
+    final spotifyConnected = ref.watch(
+      settingsProvider.select((s) => s.spotifyConnected),
+    );
+    final spotifyDisplayName = ref.watch(
+      settingsProvider.select((s) => s.spotifyDisplayName),
+    );
+    final currentStreak = ref.watch(
+      libraryProvider.select((s) => s.currentStreak),
+    );
+    final islandEnabled = ref.watch(
+      settingsProvider.select((s) => s.dynamicIslandEnabled),
+    );
+    final islandAlways = ref.watch(
+      settingsProvider.select((s) => s.dynamicIslandAlwaysVisible),
+    );
+    final hasTrack = ref.watch(
+      playerProvider.select((s) => s.currentTrack != null),
+    );
+    final perms = ref.watch(devicePermissionsProvider);
+    final islandPosition = ref.watch(
+      settingsProvider.select((s) => s.dynamicIslandPosition),
+    );
+    final islandShown = islandEnabled && (islandAlways || hasTrack);
+    final islandClearance =
+        islandShown ? (islandPosition == 'notch' ? 8.0 : 42.0) : 0.0;
+
+    final T = AppStrings.of(appLanguage);
     final isDark = AppColors.isDark(context);
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
-    final card = AppColors.cardOf(context);
     final border = AppColors.borderOf(context);
+    final topPad = MediaQuery.of(context).padding.top;
 
-    return SafeArea(
-      bottom: false,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 160),
-        children: [
-          // Clean Kamu title without Guest Listener icon
-          Text(
-            T.navYou,
-            style: Theme.of(context).textTheme.headlineLarge,
-          ),
-          const SizedBox(height: 16),
-
-          // Percikan Streak Banner Card
-          PercikanBannerCard(
-            streakDays: library.currentStreak,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const StatsRecapScreen()),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          Container(
-            decoration: BoxDecoration(
-              color: card,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: border, width: 0.8),
-            ),
-            child: Column(
-              children: [
-                _menuRow(
-                  context,
-                  icon: Icons.history_rounded,
-                  title: T.history,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const HistoryScreen()),
-                  ),
-                ),
-                Divider(height: 1, indent: 56, color: border),
-                _menuRow(
-                  context,
-                  icon: Icons.bar_chart_rounded,
-                  title: T.statsRecap,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const StatsRecapScreen()),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          Container(
-            decoration: BoxDecoration(
-              color: card,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: border, width: 0.8),
-            ),
-            child: Column(
-              children: [
-                _menuRow(
-                  context,
-                  icon: Icons.group_outlined,
-                  title: T.listenTogether,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const ListenTogetherScreen()),
-                  ),
-                ),
-                Divider(height: 1, indent: 56, color: border),
-                _menuRow(
-                  context,
-                  icon: Icons.mic_none_rounded,
-                  title: T.recognizeSong,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const SongRecognitionScreen()),
-                  ),
-                ),
-                Divider(height: 1, indent: 56, color: border),
-                _menuRow(
-                  context,
-                  icon: Icons.graphic_eq_rounded,
-                  title: T.equalizer,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const EqualizerScreen()),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 22),
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 10),
-            child: Text(
-              'Akun',
-              style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w700,
-                color: sub,
-              ),
-            ),
-          ),
-          Row(
+    return Stack(
+      children: [
+        NotificationListener<ScrollNotification>(
+          onNotification: (n) {
+            if (n.metrics.axis == Axis.vertical) {
+              _scrollOffset.value = n.metrics.pixels;
+            }
+            return false;
+          },
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(16, topPad + 16 + islandClearance, 16, 170),
             children: [
-              Expanded(
-                child: _AccountCard(
-                  bgColor: isDark ? const Color(0xFF28171B) : const Color(0xFFFDF1F2),
-                  logo: const YouTubeMusicLogoIcon(size: 46),
-                  title: 'YouTube Music',
-                  subtitle: auth.isSignedInGoogle
-                      ? (auth.user?.name ?? 'Tersambung')
-                      : 'Sinkronkan pustaka\ndan playlist',
-                  buttonLabel: auth.isSignedInGoogle ? 'Tersambung' : 'Masuk',
-                  isConnected: auth.isSignedInGoogle,
-                  onPressed: () {
-                    if (auth.isSignedInGoogle) {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
-                      );
-                    } else {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const AuthScreen(allowBack: true),
+              // Clean Kamu title + iOS Control Center quick button
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        T.navYou,
+                        style: Theme.of(context).textTheme.headlineLarge,
+                      ),
+                    ),
+                    LiquidGlassTap(
+                      onTap: () => showIosControlCenter(
+                        context,
+                        ref,
+                        onOpenEqualizer: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const EqualizerScreen(),
+                          ),
                         ),
-                      );
-                    }
-                  },
+                      ),
+                      child: LiquidGlassCapsule(
+                        blurSigma: 0,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 11,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(CupertinoIcons.slider_horizontal_3, size: 17, color: ink),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Kontrol',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: ink,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _AccountCard(
-                  bgColor: isDark ? const Color(0xFF14271C) : const Color(0xFFEEF9F2),
-                  logo: const SpotifyLogoIcon(size: 46),
-                  title: 'Spotify',
-                  subtitle: settings.spotifyConnected
-                      ? (settings.spotifyDisplayName.isNotEmpty
-                          ? settings.spotifyDisplayName
-                          : 'Tersambung ke Pustaka')
-                      : 'Playlist tampil di\nPustaka',
-                  buttonLabel: settings.spotifyConnected ? 'Kelola' : 'Hubungkan',
-                  isConnected: settings.spotifyConnected,
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const SpotifyConnectScreen()),
+
+              // Percikan Streak Banner Card
+              PercikanBannerCard(
+                streakDays: currentStreak,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const StatsRecapScreen()),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              LiquidGlassCard(
+                radius: 22,
+                child: Column(
+                  children: [
+                    _menuRow(
+                      context,
+                      icon: CupertinoIcons.clock_fill,
+                      iconBg: AppColors.iosBlue,
+                      title: T.history,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(builder: (_) => const HistoryScreen()),
+                      ),
+                    ),
+                    Divider(height: 1, indent: 60, color: border),
+                    _menuRow(
+                      context,
+                      icon: CupertinoIcons.chart_bar_fill,
+                      iconBg: AppColors.iosOrange,
+                      title: T.statsRecap,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(builder: (_) => const StatsRecapScreen()),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              LiquidGlassCard(
+                radius: 22,
+                child: Column(
+                  children: [
+                    _menuRow(
+                      context,
+                      icon: CupertinoIcons.person_2_fill,
+                      iconBg: AppColors.iosIndigo,
+                      title: T.listenTogether,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(builder: (_) => const ListenTogetherScreen()),
+                      ),
+                    ),
+                    Divider(height: 1, indent: 60, color: border),
+                    _menuRow(
+                      context,
+                      icon: CupertinoIcons.mic_fill,
+                      iconBg: AppColors.iosPink,
+                      title: T.recognizeSong,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(builder: (_) => const SongRecognitionScreen()),
+                      ),
+                    ),
+                    Divider(height: 1, indent: 60, color: border),
+                    _menuRow(
+                      context,
+                      icon: CupertinoIcons.waveform,
+                      iconBg: AppColors.iosGreen,
+                      title: T.equalizer,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(builder: (_) => const EqualizerScreen()),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 22),
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 10),
+                child: Text(
+                  'Akun',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: sub,
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: _AccountCard(
+                      bgColor: isDark
+                          ? const Color(0x9928171B)
+                          : const Color(0xB8FDF1F2),
+                      chromaticAccent: const Color(0xFFFF3B30),
+                      logo: const YouTubeMusicLogoIcon(size: 46),
+                      title: 'YouTube Music',
+                      subtitle: auth.isSignedInGoogle
+                          ? (auth.user?.name ?? 'Tersambung')
+                          : 'Sinkronkan pustaka\ndan playlist',
+                      buttonLabel: auth.isSignedInGoogle ? 'Tersambung' : 'Masuk',
+                      isConnected: auth.isSignedInGoogle,
+                      onPressed: () {
+                        if (auth.isSignedInGoogle) {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
+                          );
+                        } else {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const YouTubeMusicLoginScreen(),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _AccountCard(
+                      bgColor: isDark
+                          ? const Color(0x9914271C)
+                          : const Color(0xB8EEF9F2),
+                      chromaticAccent: const Color(0xFF1DB954),
+                      logo: const SpotifyLogoIcon(size: 46),
+                      title: 'Spotify',
+                      subtitle: spotifyConnected
+                          ? (spotifyDisplayName.isNotEmpty
+                              ? spotifyDisplayName
+                              : 'Tersambung ke Pustaka')
+                          : 'Playlist tampil di\nPustaka',
+                      buttonLabel: spotifyConnected ? 'Kelola' : 'Hubungkan',
+                      isConnected: spotifyConnected,
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(builder: (_) => const SpotifyConnectScreen()),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              LiquidGlassCard(
+                radius: 22,
+                child: Column(
+                  children: [
+                    _menuRow(
+                      context,
+                      icon: CupertinoIcons.bell_fill,
+                      iconBg: AppColors.iosRed,
+                      title: 'Perizinan & Latar Belakang',
+                      trailingBadge: perms.backgroundReady ? 'Siap' : 'Atur',
+                      badgeColor: perms.backgroundReady
+                          ? AppColors.iosGreen
+                          : AppColors.iosOrange,
+                      onTap: () => showPermissionsAndBackgroundSheet(context, ref),
+                    ),
+                    Divider(height: 1, indent: 60, color: border),
+                    _menuRow(
+                      context,
+                      icon: CupertinoIcons.gear_alt_fill,
+                      iconBg: const Color(0xFF64748B),
+                      title: T.settings,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+                      ),
+                    ),
+                    Divider(height: 1, indent: 60, color: border),
+                    _menuRow(
+                      context,
+                      icon: CupertinoIcons.info_circle_fill,
+                      iconBg: AppColors.iosTeal,
+                      title: T.about,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(builder: (_) => const AboutScreen()),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 18),
+                child: Center(
+                  child: Text(
+                    '${AppConfig.appName} v${AppConfig.appVersion} · ${AppConfig.developerName}',
+                    style: TextStyle(fontSize: 12, color: ink.withAlpha(110)),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Container(
-            decoration: BoxDecoration(
-              color: card,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: border, width: 0.8),
-            ),
-            child: Column(
-              children: [
-                _menuRow(
-                  context,
-                  icon: Icons.settings_outlined,
-                  title: T.settings,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+        ),
+
+        // Sticky Liquid Glass "Kamu" top header on scroll (prevents collision with scrolled cards)
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: ValueListenableBuilder<double>(
+            valueListenable: _scrollOffset,
+            builder: (context, offset, child) {
+              final stickyOpacity = ((offset - 22) / 30).clamp(0.0, 1.0);
+              if (stickyOpacity <= 0.02) return const SizedBox.shrink();
+              return IgnorePointer(
+                ignoring: stickyOpacity < 0.2,
+                child: Opacity(opacity: stickyOpacity, child: child),
+              );
+            },
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
+                child: Container(
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    topPad + (islandShown ? 44 : 10),
+                    16,
+                    12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (isDark ? const Color(0xFF0E1218) : const Color(0xFFF6F7F9))
+                        .withAlpha(isDark ? 190 : 210),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: border.withAlpha(130),
+                        width: 0.6,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          T.navYou,
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                            color: ink,
+                          ),
+                        ),
+                      ),
+                      LiquidGlassTap(
+                        onTap: () => showIosControlCenter(
+                          context,
+                          ref,
+                          onOpenEqualizer: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const EqualizerScreen(),
+                            ),
+                          ),
+                        ),
+                        child: Icon(CupertinoIcons.slider_horizontal_3, size: 21, color: ink),
+                      ),
+                    ],
                   ),
                 ),
-                Divider(height: 1, indent: 56, color: border),
-                _menuRow(
-                  context,
-                  icon: Icons.info_outline_rounded,
-                  title: T.about,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const AboutScreen()),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: 18),
-            child: Center(
-              child: Text(
-                '${AppConfig.appName} v${AppConfig.appVersion} · ${AppConfig.developerName}',
-                style: TextStyle(fontSize: 12, color: ink.withAlpha(110)),
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _menuRow(
     BuildContext context, {
     required IconData icon,
+    required Color iconBg,
     required String title,
+    String? trailingBadge,
+    Color? badgeColor,
     required VoidCallback onTap,
   }) {
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 3),
-      leading: Icon(icon, color: ink, size: 22),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+      leading: IosSquircleBadge(icon: icon, color: iconBg),
       title: Text(
         title,
         style: TextStyle(
@@ -238,7 +418,30 @@ class YouScreen extends ConsumerWidget {
           color: ink,
         ),
       ),
-      trailing: Icon(Icons.chevron_right_rounded, color: sub, size: 22),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (trailingBadge != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: (badgeColor ?? AppColors.iosBlue).withAlpha(28),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                trailingBadge,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: badgeColor ?? AppColors.iosBlue,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+          ],
+          Icon(CupertinoIcons.chevron_forward, color: sub, size: 18),
+        ],
+      ),
       onTap: onTap,
     );
   }
@@ -246,6 +449,7 @@ class YouScreen extends ConsumerWidget {
 
 class _AccountCard extends StatelessWidget {
   final Color bgColor;
+  final Color chromaticAccent;
   final Widget logo;
   final String title;
   final String subtitle;
@@ -255,6 +459,7 @@ class _AccountCard extends StatelessWidget {
 
   const _AccountCard({
     required this.bgColor,
+    required this.chromaticAccent,
     required this.logo,
     required this.title,
     required this.subtitle,
@@ -269,13 +474,11 @@ class _AccountCard extends StatelessWidget {
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
 
-    return Container(
+    return LiquidGlassCard(
+      radius: 22,
+      tintColor: bgColor,
+      chromaticAccent: chromaticAccent,
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.borderOf(context).withAlpha(110)),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -342,13 +545,12 @@ class SpotifyConnectScreen extends ConsumerWidget {
     final isDark = AppColors.isDark(context);
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
-    final card = AppColors.cardOf(context);
-    final border = AppColors.borderOf(context);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Spotify')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 48),
+      body: SubscreenMiniPlayerLayer(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 128),
         children: [
           const Center(child: SpotifyLogoIcon(size: 74)),
           const SizedBox(height: 18),
@@ -369,13 +571,10 @@ class SpotifyConnectScreen extends ConsumerWidget {
             style: TextStyle(fontSize: 15, color: sub),
           ),
           const SizedBox(height: 22),
-          Container(
+          LiquidGlassCard(
+            radius: 22,
+            chromaticAccent: const Color(0xFF1DB954),
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-            decoration: BoxDecoration(
-              color: card,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: border.withAlpha(140), width: 0.8),
-            ),
             child: Column(
               children: [
                 _featureRow(
@@ -442,6 +641,7 @@ class SpotifyConnectScreen extends ConsumerWidget {
             style: TextStyle(fontSize: 13.5, height: 1.4, color: sub),
           ),
         ],
+        ),
       ),
     );
   }
@@ -630,11 +830,24 @@ class _SongRecognitionScreenState extends ConsumerState<SongRecognitionScreen>
     super.dispose();
   }
 
-  void _toggleListen() {
+  Future<void> _toggleListen() async {
     HapticFeedback.mediumImpact();
     if (_listening) {
       _stopListening();
       return;
+    }
+    final perms = ref.read(devicePermissionsProvider);
+    if (!perms.microphoneGranted) {
+      final granted =
+          await ref.read(devicePermissionsProvider.notifier).requestMicrophone();
+      if (!mounted) return;
+      if (!granted) {
+        setState(() {
+          _statusText =
+              'Izin mikrofon dibutuhkan — ketuk lagi atau ketik lirik di bawah';
+        });
+        return;
+      }
     }
     setState(() {
       _listening = true;
@@ -750,11 +963,12 @@ class _SongRecognitionScreenState extends ConsumerState<SongRecognitionScreen>
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+      body: SubscreenMiniPlayerLayer(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 128),
               child: Column(
                 children: [
                   const SizedBox(height: 44),
@@ -900,8 +1114,9 @@ class _SongRecognitionScreenState extends ConsumerState<SongRecognitionScreen>
                 ],
               ),
             ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

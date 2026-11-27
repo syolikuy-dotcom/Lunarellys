@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
@@ -13,6 +14,7 @@ import '../widgets/liquid_glass.dart';
 import '../widgets/lunarellys_logo.dart';
 import '../widgets/track_tile.dart';
 import 'detail_screens.dart';
+import 'main_shell.dart';
 import 'you_screen.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
@@ -201,12 +203,26 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = ref.watch(settingsProvider);
+    final appLanguage = ref.watch(
+      settingsProvider.select((s) => s.appLanguage),
+    );
     final hasTrack = ref.watch(playerProvider.select((s) => s.currentTrack != null));
-    final T = AppStrings.of(settings.appLanguage);
+    final islandEnabled = ref.watch(
+      settingsProvider.select((s) => s.dynamicIslandEnabled),
+    );
+    final islandAlways = ref.watch(
+      settingsProvider.select((s) => s.dynamicIslandAlwaysVisible),
+    );
+    final islandPosition = ref.watch(
+      settingsProvider.select((s) => s.dynamicIslandPosition),
+    );
+    final islandShown = islandEnabled && (islandAlways || hasTrack);
+    final islandClearance =
+        islandShown ? (islandPosition == 'notch' ? 8.0 : 42.0) : 0.0;
+    final navCollapsed = ref.watch(navCollapsedProvider);
+    final T = AppStrings.of(appLanguage);
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
-    final pill = AppColors.pillOf(context);
     final card = AppColors.cardOf(context);
     final query = _controller.text.trim();
 
@@ -217,21 +233,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+                padding: EdgeInsets.fromLTRB(16, 12 + islandClearance, 16, 10),
                 child: Column(
                   children: [
-                    Container(
-                      height: 48,
+                    LiquidGlassCapsule(
+                      blurSigma: 0,
                       padding: const EdgeInsets.symmetric(horizontal: 6),
-                      decoration: BoxDecoration(
-                        color: pill,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Row(
+                      child: SizedBox(
+                        height: 48,
+                        child: Row(
                         children: [
                           IconButton(
                             visualDensity: VisualDensity.compact,
-                            icon: Icon(Icons.arrow_back_rounded, color: ink, size: 21),
+                            icon: Icon(CupertinoIcons.chevron_back, color: ink, size: 20),
                             onPressed: () {
                               if (query.isNotEmpty || _hasSearched) {
                                 _controller.clear();
@@ -242,7 +256,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                             },
                           ),
                           if (!_hasSearched && query.isEmpty) ...[
-                            Icon(Icons.search_rounded, color: sub, size: 20),
+                            Icon(CupertinoIcons.search, color: sub, size: 18),
                             const SizedBox(width: 8),
                           ],
                           Expanded(
@@ -268,7 +282,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           if (query.isNotEmpty)
                             IconButton(
                               visualDensity: VisualDensity.compact,
-                              icon: Icon(Icons.close_rounded, color: ink, size: 20),
+                              icon: Icon(CupertinoIcons.xmark_circle_fill, color: sub, size: 19),
                               onPressed: () {
                                 _controller.clear();
                                 _onQueryChanged('');
@@ -277,7 +291,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           else
                             IconButton(
                               visualDensity: VisualDensity.compact,
-                              icon: Icon(Icons.mic_none_rounded, color: ink, size: 22),
+                              icon: Icon(CupertinoIcons.mic_fill, color: ink, size: 20),
                               tooltip: T.recognizeSong,
                               onPressed: () {
                                 Navigator.of(context).push(
@@ -288,36 +302,36 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                               },
                             ),
                         ],
+                        ),
                       ),
                     ),
                     if (!_hasSearched) ...[
                       const SizedBox(height: 10),
-                      Container(
-                        height: 42,
+                      LiquidGlassCapsule(
+                        blurSigma: 0,
                         padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: pill,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Row(
-                          children: [
-                            _segmentButton(
-                              label: 'YouTube',
-                              selected: _sourceTab == 0,
-                              card: card,
-                              ink: ink,
-                              sub: sub,
-                              onTap: () => setState(() => _sourceTab = 0),
-                            ),
-                            _segmentButton(
-                              label: 'Perangkat',
-                              selected: _sourceTab == 1,
-                              card: card,
-                              ink: ink,
-                              sub: sub,
-                              onTap: () => setState(() => _sourceTab = 1),
-                            ),
-                          ],
+                        child: SizedBox(
+                          height: 36,
+                          child: Row(
+                            children: [
+                              _segmentButton(
+                                label: 'YouTube',
+                                selected: _sourceTab == 0,
+                                card: card,
+                                ink: ink,
+                                sub: sub,
+                                onTap: () => setState(() => _sourceTab = 0),
+                              ),
+                              _segmentButton(
+                                label: 'Perangkat',
+                                selected: _sourceTab == 1,
+                                card: card,
+                                ink: ink,
+                                sub: sub,
+                                onTap: () => setState(() => _sourceTab = 1),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -332,11 +346,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ],
           ),
 
-          // Floating Mic button above MiniPlayer when viewing search results (matches screenshot)
+          // Floating Mic button above MiniPlayer when viewing search results
           if (_hasSearched && _sourceTab == 0)
-            Positioned(
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeOutCubic,
               right: 16,
-              bottom: MediaQuery.of(context).padding.bottom + (hasTrack ? 156 : 92),
+              bottom: MediaQuery.of(context).padding.bottom +
+                  (navCollapsed ? (hasTrack ? 86 : 84) : (hasTrack ? 156 : 92)),
               child: LiquidGlassTap(
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
@@ -345,11 +362,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ),
                 child: LiquidGlassSurface(
                   borderRadius: BorderRadius.circular(999),
-                  blurSigma: 22,
+                  blurSigma: 28,
                   child: SizedBox(
                     width: 50,
                     height: 50,
-                    child: Icon(Icons.mic_none_rounded, color: ink, size: 22),
+                    child: Icon(CupertinoIcons.mic_fill, color: ink, size: 21),
                   ),
                 ),
               ),
@@ -402,7 +419,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Widget _buildYoutubeBody(BuildContext context, AppStrings T) {
     final library = ref.watch(libraryProvider);
-    final player = ref.watch(playerProvider);
     final query = _controller.text.trim();
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
@@ -696,7 +712,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                               Text(T.topResult,
                                   style: Theme.of(context).textTheme.headlineMedium),
                               const SizedBox(height: 8),
-                              _buildTopResultRow(_topResult!, player),
+                              _buildTopResultRow(_topResult!),
                               const SizedBox(height: 20),
                             ],
                             if (_selectedYtFilter == 'all') ...[
@@ -806,10 +822,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  Widget _buildTopResultRow(MusicItem item, PlayerState player) {
+  Widget _buildTopResultRow(MusicItem item) {
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
-    final isPlaying = player.currentTrack?.id == item.id;
+    final isCurrent = ref.watch(
+      playerProvider.select((s) => s.currentTrack?.id == item.id),
+    );
+    final isPlayingNow = ref.watch(
+      playerProvider.select((s) => s.currentTrack?.id == item.id && s.isPlaying),
+    );
 
     return InkWell(
       borderRadius: BorderRadius.circular(14),
@@ -828,7 +849,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   radius: 10,
                   isCircle: item.type == 'artist',
                 ),
-                if (isPlaying)
+                if (isCurrent)
                   Positioned(
                     bottom: 4,
                     child: Container(
@@ -839,7 +860,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       ),
                       child: AnimatedEqualizer(
                         color: Colors.black,
-                        isPlaying: player.isPlaying,
+                        isPlaying: isPlayingNow,
                         size: 13,
                       ),
                     ),
@@ -1056,27 +1077,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Widget _buildGenreTile(String label, String genreQuery) {
-    final isDark = AppColors.isDark(context);
-    final card = isDark ? AppColors.darkSurface : const Color(0xFFFFFFFF);
-    final border = AppColors.borderOf(context);
     final ink = AppColors.inkOf(context);
 
     return LiquidGlassTap(
       onTap: () => _executeSearch(genreQuery, filterOverride: 'all'),
-      child: Container(
+      child: LiquidGlassCard(
+        radius: 16,
         padding: const EdgeInsets.symmetric(horizontal: 18),
-        decoration: BoxDecoration(
-          color: card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: border.withAlpha(150), width: 0.8),
-        ),
-        alignment: Alignment.centerLeft,
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: ink,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: ink,
+            ),
           ),
         ),
       ),

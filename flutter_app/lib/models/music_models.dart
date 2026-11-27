@@ -37,10 +37,10 @@ class MusicRef {
 
   factory MusicRef.fromJson(Map<String, dynamic> json) {
     final rawId = json['id'];
-    final cleanId = rawId == null ? null : rawId.toString().trim();
+    final cleanId = rawId?.toString().trim();
     return MusicRef(
       name: (json['name'] ?? '').toString(),
-      id: (cleanId == null || cleanId.isEmpty) ? null : cleanId,
+      id: (cleanId?.isEmpty ?? true) ? null : cleanId,
     );
   }
 
@@ -255,6 +255,12 @@ class MusicSection {
       continuation: json['continuation']?.toString(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'title': title,
+        'items': items.map((e) => e.toJson()).toList(),
+        if (continuation != null) 'continuation': continuation,
+      };
 }
 
 class MusicMood {
@@ -275,6 +281,12 @@ class MusicMood {
       params: (json['params'] ?? '').toString(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'browseId': browseId,
+        'params': params,
+      };
 }
 
 class SearchResponseModel {
@@ -501,18 +513,45 @@ class MusicPlaylistDetail {
 class LyricLine {
   final int? timeMs;
   final String text;
+  final String? romanized;
+  final String? translated;
 
   const LyricLine({
     this.timeMs,
     required this.text,
+    this.romanized,
+    this.translated,
   });
+
+  LyricLine copyWith({
+    int? timeMs,
+    String? text,
+    String? romanized,
+    String? translated,
+  }) {
+    return LyricLine(
+      timeMs: timeMs ?? this.timeMs,
+      text: text ?? this.text,
+      romanized: romanized ?? this.romanized,
+      translated: translated ?? this.translated,
+    );
+  }
 
   factory LyricLine.fromJson(Map<String, dynamic> json) {
     return LyricLine(
       timeMs: (json['timeMs'] as num?)?.toInt(),
       text: (json['text'] ?? '').toString(),
+      romanized: json['romanized']?.toString(),
+      translated: json['translated']?.toString(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        if (timeMs != null) 'timeMs': timeMs,
+        'text': text,
+        if (romanized != null) 'romanized': romanized,
+        if (translated != null) 'translated': translated,
+      };
 }
 
 class LyricsResult {
@@ -529,6 +568,22 @@ class LyricsResult {
     this.plain,
     this.source,
   });
+
+  LyricsResult copyWith({
+    String? id,
+    bool? synced,
+    List<LyricLine>? lines,
+    String? plain,
+    String? source,
+  }) {
+    return LyricsResult(
+      id: id ?? this.id,
+      synced: synced ?? this.synced,
+      lines: lines ?? this.lines,
+      plain: plain ?? this.plain,
+      source: source ?? this.source,
+    );
+  }
 
   factory LyricsResult.fromJson(Map<String, dynamic> json) {
     final rawLines = json['lines'];
@@ -767,7 +822,7 @@ class NodeProbeResult {
 
   const NodeProbeResult({
     required this.ok,
-    this.service = 'Lunarellys',
+    this.service = 'Archys',
     this.version = '1.2.0',
     this.region = 'ID',
     this.googleOAuthConfigured = false,

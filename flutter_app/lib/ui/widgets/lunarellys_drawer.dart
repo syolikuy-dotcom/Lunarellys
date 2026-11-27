@@ -1,13 +1,14 @@
 import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../state/auth_provider.dart';
 import '../../state/library_provider.dart';
-import '../screens/auth_screen.dart';
 import '../screens/detail_screens.dart';
+import '../screens/ytm_login_screen.dart';
 import 'google_logo.dart';
 import 'liquid_glass.dart';
 import 'lunarellys_logo.dart';
@@ -116,7 +117,7 @@ class LunarellysDrawer extends ConsumerWidget {
                                 Navigator.pop(context);
                                 Navigator.of(context).push(
                                   MaterialPageRoute<void>(
-                                    builder: (_) => const AuthScreen(allowBack: true),
+                                    builder: (_) => const YouTubeMusicLoginScreen(),
                                   ),
                                 );
                               },
@@ -168,12 +169,12 @@ class LunarellysDrawer extends ConsumerWidget {
                         else
                           ListTile(
                             leading: auth.isSyncing
-                                ? SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(strokeWidth: 2.2, color: ink),
-                                  )
-                                : const Icon(Icons.cloud_done_rounded, color: AppColors.horizonBlue),
+                                ? const CupertinoActivityIndicator(radius: 10)
+                                : const IosSquircleBadge(
+                                    icon: CupertinoIcons.cloud_fill,
+                                    color: AppColors.iosBlue,
+                                    size: 36,
+                                  ),
                             title: Text('Sinkron Cloud', style: TextStyle(color: ink, fontWeight: FontWeight.w600)),
                             subtitle: Text(
                               auth.isSyncing
@@ -187,7 +188,8 @@ class LunarellysDrawer extends ConsumerWidget {
                           ),
                         _drawerNavTile(
                           context,
-                          icon: Icons.person_outline_rounded,
+                          icon: CupertinoIcons.person_fill,
+                          iconBg: AppColors.iosBlue,
                           title: 'Kamu',
                           subtitle: 'Riwayat, Recap & Akun',
                           onTap: () {
@@ -197,7 +199,8 @@ class LunarellysDrawer extends ConsumerWidget {
                         ),
                         _drawerNavTile(
                           context,
-                          icon: Icons.graphic_eq_rounded,
+                          icon: CupertinoIcons.slider_horizontal_3,
+                          iconBg: AppColors.iosIndigo,
                           title: 'Ekualiser',
                           subtitle: 'Preset audio & tuning 5-band',
                           onTap: () {
@@ -209,7 +212,8 @@ class LunarellysDrawer extends ConsumerWidget {
                         ),
                         _drawerNavTile(
                           context,
-                          icon: Icons.bar_chart_rounded,
+                          icon: CupertinoIcons.chart_bar_fill,
+                          iconBg: AppColors.iosOrange,
                           title: 'Statistik dan recap',
                           subtitle: '${library.recentlyPlayed.length} riwayat · Teratas 50',
                           onTap: () {
@@ -221,7 +225,8 @@ class LunarellysDrawer extends ConsumerWidget {
                         ),
                         _drawerNavTile(
                           context,
-                          icon: Icons.groups_rounded,
+                          icon: CupertinoIcons.person_2_fill,
+                          iconBg: AppColors.iosGreen,
                           title: 'Dengar bersama',
                           subtitle: 'Sinkron pemutaran langsung dengan teman',
                           onTap: () {
@@ -233,7 +238,8 @@ class LunarellysDrawer extends ConsumerWidget {
                         ),
                         _drawerNavTile(
                           context,
-                          icon: Icons.history_rounded,
+                          icon: CupertinoIcons.clock_fill,
+                          iconBg: AppColors.iosTeal,
                           title: 'Riwayat',
                           subtitle: '${library.recentlyPlayed.length} baru diputar',
                           onTap: () {
@@ -245,7 +251,8 @@ class LunarellysDrawer extends ConsumerWidget {
                         ),
                         _drawerNavTile(
                           context,
-                          icon: Icons.settings_outlined,
+                          icon: CupertinoIcons.gear_alt_fill,
+                          iconBg: const Color(0xFF64748B),
                           title: 'Pengaturan',
                           subtitle: 'Suara, tampilan & penyimpanan',
                           onTap: () {
@@ -271,7 +278,7 @@ class LunarellysDrawer extends ConsumerWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                'Lunarellys',
+                                AppConfig.appName,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -280,11 +287,11 @@ class LunarellysDrawer extends ConsumerWidget {
                                   color: ink,
                                 ),
                               ),
-                              Text(
+                              const Text(
                                 'by ${AppConfig.developerName}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.horizonBlue,
@@ -316,25 +323,18 @@ class LunarellysDrawer extends ConsumerWidget {
   Widget _drawerNavTile(
     BuildContext context, {
     required IconData icon,
+    required Color iconBg,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
   }) {
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
-    final pill = AppColors.pillOf(context);
     return ListTile(
-      leading: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: pill,
-          borderRadius: BorderRadius.circular(11),
-        ),
-        child: Icon(icon, color: ink, size: 20),
-      ),
+      leading: IosSquircleBadge(icon: icon, color: iconBg, size: 36),
       title: Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: ink)),
       subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: sub)),
+      trailing: Icon(CupertinoIcons.chevron_forward, size: 15, color: sub),
       onTap: onTap,
     );
   }

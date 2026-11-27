@@ -12,7 +12,7 @@ class AppConfig {
     defaultValue: '',
   );
 
-  static const String appName = 'Lunarellys';
+  static const String appName = 'Archys';
   static const String appVersion = '4.3.6';
   static const String appBuildTag = 'universal';
   static const String developerName = 'Ikhwan Romadon';
@@ -30,7 +30,11 @@ class AppConfig {
 }
 
 enum AppAppearanceStyle {
-  glass('glass', 'Kaca (Liquid Glass)', 'Efek blur & lapisan kaca tembus pandang'),
+  glass(
+    'glass',
+    'Liquid Glass',
+    'Permukaan kaca adaptif dengan efek buram lembut',
+  ),
   flat('flat', 'Datar (Flat)', 'Permukaan bersih minimalis tanpa blur');
 
   final String key;

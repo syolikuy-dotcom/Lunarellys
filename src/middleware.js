@@ -55,7 +55,7 @@ export const strictAuthRateLimit = createRateLimiter({
 
 export const adminRateLimit = createRateLimiter({
   windowMs: 15 * 60 * 1000,
-  max: 15,
+  max: 40,
   prefix: 'admin'
 });
 
@@ -86,6 +86,13 @@ export function apiKeyAuth(req, res, next) {
     || req.path === '/auth/google/start'
     || req.path === '/auth/google/callback'
     || req.path === '/auth/google/callback/'
+    || req.path === '/admin/verify'
+    || req.path === '/admin/stats'
+    || req.path === '/admin/routes'
+    || req.path === '/admin/node-config'
+    || req.path === '/admin/node-config/'
+    || req.path === '/admin/node-config/publish'
+    || req.path === '/admin/node-config/publish/'
   ) {
     return next();
   }

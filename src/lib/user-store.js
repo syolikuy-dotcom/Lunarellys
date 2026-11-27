@@ -45,7 +45,7 @@ export function upsertUserProfile(profile) {
   const next = {
     id,
     email: String(profile.email || existing.email || '').slice(0, 180),
-    name: String(profile.name || existing.name || 'Lunarellys Listener').slice(0, 120),
+    name: String(profile.name || existing.name || 'Archys Listener').slice(0, 120),
     picture: String(profile.picture || existing.picture || '').slice(0, 500),
     createdAt: existing.createdAt || now,
     lastLoginAt: now,

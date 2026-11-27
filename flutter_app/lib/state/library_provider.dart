@@ -245,8 +245,35 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     return byId.values.toList();
   }
 
+  Future<String?> _resolveSyncToken({String? tokenOverride}) async {
+    final auth = _ref.read(authProvider);
+    final rawToken = tokenOverride ?? auth.sessionToken;
+    if (rawToken == null || rawToken.isEmpty) return null;
+    if (rawToken != 'ytm-local-session') return rawToken;
+
+    final user = auth.user;
+    if (user == null || user.isGuest) return null;
+    try {
+      final api = _ref.read(apiClientProvider);
+      final session = await api.createYtmSession(
+        email: user.email == 'YouTube Music Terhubung' ? null : user.email,
+        name: user.name,
+        picture: user.picture,
+        accountKey: user.id,
+      );
+      if (session.token.isNotEmpty) {
+        await _ref.read(authProvider.notifier).adoptSession(
+              user: session.user,
+              token: session.token,
+            );
+        return session.token;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<void> syncWithCloud({String? tokenOverride}) async {
-    final token = tokenOverride ?? _ref.read(authProvider).sessionToken;
+    final token = await _resolveSyncToken(tokenOverride: tokenOverride);
     if (token == null || token.isEmpty) return;
 
     _ref.read(authProvider.notifier).setSyncStatus(syncing: true);
@@ -290,7 +317,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
   }
 
   Future<void> pushCloudSnapshot() async {
-    final token = _ref.read(authProvider).sessionToken;
+    final token = await _resolveSyncToken();
     if (token == null || token.isEmpty) return;
     _ref.read(authProvider.notifier).setSyncStatus(syncing: true);
     try {
@@ -441,17 +468,25 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     await _prefs.remove('lib_search_history');
   }
 
-  Future<void> createPlaylist(String name) async {
+  Future<UserPlaylist?> createPlaylist(
+    String name, {
+    List<MusicItem> initialTracks = const [],
+  }) async {
     final clean = name.trim();
-    if (clean.isEmpty) return;
+    if (clean.isEmpty) return null;
+    final uniqueTracks = <String, MusicItem>{};
+    for (final t in initialTracks) {
+      uniqueTracks.putIfAbsent(t.id, () => t);
+    }
     final pl = UserPlaylist(
       id: 'pl_${DateTime.now().millisecondsSinceEpoch}',
       name: clean,
-      tracks: const [],
+      tracks: uniqueTracks.values.toList(),
     );
     state = state.copyWith(playlists: [...state.playlists, pl]);
     await _savePlaylists();
     _scheduleCloudPush();
+    return pl;
   }
 
   Future<void> deletePlaylist(String playlistId) async {
@@ -502,7 +537,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
 
   String exportBackupJson() {
     final payload = {
-      'app': 'Lunarellys',
+      'app': 'Archys',
       'exportedAt': DateTime.now().toIso8601String(),
       ..._toCloudPayload(),
       'pinnedSpeedDial': state.pinnedSpeedDialItems.map((e) => e.toJson()).toList(),

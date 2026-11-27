@@ -298,6 +298,38 @@ class MusicApiClient {
     return LyricsResult.fromJson(data);
   }
 
+  Future<List<({String? romanized, String? translated})>> getLyricsAssist({
+    required List<String> lines,
+    required String targetLang,
+    required bool romanize,
+    required bool translate,
+  }) async {
+    if (lines.isEmpty || (!romanize && !translate)) return const [];
+    final data = await _sendJson(
+      'POST',
+      '/api/music/lyrics-assist',
+      body: {
+        'lines': lines.take(120).toList(),
+        'targetLang': targetLang,
+        'romanize': romanize,
+        'translate': translate,
+      },
+    );
+    final raw = data['lines'];
+    if (raw is! List) return const [];
+    return raw.map((item) {
+      if (item is Map) {
+        final r = item['romanized']?.toString().trim();
+        final t = item['translated']?.toString().trim();
+        return (
+          romanized: (r == null || r.isEmpty) ? null : r,
+          translated: (t == null || t.isEmpty) ? null : t,
+        );
+      }
+      return (romanized: null, translated: null);
+    }).toList();
+  }
+
   Future<List<MusicItem>> getRadioQueue(String id) async {
     final data = await _getJson('/api/music/radio', query: {'id': id});
     final raw = data['tracks'];
@@ -338,6 +370,31 @@ class MusicApiClient {
   Future<AuthStatus> getAuthStatus() async {
     final data = await _getJson('/api/auth/status');
     return AuthStatus.fromJson(data);
+  }
+
+  Future<({String token, AuthUser user})> createYtmSession({
+    String? email,
+    String? name,
+    String? picture,
+    String? accountKey,
+  }) async {
+    final data = await _sendJson(
+      'POST',
+      '/api/auth/ytm-session',
+      body: {
+        if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
+        if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+        if (picture != null && picture.trim().isNotEmpty) 'picture': picture.trim(),
+        if (accountKey != null && accountKey.trim().isNotEmpty)
+          'accountKey': accountKey.trim(),
+      },
+    );
+    final token = (data['token'] ?? '').toString();
+    final rawUser = data['user'];
+    final user = rawUser is Map
+        ? AuthUser.fromJson(Map<String, dynamic>.from(rawUser))
+        : AuthUser.fromJson(data);
+    return (token: token, user: user);
   }
 
   Future<AuthUser> getCurrentUser(String token) async {
@@ -405,8 +462,8 @@ class MusicApiClient {
       final map = _asMap(res.data);
       return NodeProbeResult(
         ok: true,
-        service: (map['service'] ?? 'Lunarellys').toString(),
-        version: (map['version'] ?? '1.2.0').toString(),
+        service: (map['service'] ?? 'Archys').toString(),
+        version: (map['version'] ?? AppConfig.appVersion).toString(),
         region: (map['region'] ?? 'ID').toString(),
         googleOAuthConfigured: map['googleOAuthConfigured'] == true,
         message: 'Online (${map['status'] ?? 'ok'})',
@@ -488,9 +545,10 @@ class MusicApiClient {
     final urls = <String>{
       for (final u in candidateUrls)
         if (u.trim().isNotEmpty) AppConfig.normalizeServerUrl(u),
-      baseUrl,
+      if (baseUrl.trim().isNotEmpty) AppConfig.normalizeServerUrl(baseUrl),
       AppConfig.defaultBaseUrl,
-      AppConfig.pterodactylExampleUrl,
+      if (AppConfig.pterodactylExampleUrl != AppConfig.defaultBaseUrl)
+        AppConfig.pterodactylExampleUrl,
     };
     for (final url in urls) {
       try {
@@ -499,7 +557,11 @@ class MusicApiClient {
             baseUrl: url,
             connectTimeout: const Duration(seconds: 6),
             receiveTimeout: const Duration(seconds: 8),
-            headers: {'Accept': 'application/json', 'X-Admin-Passcode': pass},
+            headers: {
+              'Accept': 'application/json',
+              'X-Admin-Passcode': pass,
+              if (apiKey.trim().isNotEmpty) 'X-API-Key': apiKey.trim(),
+            },
           ),
         );
         final res = await dio.post<dynamic>(
@@ -577,41 +639,60 @@ class MusicApiClient {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
           'X-Admin-Passcode': passcode,
+          if (apiKey.trim().isNotEmpty) 'X-API-Key': apiKey.trim(),
         },
       ),
     );
 
     // Pastikan target memang node Lunarellys (bukan nginx / panel / halaman lain).
+    // Jika server melakukan redirect (mis. http -> https, HTTP 301/302),
+    // gunakan origin hasil redirect untuk request berikutnya agar tidak kena 302.
+    var resolvedBase = targetUrl;
     try {
       final probe = await dio.get<dynamic>('/api/node/info');
       final pm = _asMap(probe.data);
       if (pm['success'] != true) {
         throw const MusicApiException(
-          'URL ini bukan server Lunarellys. Cek alamat & port (contoh :4686).',
+          'URL ini bukan server Archys. Cek alamat & port (contoh :4686).',
         );
+      }
+      final real = probe.realUri;
+      if (real.hasScheme && real.host.isNotEmpty) {
+        final portPart = real.hasPort &&
+                !((real.scheme == 'http' && real.port == 80) ||
+                    (real.scheme == 'https' && real.port == 443))
+            ? ':${real.port}'
+            : '';
+        resolvedBase = '${real.scheme}://${real.host}$portPart';
       }
     } on DioException catch (e) {
       final code = e.response?.statusCode;
       throw MusicApiException(
         code != null
-            ? 'URL ini bukan server Lunarellys (HTTP $code). Cek alamat & port.'
+            ? 'URL ini bukan server Archys (HTTP $code). Cek alamat & port.'
             : 'Tidak bisa terhubung ke $targetUrl',
         statusCode: code,
       );
     }
 
-    // Beberapa proxy menolak PUT dengan 405 -> fallback POST -> PATCH.
-    // Redirect (mis. http -> https) diikuti manual agar method + body tetap ada.
-    const methods = ['PUT', 'POST', 'PATCH'];
+    // Coba /api/admin/node-config/publish (POST) dulu karena lebih tahan proxy,
+    // lalu fallback PUT -> POST -> PATCH ke /api/admin/node-config.
+    // Redirect (301/302/307/308) diikuti manual agar method + body tetap utuh.
+    final attempts = <({String method, String path})>[
+      (method: 'POST', path: '/api/admin/node-config/publish'),
+      (method: 'PUT', path: '/api/admin/node-config'),
+      (method: 'POST', path: '/api/admin/node-config'),
+      (method: 'PATCH', path: '/api/admin/node-config'),
+    ];
     Response<dynamic>? res;
-    for (final method in methods) {
-      var url = '$targetUrl/api/admin/node-config';
+    for (final attempt in attempts) {
+      var url = '$resolvedBase${attempt.path}';
       for (var hop = 0; hop < 5; hop++) {
         res = await dio.request<dynamic>(
           url,
           data: payload,
           options: Options(
-            method: method,
+            method: attempt.method,
             followRedirects: false,
             validateStatus: (code) => code != null && code < 500,
           ),
@@ -626,7 +707,7 @@ class MusicApiClient {
         break;
       }
       final code = res?.statusCode ?? 0;
-      if (code == 405 || code == 404) continue; // coba method lain
+      if (code == 405 || code == 404) continue; // coba method / path berikutnya
       break;
     }
 
@@ -642,7 +723,7 @@ class MusicApiClient {
       }
       if (code == 405 || code == 404) {
         throw MusicApiException(
-          'Server belum mendukung endpoint ini (HTTP $code). Update backend ke versi terbaru lalu restart.',
+          'Proxy/server menolak metode ini (HTTP $code). Coba pakai HTTPS atau update & restart node server.',
           statusCode: code,
         );
       }

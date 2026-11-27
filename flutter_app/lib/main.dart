@@ -10,13 +10,15 @@ import 'state/player_provider.dart';
 import 'state/settings_provider.dart';
 import 'ui/screens/auth_screen.dart';
 import 'ui/screens/main_shell.dart';
+import 'ui/screens/splash_screen.dart';
+import 'ui/widgets/liquid_glass.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await JustAudioBackground.init(
     androidNotificationChannelId: 'com.lunarellys.music.channel.audio',
-    androidNotificationChannelName: 'Lunarellys Audio Playback',
+    androidNotificationChannelName: 'Archys Audio Playback',
     androidNotificationOngoing: true,
     androidShowNotificationBadge: true,
   );
@@ -24,28 +26,36 @@ Future<void> main() async {
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
   final prefs = await SharedPreferences.getInstance();
+  await LiquidGlassShaderEngine.ensureLoaded();
 
   runApp(
     ProviderScope(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
       ],
-      child: const LunarellysApp(),
+      child: const ArchysApp(),
     ),
   );
 }
 
-class LunarellysApp extends ConsumerWidget {
-  const LunarellysApp({super.key});
+class ArchysApp extends ConsumerWidget {
+  const ArchysApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final auth = ref.watch(authProvider);
-    final settings = ref.watch(settingsProvider);
+    final onboardingCompleted = ref.watch(
+      authProvider.select((s) => s.onboardingCompleted),
+    );
+    final themePref = ref.watch(
+      settingsProvider.select((s) => s.themePreference),
+    );
+    final dynamicAlbumColors = ref.watch(
+      settingsProvider.select((s) => s.dynamicAlbumColors),
+    );
     final dynamicColor = ref.watch(playerProvider.select((s) => s.dynamicColor));
-    final accent = settings.dynamicAlbumColors ? dynamicColor : null;
+    final accent = dynamicAlbumColors ? dynamicColor : null;
 
-    final themeMode = switch (settings.themePreference) {
+    final themeMode = switch (themePref) {
       AppThemePreference.light => ThemeMode.light,
       AppThemePreference.dark => ThemeMode.dark,
       AppThemePreference.system => ThemeMode.system,
@@ -70,7 +80,18 @@ class LunarellysApp extends ConsumerWidget {
       theme: AppTheme.lightTheme(dynamicSeed: accent),
       darkTheme: AppTheme.darkTheme(dynamicSeed: accent),
       themeMode: themeMode,
-      home: auth.onboardingCompleted ? const MainShell() : const AuthScreen(),
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+        return MediaQuery(
+          data: mq.copyWith(
+            textScaler: mq.textScaler.clamp(minScaleFactor: 0.88, maxScaleFactor: 1.14),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+      home: LaunchSplashGate(
+        child: onboardingCompleted ? const MainShell() : const AuthScreen(),
+      ),
     );
   }
 }

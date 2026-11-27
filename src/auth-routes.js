@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { Router } from 'express';
 import {
   config,
@@ -49,7 +50,7 @@ router.get('/auth/status', strictAuthRateLimit, (req, res) => {
     success: true,
     googleOAuthConfigured: googleOAuthEnabled(),
     callbackUrl: `${baseUrl}/api/auth/google/callback`,
-    deepLinkScheme: 'lunarellys://auth'
+    deepLinkScheme: 'archys://auth'
   });
 });
 
@@ -83,13 +84,13 @@ router.get(['/auth/google/callback', '/auth/google/callback/'], asyncHandler(asy
   const { code, state, error: oauthErr } = req.query;
   const parsedState = verifyOAuthState(String(state || ''));
   if (!parsedState) {
-    return res.status(400).send('<h2>Invalid or expired login state. Please try again from Lunarellys.</h2>');
+    return res.status(400).send('<h2>Invalid or expired login state. Please try again from Archys.</h2>');
   }
 
   const platform = parsedState.platform === 'web' ? 'web' : 'flutter';
   if (oauthErr) {
     if (platform === 'flutter') {
-      return res.redirect(`lunarellys://auth?error=${encodeURIComponent(String(oauthErr))}`);
+      return res.redirect(`archys://auth?error=${encodeURIComponent(String(oauthErr))}`);
     }
     return res.status(400).send(`<h2>Google sign-in cancelled: ${escapeHtml(oauthErr)}</h2>`);
   }
@@ -117,7 +118,7 @@ router.get(['/auth/google/callback', '/auth/google/callback/'], asyncHandler(asy
   if (!tokenRes.ok || !tokenJson.access_token) {
     const msg = tokenJson.error_description || tokenJson.error || 'token exchange failed';
     if (platform === 'flutter') {
-      return res.redirect(`lunarellys://auth?error=${encodeURIComponent(msg)}`);
+      return res.redirect(`archys://auth?error=${encodeURIComponent(msg)}`);
     }
     return res.status(400).send(`<h2>Login failed: ${escapeHtml(msg)}</h2>`);
   }
@@ -145,25 +146,25 @@ router.get(['/auth/google/callback', '/auth/google/callback/'], asyncHandler(asy
       email: user.email,
       picture: user.picture
     });
-    const deepLink = `lunarellys://auth?${qs.toString()}`;
+    const deepLink = `archys://auth?${qs.toString()}`;
     return res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Signed in to Lunarellys</title>
+  <title>Signed in to Archys</title>
   <style>
-    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#121212;color:#fff;font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:24px;}
-    .card{max-width:360px;background:#181818;border:1px solid #2a2a2a;border-radius:16px;padding:28px;}
-    .btn{display:inline-block;margin-top:18px;padding:12px 24px;border-radius:999px;background:#1DB954;color:#000;font-weight:700;text-decoration:none;}
-    p{color:#b3b3b3;font-size:14px;line-height:1.5;}
+    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0B121D;color:#fff;font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:24px;}
+    .card{max-width:360px;background:#131C2B;border:1px solid #26354D;border-radius:20px;padding:28px;}
+    .btn{display:inline-block;margin-top:18px;padding:12px 24px;border-radius:999px;background:#5DA7E8;color:#08101C;font-weight:700;text-decoration:none;}
+    p{color:#b3c2d6;font-size:14px;line-height:1.5;}
   </style>
 </head>
 <body>
   <div class="card">
     <h2>Welcome, ${escapeHtml(user.name)}</h2>
-    <p>Returning to Lunarellys app...</p>
-    <a class="btn" href="${escapeHtml(deepLink)}">Open Lunarellys</a>
+    <p>Returning to Archys app...</p>
+    <a class="btn" href="${escapeHtml(deepLink)}">Open Archys</a>
   </div>
   <script>window.location.replace(${JSON.stringify(deepLink)});</script>
 </body>
@@ -183,6 +184,65 @@ router.get(['/auth/google/callback', '/auth/google/callback/'], asyncHandler(asy
     }
   </script><p>Signed in as ${escapeHtml(user.name)}. You can close this window.</p></body></html>`);
 }));
+
+function sanitizeYtmPicture(raw) {
+  const val = String(raw || '').trim();
+  if (!val || val.length > 500) return '';
+  try {
+    const parsed = new URL(val);
+    if (parsed.protocol !== 'https:') return '';
+    const host = parsed.hostname.toLowerCase();
+    const allowed = ['lh3.googleusercontent.com', 'yt3.ggpht.com', 'yt3.googleusercontent.com', 'avatars.githubusercontent.com'];
+    if (!allowed.some((h) => host === h || host.endsWith(`.${h}`))) return '';
+    return parsed.toString();
+  } catch {
+    return '';
+  }
+}
+
+router.post('/auth/ytm-session', strictAuthRateLimit, (req, res) => {
+  const body = req.body;
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw new HttpError('valid JSON session payload required', 400);
+  }
+
+  const rawEmail = String(body.email || '').trim().slice(0, 160);
+  const rawName = String(body.name || '').trim().replace(/[\r\n\t]+/g, ' ').slice(0, 80);
+  const rawAccountKey = String(body.accountKey || '').trim().slice(0, 200);
+  const picture = sanitizeYtmPicture(body.picture);
+
+  const normalizedEmail = rawEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)
+    ? rawEmail.toLowerCase()
+    : '';
+
+  const seed = normalizedEmail || rawAccountKey || crypto.randomBytes(16).toString('hex');
+  const hash = crypto.createHash('sha256').update(`ytm:${seed}`).digest('hex').slice(0, 24);
+  const userId = `ytm:${hash}`;
+
+  const fallbackName = normalizedEmail
+    ? normalizedEmail.split('@')[0]
+    : 'YouTube Music';
+
+  const user = upsertUserProfile({
+    id: userId,
+    email: normalizedEmail || 'YouTube Music Terhubung',
+    name: rawName || fallbackName,
+    picture
+  });
+  const token = createUserToken(user);
+
+  res.json({
+    success: true,
+    token,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      picture: user.picture,
+      lastLoginAt: user.lastLoginAt || null
+    }
+  });
+});
 
 router.get('/auth/me', (req, res) => {
   const claims = requireUserAuth(req);

@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,10 +13,12 @@ import '../../state/library_provider.dart';
 import '../../state/player_provider.dart';
 import '../../state/settings_provider.dart';
 import '../widgets/artwork_image.dart';
+import '../widgets/ios_control_center.dart';
 import '../widgets/liquid_glass.dart';
 import '../widgets/media_card.dart';
 import '../widgets/track_tile.dart';
 import 'detail_screens.dart';
+import 'main_shell.dart';
 import 'you_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -35,27 +39,88 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _loadingMood = false;
   String? _error;
   int _speedDialPage = 0;
-  double _scrollOffset = 0;
+  final ValueNotifier<double> _scrollOffset = ValueNotifier<double>(0);
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    final hasCache = _restoreCachedHome();
+    unawaited(_loadData(silent: hasCache));
+  }
+
+  bool _restoreCachedHome() {
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      final rawSec = prefs.getString('cached_home_sections_v2');
+      final rawMoods = prefs.getString('cached_home_moods_v2');
+      if (rawSec == null || rawSec.isEmpty) return false;
+      final decodedSec = jsonDecode(rawSec);
+      if (decodedSec is! List) return false;
+      final secs = decodedSec
+          .whereType<Map>()
+          .map((m) => MusicSection.fromJson(Map<String, dynamic>.from(m)))
+          .where((s) => s.items.isNotEmpty)
+          .toList();
+      if (secs.isEmpty) return false;
+      var moods = const <MusicMood>[];
+      if (rawMoods != null && rawMoods.isNotEmpty) {
+        final decodedMoods = jsonDecode(rawMoods);
+        if (decodedMoods is List) {
+          moods = decodedMoods
+              .whereType<Map>()
+              .map((m) => MusicMood.fromJson(Map<String, dynamic>.from(m)))
+              .where((m) => m.name.isNotEmpty)
+              .toList();
+        }
+      }
+      _sections = secs;
+      _moods = moods;
+      _loading = false;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void _saveCachedHome(List<MusicSection> secs, List<MusicMood> moods) {
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      if (secs.isNotEmpty) {
+        prefs.setString(
+          'cached_home_sections_v2',
+          jsonEncode(secs.take(12).map((s) => s.toJson()).toList()),
+        );
+      }
+      if (moods.isNotEmpty) {
+        prefs.setString(
+          'cached_home_moods_v2',
+          jsonEncode(moods.take(24).map((m) => m.toJson()).toList()),
+        );
+      }
+    } catch (_) {}
   }
 
   @override
   void dispose() {
+    _scrollOffset.dispose();
     _speedDialPageCtrl.dispose();
     _quickPicksPageCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _loadData() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-      _selectedMoodName = null;
-    });
+  Future<void> _loadData({bool silent = false}) async {
+    if (!silent || _sections.isEmpty) {
+      setState(() {
+        _loading = true;
+        _error = null;
+        _selectedMoodName = null;
+      });
+    } else {
+      setState(() {
+        _error = null;
+        _selectedMoodName = null;
+      });
+    }
 
     final api = ref.read(apiClientProvider);
     try {
@@ -64,15 +129,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         api.getMoods().catchError((_) => const <MusicMood>[]),
       ]);
       if (!mounted) return;
+      final secs = results[0] as List<MusicSection>;
+      final moods = results[1] as List<MusicMood>;
       setState(() {
-        _sections = results[0] as List<MusicSection>;
-        _moods = results[1] as List<MusicMood>;
+        if (secs.isNotEmpty) _sections = secs;
+        if (moods.isNotEmpty) _moods = moods;
         _loading = false;
       });
+      _saveCachedHome(secs, moods);
     } catch (err) {
       if (!mounted) return;
       setState(() {
-        _error = err.toString();
+        if (_sections.isEmpty) _error = err.toString();
         _loading = false;
       });
     }
@@ -142,10 +210,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = ref.watch(settingsProvider);
+    final appLanguage = ref.watch(
+      settingsProvider.select((s) => s.appLanguage),
+    );
+    final showStreakOnHome = ref.watch(
+      settingsProvider.select((s) => s.showStreakOnHome),
+    );
     final library = ref.watch(libraryProvider);
     final hasTrack = ref.watch(playerProvider.select((s) => s.currentTrack != null));
-    final T = AppStrings.of(settings.appLanguage);
+    final islandEnabled = ref.watch(
+      settingsProvider.select((s) => s.dynamicIslandEnabled),
+    );
+    final islandAlways = ref.watch(
+      settingsProvider.select((s) => s.dynamicIslandAlwaysVisible),
+    );
+    final islandPosition = ref.watch(
+      settingsProvider.select((s) => s.dynamicIslandPosition),
+    );
+    final islandShown = islandEnabled && (islandAlways || hasTrack);
+    final islandClearance =
+        islandShown ? (islandPosition == 'notch' ? 8.0 : 42.0) : 0.0;
+    final navCollapsed = ref.watch(navCollapsedProvider);
+    final T = AppStrings.of(appLanguage);
     final greeting = T.greeting(DateTime.now().hour);
 
     final isDark = AppColors.isDark(context);
@@ -153,7 +239,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final sub = AppColors.subOf(context);
     final pill = AppColors.pillOf(context);
     final topPad = MediaQuery.of(context).padding.top;
-    final stickyOpacity = ((_scrollOffset - 32) / 36).clamp(0.0, 1.0);
+    final bottomInset = MediaQuery.of(context).padding.bottom;
 
     final allTracks = _collectAllPlayable();
 
@@ -204,10 +290,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         NotificationListener<ScrollNotification>(
           onNotification: (n) {
             if (n.metrics.axis == Axis.vertical) {
-              final next = n.metrics.pixels;
-              if ((next - _scrollOffset).abs() > 2 && mounted) {
-                setState(() => _scrollOffset = next);
-              }
+              _scrollOffset.value = n.metrics.pixels;
             }
             return false;
           },
@@ -215,14 +298,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             color: ink,
             onRefresh: _loadData,
             child: ListView(
-              padding: EdgeInsets.fromLTRB(0, topPad + 14, 0, 180),
+              padding: EdgeInsets.fromLTRB(0, topPad + 14 + islandClearance, 0, 180),
               children: [
-                // Clean full-width Greeting header (Guest Listener icon removed per user request)
+                // Clean full-width Greeting header + Control Center quick button
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
-                  child: Text(
-                    greeting,
-                    style: Theme.of(context).textTheme.headlineLarge,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          greeting,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.headlineLarge,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      LiquidGlassTap(
+                        onTap: () => showIosControlCenter(
+                          context,
+                          ref,
+                          onOpenEqualizer: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const EqualizerScreen(),
+                            ),
+                          ),
+                        ),
+                        child: LiquidGlassCapsule(
+                          blurSigma: 0,
+                          padding: const EdgeInsets.all(9),
+                          child: Icon(
+                            CupertinoIcons.slider_horizontal_3,
+                            size: 19,
+                            color: ink,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
@@ -258,7 +370,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ],
 
                 // Percikan Streak Banner Card
-                if (!_loading && settings.showStreakOnHome) ...[
+                if (!_loading && showStreakOnHome) ...[
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: PercikanBannerCard(
@@ -336,20 +448,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                   // 1. ANDALANMU (3x3 Speed Dial Grid)
                   if (speedDialPool.isNotEmpty) ...[
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                      child: Row(
-                        children: [
-                          Text(
-                            T.speedDial,
-                            style: Theme.of(context).textTheme.headlineMedium,
-                          ),
-                          const Spacer(),
-                          Icon(Icons.chevron_right_rounded, color: sub),
-                        ],
+                    InkWell(
+                      onTap: () => _showSectionBrowseSheet(
+                        context,
+                        T.speedDial,
+                        speedDialPool,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                        child: Row(
+                          children: [
+                            Text(
+                              T.speedDial,
+                              style: Theme.of(context).textTheme.headlineMedium,
+                            ),
+                            const Spacer(),
+                            Icon(CupertinoIcons.chevron_forward, color: sub, size: 20),
+                          ],
+                        ),
                       ),
                     ),
-                    _buildSpeedDialPager(context, speedDialPool),
+                    RepaintBoundary(
+                      child: _buildSpeedDialPager(context, speedDialPool),
+                    ),
                     const SizedBox(height: 24),
                   ],
 
@@ -384,7 +505,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ],
                       ),
                     ),
-                    _buildQuickPicksPager(context, quickPickTracks, T.quickPicks),
+                    RepaintBoundary(
+                      child: _buildQuickPicksPager(context, quickPickTracks, T.quickPicks),
+                    ),
                     const SizedBox(height: 24),
                   ],
 
@@ -407,20 +530,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      sec.title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context).textTheme.headlineMedium,
+                            InkWell(
+                              onTap: () => _showSectionBrowseSheet(
+                                context,
+                                sec.title,
+                                allPlayableSec,
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        sec.title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context).textTheme.headlineMedium,
+                                      ),
                                     ),
-                                  ),
-                                  Icon(Icons.arrow_forward_rounded, color: sub, size: 22),
-                                ],
+                                    Icon(CupertinoIcons.chevron_forward, color: sub, size: 20),
+                                  ],
+                                ),
                               ),
                             ),
                             _buildQuickPicksPager(context, allPlayableSec, sec.title),
@@ -439,40 +569,47 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (sec.title.toLowerCase().contains('hujan') ||
-                                    sec.title.toLowerCase().contains('mendung') ||
-                                    idx == 3)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 2),
-                                    child: Text(
-                                      'LAGU-LAGU UNTUK HARI YANG MENDUNG',
-                                      style: TextStyle(
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 0.4,
-                                        color: sub,
-                                      ),
-                                    ),
-                                  ),
-                                Row(
-                                  children: [
-                                    Expanded(
+                          InkWell(
+                            onTap: () => _showSectionBrowseSheet(
+                              context,
+                              sec.title,
+                              sec.items,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (sec.title.toLowerCase().contains('hujan') ||
+                                      sec.title.toLowerCase().contains('mendung') ||
+                                      idx == 3)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 2),
                                       child: Text(
-                                        sec.title,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(context).textTheme.headlineMedium,
+                                        'LAGU-LAGU UNTUK HARI YANG MENDUNG',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.4,
+                                          color: sub,
+                                        ),
                                       ),
                                     ),
-                                    Icon(Icons.arrow_forward_rounded, color: sub, size: 22),
-                                  ],
-                                ),
-                              ],
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          sec.title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context).textTheme.headlineMedium,
+                                        ),
+                                      ),
+                                      Icon(CupertinoIcons.chevron_forward, color: sub, size: 20),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                           SizedBox(
@@ -508,17 +645,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                   // 5. SUASANA DAN GENRE (2-column grid)
                   if (_moods.isNotEmpty) ...[
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                      child: Row(
-                        children: [
-                          Text(
-                            T.moodAndGenres,
-                            style: Theme.of(context).textTheme.headlineMedium,
-                          ),
-                          const Spacer(),
-                          Icon(Icons.arrow_forward_rounded, color: sub, size: 22),
-                        ],
+                    InkWell(
+                      onTap: () => _showAllMoodsSheet(context),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                        child: Row(
+                          children: [
+                            Text(
+                              T.moodAndGenres,
+                              style: Theme.of(context).textTheme.headlineMedium,
+                            ),
+                            const Spacer(),
+                            Icon(CupertinoIcons.chevron_forward, color: sub, size: 20),
+                          ],
+                        ),
                       ),
                     ),
                     Padding(
@@ -541,25 +681,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 builder: (_) => MoodPlaylistsScreen(mood: mood),
                               ),
                             ),
-                            child: Container(
+                            child: LiquidGlassCard(
+                              radius: 16,
                               padding: const EdgeInsets.symmetric(horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: AppColors.cardOf(context),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: AppColors.borderOf(context).withAlpha(140),
-                                  width: 0.8,
-                                ),
-                              ),
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                mood.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: ink,
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  mood.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: ink,
+                                  ),
                                 ),
                               ),
                             ),
@@ -574,28 +709,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
 
-        // Sticky blurred "Beranda" top header on scroll
-        if (stickyOpacity > 0.02)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Opacity(
-              opacity: stickyOpacity,
-              child: ClipRect(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-                  child: Container(
-                    padding: EdgeInsets.fromLTRB(16, topPad + 10, 16, 12),
-                    decoration: BoxDecoration(
-                      color: AppColors.bgOf(context).withAlpha(205),
-                      border: Border(
-                        bottom: BorderSide(color: AppColors.borderOf(context), width: 0.6),
+        // Sticky Liquid Glass "Beranda" top header on scroll (zero setState lag)
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: ValueListenableBuilder<double>(
+            valueListenable: _scrollOffset,
+            builder: (context, offset, child) {
+              final stickyOpacity = ((offset - 32) / 36).clamp(0.0, 1.0);
+              if (stickyOpacity <= 0.02) return const SizedBox.shrink();
+              return IgnorePointer(
+                ignoring: stickyOpacity < 0.2,
+                child: Opacity(
+                  opacity: stickyOpacity,
+                  child: child,
+                ),
+              );
+            },
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
+                child: Container(
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    topPad + (islandShown ? 44 : 10),
+                    16,
+                    12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (isDark ? const Color(0xFF0E1218) : const Color(0xFFF6F7F9))
+                        .withAlpha(isDark ? 190 : 205),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: AppColors.borderOf(context).withAlpha(130),
+                        width: 0.6,
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Text(
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
                           T.navHome,
                           style: TextStyle(
                             fontSize: 22,
@@ -604,23 +759,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             color: ink,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                      LiquidGlassTap(
+                        onTap: () => showIosControlCenter(
+                          context,
+                          ref,
+                          onOpenEqualizer: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const EqualizerScreen(),
+                            ),
+                          ),
+                        ),
+                        child: Icon(
+                          CupertinoIcons.slider_horizontal_3,
+                          size: 21,
+                          color: ink,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
           ),
+        ),
 
-        // Floating Mic & Shuffle circular glass buttons above bottom-right
-        Positioned(
+        // Floating Mic & Shuffle circular glass buttons synced with nav capsule collapse
+        AnimatedPositioned(
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
           right: 16,
-          bottom: MediaQuery.of(context).padding.bottom + (hasTrack ? 156 : 92),
+          bottom: bottomInset +
+              (navCollapsed ? (hasTrack ? 86 : 84) : (hasTrack ? 156 : 92)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               _FloatingCircleBtn(
-                icon: Icons.mic_none_rounded,
+                icon: CupertinoIcons.mic_fill,
                 tooltip: T.recognizeSong,
                 onTap: () {
                   Navigator.of(context).push(
@@ -632,7 +807,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: 10),
               _FloatingCircleBtn(
-                icon: Icons.shuffle_rounded,
+                icon: CupertinoIcons.shuffle,
                 tooltip: 'Putar acak',
                 onTap: () {
                   final pool = _collectAllPlayable();
@@ -655,7 +830,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final pageCount = ((items.length + 8) ~/ 9).clamp(1, 3);
     final width = MediaQuery.of(context).size.width;
     final tileW = (width - 32 - 20) / 3;
-    final gridHeight = (tileW + 28) * 3 + 20;
+    final gridHeight = (tileW + 30) * 3 + 24;
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
 
@@ -995,6 +1170,149 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     );
   }
+
+  void _showSectionBrowseSheet(
+    BuildContext context,
+    String title,
+    List<MusicItem> items,
+  ) {
+    final ink = AppColors.inkOf(context);
+    final playable = items.where((e) => e.isPlayable).toList();
+    showLiquidGlassSheet<void>(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 6, 14, 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: ink),
+                  ),
+                ),
+                if (playable.isNotEmpty)
+                  FilledButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      ref.read(playerProvider.notifier).playTrack(
+                            playable.first,
+                            queue: playable,
+                            contextName: title,
+                          );
+                    },
+                    icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                    label: const Text('Putar Semua'),
+                  ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(10, 6, 10, 20),
+              itemCount: items.length,
+              itemBuilder: (_, i) {
+                final item = items[i];
+                if (item.isPlayable) {
+                  return TrackTile(track: item, queue: playable);
+                }
+                return ListTile(
+                  leading: ArtworkImage(
+                    url: item.bestThumbUrl(size: 160),
+                    size: 48,
+                    radius: 10,
+                    isCircle: item.type == 'artist',
+                  ),
+                  title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(
+                    item.subtitle.isNotEmpty ? item.subtitle : item.artistDisplay,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _openItem(item, playable, title);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAllMoodsSheet(BuildContext context) {
+    final ink = AppColors.inkOf(context);
+    showLiquidGlassSheet<void>(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 6, 18, 10),
+            child: Row(
+              children: [
+                Text(
+                  'Semua Suasana & Genre',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: ink),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Flexible(
+            child: GridView.builder(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 22),
+              itemCount: _moods.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 2.5,
+              ),
+              itemBuilder: (_, i) {
+                final m = _moods[i];
+                return InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => MoodPlaylistsScreen(mood: m),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.pillOf(ctx),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      m.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontWeight: FontWeight.w700, color: ink),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _CompactResumeTile extends StatelessWidget {
@@ -1010,29 +1328,14 @@ class _CompactResumeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = AppColors.isDark(context);
-    final card = isDark ? AppColors.darkSurface : Colors.white;
     final ink = AppColors.inkOf(context);
-    final border = AppColors.borderOf(context);
 
     return LiquidGlassTap(
       onTap: onTap,
       onLongPress: onLongPress,
       pressedScale: 0.96,
-      child: Container(
-        decoration: BoxDecoration(
-          color: card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: border.withAlpha(isDark ? 120 : 170), width: 0.7),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(isDark ? 28 : 8),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
+      child: LiquidGlassCard(
+        radius: 15,
         child: Row(
           children: [
             ArtworkImage(

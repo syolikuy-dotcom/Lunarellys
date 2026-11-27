@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
@@ -7,10 +8,12 @@ import '../../state/library_provider.dart';
 import '../../state/player_provider.dart';
 import '../../state/settings_provider.dart';
 import '../widgets/artwork_image.dart';
+import '../widgets/ios_control_center.dart';
 import '../widgets/liquid_glass.dart';
 import '../widgets/media_card.dart';
 import '../widgets/track_tile.dart';
 import 'detail_screens.dart';
+import 'main_shell.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
@@ -50,9 +53,24 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   @override
   Widget build(BuildContext context) {
     final library = ref.watch(libraryProvider);
-    final settings = ref.watch(settingsProvider);
+    final appLanguage = ref.watch(
+      settingsProvider.select((s) => s.appLanguage),
+    );
     final hasTrack = ref.watch(playerProvider.select((s) => s.currentTrack != null));
-    final T = AppStrings.of(settings.appLanguage);
+    final islandEnabled = ref.watch(
+      settingsProvider.select((s) => s.dynamicIslandEnabled),
+    );
+    final islandAlways = ref.watch(
+      settingsProvider.select((s) => s.dynamicIslandAlwaysVisible),
+    );
+    final islandPosition = ref.watch(
+      settingsProvider.select((s) => s.dynamicIslandPosition),
+    );
+    final islandShown = islandEnabled && (islandAlways || hasTrack);
+    final islandClearance =
+        islandShown ? (islandPosition == 'notch' ? 8.0 : 42.0) : 0.0;
+    final navCollapsed = ref.watch(navCollapsedProvider);
+    final T = AppStrings.of(appLanguage);
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
     final isDark = AppColors.isDark(context);
@@ -85,22 +103,41 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+                padding: EdgeInsets.fromLTRB(16, 16 + islandClearance, 16, 10),
                 child: Row(
                   children: [
-                    Text(
-                      T.yourLibrary,
-                      style: Theme.of(context).textTheme.headlineLarge,
+                    Expanded(
+                      child: Text(
+                        T.yourLibrary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.headlineLarge,
+                      ),
                     ),
-                    const Spacer(),
                     if (_showInlineSearch)
                       IconButton(
-                        icon: Icon(Icons.close_rounded, color: ink),
+                        icon: Icon(CupertinoIcons.xmark_circle_fill, color: sub),
                         onPressed: () {
                           _filterCtrl.clear();
                           setState(() => _showInlineSearch = false);
                         },
                       ),
+                    LiquidGlassTap(
+                      onTap: () => showIosControlCenter(
+                        context,
+                        ref,
+                        onOpenEqualizer: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const EqualizerScreen(),
+                          ),
+                        ),
+                      ),
+                      child: LiquidGlassCapsule(
+                        blurSigma: 0,
+                        padding: const EdgeInsets.all(9),
+                        child: Icon(CupertinoIcons.slider_horizontal_3, size: 19, color: ink),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -114,7 +151,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     onChanged: (_) => setState(() {}),
                     decoration: const InputDecoration(
                       hintText: 'Filter koleksi di pustaka...',
-                      prefixIcon: Icon(Icons.search_rounded),
+                      prefixIcon: Icon(CupertinoIcons.search),
                     ),
                   ),
                 ),
@@ -230,14 +267,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     IconButton(
                       visualDensity: VisualDensity.compact,
                       onPressed: () => setState(() => _showInlineSearch = !_showInlineSearch),
-                      icon: Icon(Icons.search_rounded, size: 22, color: ink),
+                      icon: Icon(CupertinoIcons.search, size: 21, color: ink),
                     ),
                     IconButton(
                       visualDensity: VisualDensity.compact,
                       onPressed: () => setState(() => _gridMode = !_gridMode),
                       icon: Icon(
-                        _gridMode ? Icons.view_list_rounded : Icons.grid_view_rounded,
-                        size: 21,
+                        _gridMode
+                            ? CupertinoIcons.list_bullet
+                            : CupertinoIcons.square_grid_2x2_fill,
+                        size: 20,
                         color: ink,
                       ),
                     ),
@@ -252,22 +291,25 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ),
         ),
 
-        // Floating '+' circular FAB
-        Positioned(
+        // Floating '+' circular FAB synced with nav capsule collapse
+        AnimatedPositioned(
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
           right: 16,
-          bottom: MediaQuery.of(context).padding.bottom + (hasTrack ? 156 : 92),
+          bottom: MediaQuery.of(context).padding.bottom +
+              (navCollapsed ? (hasTrack ? 84 : 82) : (hasTrack ? 156 : 92)),
           child: LiquidGlassTap(
             onTap: () => _showCreatePlaylistDialog(context, ref),
             child: LiquidGlassSurface(
               borderRadius: BorderRadius.circular(999),
-              blurSigma: 22,
+              blurSigma: 28,
               tintColor: isDark ? Colors.white : AppColors.cardOf(context),
               child: SizedBox(
                 width: 54,
                 height: 54,
                 child: Icon(
-                  Icons.add_rounded,
-                  size: 28,
+                  CupertinoIcons.plus,
+                  size: 26,
                   color: isDark ? Colors.black : ink,
                 ),
               ),
@@ -383,44 +425,62 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               T.collections,
               style: Theme.of(context).textTheme.headlineMedium,
             ),
-            const SizedBox(height: 6),
-            _collectionRow(
-              context,
-              icon: Icons.favorite_rounded,
-              title: T.likedSongs,
-              onTap: () => _openTracksSheet(context, T.likedSongs, library.likedSongs),
-            ),
-            _collectionRow(
-              context,
-              icon: Icons.cloud_off_rounded,
-              title: T.downloaded,
-              onTap: () =>
-                  _openTracksSheet(context, T.downloaded, library.downloadedTracks),
-            ),
-            _collectionRow(
-              context,
-              icon: Icons.cloud_done_rounded,
-              title: T.cached,
-              onTap: () => _openTracksSheet(context, T.cached, allCached),
-            ),
-            _collectionRow(
-              context,
-              icon: Icons.format_list_bulleted_rounded,
-              title: T.onDevice,
-              onTap: () =>
-                  _openTracksSheet(context, T.onDevice, library.downloadedTracks),
-            ),
-            _collectionRow(
-              context,
-              icon: Icons.trending_up_rounded,
-              title: T.myTop50,
-              onTap: () => _openTracksSheet(context, T.myTop50, library.top50Tracks),
-            ),
-            _collectionRow(
-              context,
-              icon: Icons.upload_rounded,
-              title: T.uploaded,
-              onTap: () => _openTracksSheet(context, T.uploaded, const []),
+            const SizedBox(height: 10),
+            LiquidGlassCard(
+              radius: 22,
+              child: Column(
+                children: [
+                  _collectionRow(
+                    context,
+                    icon: CupertinoIcons.heart_fill,
+                    badgeColor: AppColors.iosPink,
+                    title: T.likedSongs,
+                    onTap: () => _openTracksSheet(context, T.likedSongs, library.likedSongs),
+                  ),
+                  Divider(height: 1, indent: 60, color: AppColors.borderOf(context)),
+                  _collectionRow(
+                    context,
+                    icon: CupertinoIcons.arrow_down_circle_fill,
+                    badgeColor: AppColors.iosBlue,
+                    title: T.downloaded,
+                    onTap: () =>
+                        _openTracksSheet(context, T.downloaded, library.downloadedTracks),
+                  ),
+                  Divider(height: 1, indent: 60, color: AppColors.borderOf(context)),
+                  _collectionRow(
+                    context,
+                    icon: CupertinoIcons.cloud_fill,
+                    badgeColor: AppColors.iosIndigo,
+                    title: T.cached,
+                    onTap: () => _openTracksSheet(context, T.cached, allCached),
+                  ),
+                  Divider(height: 1, indent: 60, color: AppColors.borderOf(context)),
+                  _collectionRow(
+                    context,
+                    icon: CupertinoIcons.music_note_list,
+                    badgeColor: AppColors.iosTeal,
+                    title: T.onDevice,
+                    onTap: () =>
+                        _openTracksSheet(context, T.onDevice, library.downloadedTracks),
+                  ),
+                  Divider(height: 1, indent: 60, color: AppColors.borderOf(context)),
+                  _collectionRow(
+                    context,
+                    icon: CupertinoIcons.chart_bar_fill,
+                    badgeColor: AppColors.iosOrange,
+                    title: T.myTop50,
+                    onTap: () => _openTracksSheet(context, T.myTop50, library.top50Tracks),
+                  ),
+                  Divider(height: 1, indent: 60, color: AppColors.borderOf(context)),
+                  _collectionRow(
+                    context,
+                    icon: CupertinoIcons.folder_fill,
+                    badgeColor: AppColors.iosGreen,
+                    title: T.uploaded,
+                    onTap: () => _openTracksSheet(context, T.uploaded, const []),
+                  ),
+                ],
+              ),
             ),
 
             if (library.playlists.isNotEmpty) ...[
@@ -478,11 +538,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     required String title,
     required List<MusicItem> tracks,
   }) {
-    final isDark = AppColors.isDark(context);
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
-    final boxBg = isDark ? AppColors.darkSurface : Colors.white;
-    final border = AppColors.borderOf(context);
 
     return LiquidGlassTap(
       onTap: () => _openTracksSheet(context, title, tracks),
@@ -491,13 +548,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         children: [
           AspectRatio(
             aspectRatio: 1.0,
-            child: Container(
-              decoration: BoxDecoration(
-                color: boxBg,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: border.withAlpha(isDark ? 120 : 180), width: 0.8),
-              ),
-              clipBehavior: Clip.antiAlias,
+            child: LiquidGlassCard(
+              radius: 18,
               child: tracks.isEmpty
                   ? Center(
                       child: Icon(
@@ -687,20 +739,53 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   Widget _collectionRow(
     BuildContext context, {
     required IconData icon,
+    required Color badgeColor,
     required String title,
     required VoidCallback onTap,
   }) {
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-      leading: Icon(icon, color: ink, size: 22),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+      leading: IosSquircleBadge(icon: icon, color: badgeColor),
       title: Text(
         title,
-        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16.5, color: ink),
+        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15.5, color: ink),
       ),
-      trailing: Icon(Icons.chevron_right_rounded, color: sub, size: 22),
+      trailing: Icon(CupertinoIcons.chevron_forward, color: sub, size: 18),
       onTap: onTap,
+    );
+  }
+
+  Widget _playlistArtworkThumb(BuildContext context, UserPlaylist pl, {required double size, required double radius}) {
+    if (pl.tracks.length >= 4) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: GridView.count(
+            crossAxisCount: 2,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
+            children: pl.tracks
+                .take(4)
+                .map(
+                  (t) => ArtworkImage(
+                    url: t.bestThumbUrl(size: 180),
+                    size: size / 2,
+                    radius: 0,
+                  ),
+                )
+                .toList(),
+          ),
+        ),
+      );
+    }
+    return ArtworkImage(
+      url: pl.tracks.isNotEmpty ? pl.tracks.first.bestThumbUrl(size: 260) : null,
+      size: size,
+      radius: radius,
     );
   }
 
@@ -709,11 +794,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final sub = AppColors.subOf(context);
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-      leading: ArtworkImage(
-        url: pl.tracks.isNotEmpty ? pl.tracks.first.bestThumbUrl(size: 160) : null,
-        size: 50,
-        radius: 10,
-      ),
+      leading: _playlistArtworkThumb(context, pl, size: 50, radius: 10),
       title: Text(
         pl.name,
         maxLines: 1,
@@ -743,8 +824,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         children: [
           Expanded(
             child: LayoutBuilder(
-              builder: (_, c) => ArtworkImage(
-                url: pl.tracks.isNotEmpty ? pl.tracks.first.bestThumbUrl(size: 320) : null,
+              builder: (_, c) => _playlistArtworkThumb(
+                context,
+                pl,
                 size: c.maxWidth,
                 radius: 14,
               ),
@@ -821,6 +903,98 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   void _showCreatePlaylistDialog(BuildContext context, WidgetRef ref) {
+    final lib = ref.read(libraryProvider);
+    final ink = AppColors.inkOf(context);
+    final sub = AppColors.subOf(context);
+
+    showLiquidGlassSheet<void>(
+      context: context,
+      builder: (sheetCtx) => Padding(
+        padding: const EdgeInsets.fromLTRB(18, 6, 18, 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Tambah ke Pustaka',
+              style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: ink),
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: CircleAvatar(
+                backgroundColor: AppColors.pillOf(sheetCtx),
+                child: Icon(Icons.playlist_add_rounded, color: ink),
+              ),
+              title: Text('Buat Playlist Kosong',
+                  style: TextStyle(fontWeight: FontWeight.w700, color: ink)),
+              subtitle: Text('Beri nama lalu tambahkan lagu pilihanmu',
+                  style: TextStyle(color: sub, fontSize: 12.5)),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _showPlainNameDialog(context, ref);
+              },
+            ),
+            const Divider(height: 14),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(
+                'Smart Mix Otomatis',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: sub,
+                ),
+              ),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: CircleAvatar(
+                backgroundColor: AppColors.horizonBlue.withAlpha(35),
+                child: const Icon(Icons.trending_up_rounded, color: AppColors.horizonBlue),
+              ),
+              title: Text('Smart Mix: Top 25 Terbanyak Diputar',
+                  style: TextStyle(fontWeight: FontWeight.w700, color: ink)),
+              subtitle: Text('${lib.top50Tracks.take(25).length} lagu paling sering kamu dengar',
+                  style: TextStyle(color: sub, fontSize: 12.5)),
+              onTap: () async {
+                Navigator.pop(sheetCtx);
+                await _generateSmartMixPlaylist(
+                  context,
+                  ref,
+                  title: 'Top 25 Mix',
+                  tracks: lib.top50Tracks.take(25).toList(),
+                );
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: CircleAvatar(
+                backgroundColor: const Color(0xFFE11D48).withAlpha(30),
+                child: const Icon(Icons.favorite_rounded, color: Color(0xFFE11D48)),
+              ),
+              title: Text('Smart Mix: Favorit Acak',
+                  style: TextStyle(fontWeight: FontWeight.w700, color: ink)),
+              subtitle: Text('${lib.likedSongs.length} lagu disukai diacak rapi',
+                  style: TextStyle(color: sub, fontSize: 12.5)),
+              onTap: () async {
+                Navigator.pop(sheetCtx);
+                final shuffled = List<MusicItem>.from(lib.likedSongs)..shuffle();
+                await _generateSmartMixPlaylist(
+                  context,
+                  ref,
+                  title: 'Favorit Mix',
+                  tracks: shuffled.take(30).toList(),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showPlainNameDialog(BuildContext context, WidgetRef ref) {
     final ctrl = TextEditingController();
     showDialog<void>(
       context: context,
@@ -848,5 +1022,28 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         ],
       ),
     ).whenComplete(ctrl.dispose);
+  }
+
+  Future<void> _generateSmartMixPlaylist(
+    BuildContext context,
+    WidgetRef ref, {
+    required String title,
+    required List<MusicItem> tracks,
+  }) async {
+    if (tracks.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Putar atau sukai beberapa lagu dulu untuk membuat Smart Mix.')),
+        );
+      }
+      return;
+    }
+    final notifier = ref.read(libraryProvider.notifier);
+    final pl = await notifier.createPlaylist(title, initialTracks: tracks);
+    if (pl != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Smart Mix "$title" (${pl.tracks.length} lagu) berhasil dibuat')),
+      );
+    }
   }
 }

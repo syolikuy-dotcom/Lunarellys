@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:ui';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,17 +9,21 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/music_models.dart';
+import '../../services/device_permissions_service.dart';
 import '../../state/auth_provider.dart';
+import '../../state/dynamic_island_provider.dart';
 import '../../state/library_provider.dart';
 import '../../state/player_provider.dart';
 import '../../state/settings_provider.dart';
 import '../widgets/artwork_image.dart';
-import '../widgets/google_logo.dart';
+import '../widgets/ios_control_center.dart';
 import '../widgets/liquid_glass.dart';
 import '../widgets/lunarellys_logo.dart';
 import '../widgets/media_card.dart';
+import '../widgets/permissions_sheet.dart';
+import '../widgets/subscreen_mini_player.dart';
 import '../widgets/track_tile.dart';
-import 'auth_screen.dart';
+import 'ytm_login_screen.dart';
 
 // ---------------------------------------------------------------------------
 // ARTIST SCREEN
@@ -74,21 +78,22 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(_artist?.name ?? 'Artis')),
-      body: _loading
-          ? Center(child: CircularProgressIndicator(color: ink))
-          : _error != null || _artist == null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(_error ?? 'Gagal memuat artis'),
-                      const SizedBox(height: 12),
-                      FilledButton(onPressed: _load, child: const Text('Coba lagi')),
-                    ],
-                  ),
-                )
-              : ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 60),
+      body: SubscreenMiniPlayerLayer(
+        child: _loading
+            ? Center(child: CircularProgressIndicator(color: ink))
+            : _error != null || _artist == null
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_error ?? 'Gagal memuat artis'),
+                        const SizedBox(height: 12),
+                        FilledButton(onPressed: _load, child: const Text('Coba lagi')),
+                      ],
+                    ),
+                  )
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 132),
                   children: [
                     Center(
                       child: ArtworkImage(
@@ -191,6 +196,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
                     }),
                   ],
                 ),
+      ),
     );
   }
 }
@@ -273,21 +279,22 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(_album?.title ?? 'Album')),
-      body: _loading
-          ? Center(child: CircularProgressIndicator(color: ink))
-          : _error != null || _album == null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(_error ?? 'Gagal memuat album'),
-                      const SizedBox(height: 12),
-                      FilledButton(onPressed: _load, child: const Text('Coba lagi')),
-                    ],
-                  ),
-                )
-              : ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 60),
+      body: SubscreenMiniPlayerLayer(
+        child: _loading
+            ? Center(child: CircularProgressIndicator(color: ink))
+            : _error != null || _album == null
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_error ?? 'Gagal memuat album'),
+                        const SizedBox(height: 12),
+                        FilledButton(onPressed: _load, child: const Text('Coba lagi')),
+                      ],
+                    ),
+                  )
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 132),
                   children: [
                     Center(
                       child: ArtworkImage(
@@ -371,6 +378,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
                       ),
                   ],
                 ),
+      ),
     );
   }
 }
@@ -453,21 +461,22 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(_playlist?.title ?? 'Playlist')),
-      body: _loading
-          ? Center(child: CircularProgressIndicator(color: ink))
-          : _error != null || _playlist == null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(_error ?? 'Gagal memuat playlist'),
-                      const SizedBox(height: 12),
-                      FilledButton(onPressed: _load, child: const Text('Coba lagi')),
-                    ],
-                  ),
-                )
-              : ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 60),
+      body: SubscreenMiniPlayerLayer(
+        child: _loading
+            ? Center(child: CircularProgressIndicator(color: ink))
+            : _error != null || _playlist == null
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_error ?? 'Gagal memuat playlist'),
+                        const SizedBox(height: 12),
+                        FilledButton(onPressed: _load, child: const Text('Coba lagi')),
+                      ],
+                    ),
+                  )
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 132),
                   children: [
                     Center(
                       child: ArtworkImage(
@@ -546,6 +555,7 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
                       ),
                   ],
                 ),
+      ),
     );
   }
 }
@@ -609,8 +619,9 @@ class LocalPlaylistScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: Column(
-        children: [
+      body: SubscreenMiniPlayerLayer(
+        child: Column(
+          children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: Row(
@@ -649,7 +660,7 @@ class LocalPlaylistScreen extends ConsumerWidget {
                     child: Text('Playlist masih kosong.', style: TextStyle(color: sub)),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 132),
                     itemCount: playlist.tracks.length,
                     itemBuilder: (_, i) {
                       final t = playlist.tracks[i];
@@ -667,6 +678,7 @@ class LocalPlaylistScreen extends ConsumerWidget {
                   ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -724,21 +736,22 @@ class _MoodPlaylistsScreenState extends ConsumerState<MoodPlaylistsScreen> {
     final ink = AppColors.inkOf(context);
     return Scaffold(
       appBar: AppBar(title: Text(widget.mood.name)),
-      body: _loading
-          ? Center(child: CircularProgressIndicator(color: ink))
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(_error!),
-                      const SizedBox(height: 12),
-                      FilledButton(onPressed: _load, child: const Text('Coba lagi')),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 48),
+      body: SubscreenMiniPlayerLayer(
+        child: _loading
+            ? Center(child: CircularProgressIndicator(color: ink))
+            : _error != null
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_error!),
+                        const SizedBox(height: 12),
+                        FilledButton(onPressed: _load, child: const Text('Coba lagi')),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 132),
                   itemCount: _sections.length,
                   itemBuilder: (_, idx) {
                     final sec = _sections[idx];
@@ -768,6 +781,7 @@ class _MoodPlaylistsScreenState extends ConsumerState<MoodPlaylistsScreen> {
                     );
                   },
                 ),
+      ),
     );
   }
 }
@@ -813,15 +827,17 @@ class HistoryScreen extends ConsumerWidget {
             ),
         ],
       ),
-      body: recent.isEmpty
-          ? Center(
-              child: Text('Belum ada riwayat pemutaran.', style: TextStyle(color: sub)),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(10, 6, 10, 48),
-              itemCount: recent.length,
-              itemBuilder: (_, i) => TrackTile(track: recent[i], queue: recent),
-            ),
+      body: SubscreenMiniPlayerLayer(
+        child: recent.isEmpty
+            ? Center(
+                child: Text('Belum ada riwayat pemutaran.', style: TextStyle(color: sub)),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.fromLTRB(10, 6, 10, 132),
+                itemCount: recent.length,
+                itemBuilder: (_, i) => TrackTile(track: recent[i], queue: recent),
+              ),
+      ),
     );
   }
 }
@@ -844,8 +860,9 @@ class ProfileScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profil')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 48),
+      body: SubscreenMiniPlayerLayer(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 132),
         children: [
           Container(
             padding: const EdgeInsets.all(20),
@@ -907,10 +924,10 @@ class ProfileScreen extends ConsumerWidget {
                     child: FilledButton.icon(
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
-                          builder: (_) => const AuthScreen(allowBack: true),
+                          builder: (_) => const YouTubeMusicLoginScreen(),
                         ),
                       ),
-                      icon: const GoogleLogoIcon(size: 18),
+                      icon: const YouTubeMusicLogoIcon(size: 20),
                       label: const Text('Masuk dengan YouTube Music'),
                     ),
                   ),
@@ -935,6 +952,7 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -977,12 +995,44 @@ class _StatsRecapScreenState extends ConsumerState<StatsRecapScreen> {
     final isDark = AppColors.isDark(context);
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
-    final card = isDark ? AppColors.darkSurface : Colors.white;
     final border = AppColors.borderOf(context);
     final pill = AppColors.pillOf(context);
 
     final q = _searchCtrl.text.trim().toLowerCase();
-    final topTracks = library.top50Tracks
+    final totalMin = (library.totalListeningSeconds / 60).round();
+    final List<MusicItem> periodSource;
+    final int periodMin;
+    final String periodLabel;
+    if (_periodIndex == 1) {
+      final weekly = <String, MusicItem>{};
+      for (final t in library.recentlyPlayed.take(20)) {
+        weekly.putIfAbsent(t.id, () => t);
+      }
+      if (weekly.isEmpty) {
+        for (final t in library.top50Tracks.take(12)) {
+          weekly.putIfAbsent(t.id, () => t);
+        }
+      }
+      periodSource = weekly.values.toList()
+        ..sort((a, b) => (library.playCounts[b.id] ?? 1).compareTo(library.playCounts[a.id] ?? 1));
+      periodMin = totalMin == 0 ? 0 : (totalMin * 0.28).round().clamp(1, totalMin);
+      periodLabel = '7 hari terakhir';
+    } else if (_periodIndex == 2) {
+      final monthly = <String, MusicItem>{};
+      for (final t in [...library.top50Tracks.take(30), ...library.recentlyPlayed.take(25)]) {
+        monthly.putIfAbsent(t.id, () => t);
+      }
+      periodSource = monthly.values.toList()
+        ..sort((a, b) => (library.playCounts[b.id] ?? 1).compareTo(library.playCounts[a.id] ?? 1));
+      periodMin = totalMin == 0 ? 0 : (totalMin * 0.65).round().clamp(1, totalMin);
+      periodLabel = '30 hari terakhir';
+    } else {
+      periodSource = library.top50Tracks;
+      periodMin = totalMin;
+      periodLabel = 'Sepanjang waktu';
+    }
+
+    final topTracks = periodSource
         .where(
           (t) =>
               q.isEmpty ||
@@ -990,7 +1040,28 @@ class _StatsRecapScreenState extends ConsumerState<StatsRecapScreen> {
               t.artistDisplay.toLowerCase().contains(q),
         )
         .toList();
-    final totalMin = (library.totalListeningSeconds / 60).round();
+
+    // Compute ranked Top Artists from active period tracks + liked songs
+    final artistCounts = <String, int>{};
+    final artistIds = <String, String?>{};
+    final artistArt = <String, String?>{};
+    final artistLeadTrack = <String, MusicItem>{};
+    for (final t in [...periodSource, ...library.likedSongs.take(20)]) {
+      final plays = library.playCounts[t.id] ?? 1;
+      final primaryRef = t.artists.isNotEmpty ? t.artists.first : null;
+      final name = (primaryRef?.name.trim().isNotEmpty == true)
+          ? primaryRef!.name.trim()
+          : t.artistDisplay.split(',').first.trim();
+      if (name.isEmpty || name == 'Artis tidak diketahui') continue;
+      if (q.isNotEmpty && !name.toLowerCase().contains(q)) continue;
+      artistCounts[name] = (artistCounts[name] ?? 0) + plays;
+      artistIds.putIfAbsent(name, () => primaryRef?.id);
+      artistArt.putIfAbsent(name, () => t.bestThumbUrl(size: 240));
+      artistLeadTrack.putIfAbsent(name, () => t);
+    }
+    final topArtists = artistCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
     final streak = library.currentStreak;
     final nextMilestone = ((streak ~/ 3) + 1) * 3;
     final daysLeft = (nextMilestone - streak).clamp(1, 3);
@@ -1019,8 +1090,9 @@ class _StatsRecapScreenState extends ConsumerState<StatsRecapScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 48),
+      body: SubscreenMiniPlayerLayer(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 132),
         children: [
           Text(
             'Statistik',
@@ -1043,13 +1115,10 @@ class _StatsRecapScreenState extends ConsumerState<StatsRecapScreen> {
           // Recap 2026 Banner Card matching screenshot 16-24-30-14
           LiquidGlassTap(
             onTap: () => _showRecapSummaryDialog(context, library, totalMin),
-            child: Container(
+            child: LiquidGlassCard(
+              radius: 20,
+              chromaticAccent: AppColors.horizonBlueSoft,
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-              decoration: BoxDecoration(
-                color: card,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: border.withAlpha(150), width: 0.8),
-              ),
               child: Row(
                 children: [
                   Icon(Icons.trending_up_rounded, color: ink, size: 22),
@@ -1082,13 +1151,10 @@ class _StatsRecapScreenState extends ConsumerState<StatsRecapScreen> {
           const SizedBox(height: 14),
 
           // Detailed Percikan Streak Card matching screenshot 16-24-30-14
-          Container(
+          LiquidGlassCard(
+            radius: 24,
+            chromaticAccent: const Color(0xFFFF982E),
             padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
-            decoration: BoxDecoration(
-              color: card,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: border.withAlpha(150), width: 0.8),
-            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1136,7 +1202,7 @@ class _StatsRecapScreenState extends ConsumerState<StatsRecapScreen> {
                           icon: Icon(Icons.share_rounded, color: ink, size: 21),
                           onPressed: () {
                             Share.share(
-                              '🔥 Percikan Lunarellys saya sudah $streak hari berturut-turut ($totalMin menit mendengarkan)!',
+                              '🔥 Percikan ${AppConfig.appName} saya sudah $streak hari berturut-turut ($totalMin menit mendengarkan)!',
                             );
                           },
                         ),
@@ -1275,6 +1341,127 @@ class _StatsRecapScreenState extends ConsumerState<StatsRecapScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 14),
+          LiquidGlassCard(
+            radius: 20,
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _streakStatCell('$periodMin mnt', periodLabel, ink, sub),
+                ),
+                Expanded(
+                  child: _streakStatCell('${topTracks.length}', 'Lagu aktif', ink, sub),
+                ),
+                Expanded(
+                  child: _streakStatCell('${library.likedSongs.length}', 'Disukai', ink, sub),
+                ),
+              ],
+            ),
+          ),
+          if (topArtists.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            Text(
+              'Artis Teratas Kamu',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 130,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: topArtists.take(10).length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (ctx, i) {
+                  final entry = topArtists[i];
+                  final name = entry.key;
+                  final plays = entry.value;
+                  final thumb = artistArt[name];
+                  final aid = artistIds[name];
+                  final leadTrack = artistLeadTrack[name];
+                  return LiquidGlassTap(
+                    onTap: () {
+                      if (aid != null && aid.isNotEmpty) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => ArtistScreen(artistId: aid),
+                          ),
+                        );
+                      } else if (leadTrack != null) {
+                        ref.read(playerProvider.notifier).playTrack(
+                              leadTrack,
+                              queue: topTracks,
+                              contextName: name,
+                            );
+                      }
+                    },
+                    child: SizedBox(
+                      width: 88,
+                      child: Column(
+                        children: [
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                width: 72,
+                                height: 72,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: pill,
+                                  border: Border.all(color: border.withAlpha(160), width: 1),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: thumb != null && thumb.isNotEmpty
+                                    ? ArtworkImage(url: thumb, size: 72, radius: 36)
+                                    : Icon(Icons.person_rounded, size: 32, color: sub),
+                              ),
+                              Positioned(
+                                right: -2,
+                                bottom: -2,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? Colors.white : const Color(0xFF111315),
+                                    borderRadius: BorderRadius.circular(99),
+                                  ),
+                                  child: Text(
+                                    '#${i + 1}',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: isDark ? Colors.black : Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: ink,
+                            ),
+                          ),
+                          Text(
+                            '${plays}x diputar',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 11, color: sub),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
           const SizedBox(height: 18),
           Text(
             '${library.playlists.length} playlist',
@@ -1294,8 +1481,6 @@ class _StatsRecapScreenState extends ConsumerState<StatsRecapScreen> {
                   count: topTracks.length,
                   track: topTracks.isNotEmpty ? topTracks.first : null,
                   queue: topTracks,
-                  card: card,
-                  border: border,
                   ink: ink,
                   sub: sub,
                 ),
@@ -1310,8 +1495,6 @@ class _StatsRecapScreenState extends ConsumerState<StatsRecapScreen> {
                       ? library.recentlyPlayed.first
                       : null,
                   queue: library.recentlyPlayed.take(15).toList(),
-                  card: card,
-                  border: border,
                   ink: ink,
                   sub: sub,
                 ),
@@ -1320,7 +1503,12 @@ class _StatsRecapScreenState extends ConsumerState<StatsRecapScreen> {
           ),
           const SizedBox(height: 20),
           if (topTracks.isNotEmpty) ...[
-            Text('Teratas Saya 50', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              _periodIndex == 1
+                  ? 'Teratas Minggu Ini'
+                  : (_periodIndex == 2 ? 'Teratas Bulan Ini' : 'Teratas Saya 50'),
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 8),
             ...topTracks.take(15).toList().asMap().entries.map(
                   (e) => TrackTile(
@@ -1346,6 +1534,7 @@ class _StatsRecapScreenState extends ConsumerState<StatsRecapScreen> {
             ),
         ],
       ),
+      ),
     );
   }
 
@@ -1368,8 +1557,6 @@ class _StatsRecapScreenState extends ConsumerState<StatsRecapScreen> {
     required int count,
     required MusicItem? track,
     required List<MusicItem> queue,
-    required Color card,
-    required Color border,
     required Color ink,
     required Color sub,
   }) {
@@ -1386,13 +1573,8 @@ class _StatsRecapScreenState extends ConsumerState<StatsRecapScreen> {
         children: [
           AspectRatio(
             aspectRatio: 1,
-            child: Container(
-              decoration: BoxDecoration(
-                color: card,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: border.withAlpha(140)),
-              ),
-              clipBehavior: Clip.antiAlias,
+            child: LiquidGlassCard(
+              radius: 18,
               child: track != null
                   ? ArtworkImage(url: track.bestThumbUrl(size: 320), size: 220, radius: 18)
                   : Center(
@@ -1550,22 +1732,18 @@ class _ListenTogetherScreenState extends ConsumerState<ListenTogetherScreen> {
     final isDark = AppColors.isDark(context);
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
-    final card = AppColors.cardOf(context);
-    final border = AppColors.borderOf(context);
     final connected = _room != null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Dengar bersama')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 48),
+      body: SubscreenMiniPlayerLayer(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 132),
         children: [
-          Container(
+          LiquidGlassCard(
+            radius: 24,
+            chromaticAccent: connected ? AppColors.horizonBlue : null,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-            decoration: BoxDecoration(
-              color: card,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: border),
-            ),
             child: Column(
               children: [
                 Icon(
@@ -1647,12 +1825,8 @@ class _ListenTogetherScreenState extends ConsumerState<ListenTogetherScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Container(
-            decoration: BoxDecoration(
-              color: card,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: border),
-            ),
+          LiquidGlassCard(
+            radius: 20,
             child: ListTile(
               leading: Icon(Icons.settings_outlined, color: ink),
               title: Text('Pengaturan', style: TextStyle(fontWeight: FontWeight.w600, color: ink)),
@@ -1666,6 +1840,7 @@ class _ListenTogetherScreenState extends ConsumerState<ListenTogetherScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -1691,10 +1866,8 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
     'Rock': [4.5, 2.0, -1.0, 3.5, 5.5],
   };
 
-  final Map<String, List<double>> _presets = Map<String, List<double>>.from(_defaultPresets);
   static const List<String> _freqLabels = ['60Hz', '230Hz', '910Hz', '3.6kHz', '14kHz'];
   bool _showPerFreq = false;
-  String _headphoneProfile = 'Default / Tanpa profil khusus';
 
   void _promptSaveCustomPreset(List<double> bands) {
     final nameCtrl = TextEditingController();
@@ -1710,14 +1883,15 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
           FilledButton(
-            onPressed: () {
+            onPressed: () async {
               final label = nameCtrl.text.trim().isEmpty ? 'Kustom' : nameCtrl.text.trim();
-              setState(() => _presets[label] = List<double>.from(bands));
-              ref.read(settingsProvider.notifier).setEqPreset(label, bands);
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Preset "$label" disimpan')),
-              );
+              await ref.read(settingsProvider.notifier).saveCustomEqPreset(label, bands);
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Preset "$label" disimpan permanen')),
+                );
+              }
             },
             child: const Text('Simpan'),
           ),
@@ -1730,10 +1904,16 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
     final bands = settings.eqBands;
+    final allPresets = <String, List<double>>{
+      ..._defaultPresets,
+      ...settings.customEqPresets,
+    };
+    final headphoneProfile = settings.eqHeadphoneProfile == 'Bawaan'
+        ? 'Default / Tanpa profil khusus'
+        : settings.eqHeadphoneProfile;
     final isDark = AppColors.isDark(context);
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
-    final card = isDark ? AppColors.darkSurface : Colors.white;
     final border = AppColors.borderOf(context);
 
     final bassVal = ((bands[0] + bands[1]) / 2.0).clamp(-12.5, 12.5);
@@ -1751,16 +1931,13 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 48),
+      body: SubscreenMiniPlayerLayer(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 140),
         children: [
-          Container(
+          LiquidGlassCard(
+            radius: 22,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            decoration: BoxDecoration(
-              color: card,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: border.withAlpha(150), width: 0.8),
-            ),
             child: SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(
@@ -1778,22 +1955,21 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
           const SizedBox(height: 14),
 
           // Live Frequency Curve Painter Card (-12,5 to +12,5 dB across 100, 1k, 10k)
-          Container(
-            height: 190,
+          LiquidGlassCard(
+            radius: 22,
+            chromaticAccent: settings.eqEnabled ? AppColors.horizonBlue : null,
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-            decoration: BoxDecoration(
-              color: card,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: border.withAlpha(150), width: 0.8),
-            ),
-            child: CustomPaint(
-              painter: _EqCurvePainter(
-                bands: bands,
-                enabled: settings.eqEnabled,
-                isDark: isDark,
-                lineColor: ink,
-                gridColor: border,
-                textColor: sub,
+            child: SizedBox(
+              height: 168,
+              child: CustomPaint(
+                painter: _EqCurvePainter(
+                  bands: bands,
+                  enabled: settings.eqEnabled,
+                  isDark: isDark,
+                  lineColor: ink,
+                  gridColor: border,
+                  textColor: sub,
+                ),
               ),
             ),
           ),
@@ -1807,20 +1983,28 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
             ),
           ),
           SizedBox(
-            height: 40,
+            height: 42,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: _presets.length,
+              itemCount: allPresets.length,
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (_, idx) {
-                final entry = _presets.entries.elementAt(idx);
+                final entry = allPresets.entries.elementAt(idx);
                 final selected = settings.eqPreset == entry.key;
-                return ChoiceChip(
+                final isCustom = settings.customEqPresets.containsKey(entry.key) &&
+                    !_defaultPresets.containsKey(entry.key);
+                return InputChip(
                   label: Text(entry.key),
                   selected: selected,
                   onSelected: (_) => ref
                       .read(settingsProvider.notifier)
                       .setEqPreset(entry.key, entry.value),
+                  onDeleted: isCustom
+                      ? () => ref
+                          .read(settingsProvider.notifier)
+                          .deleteCustomEqPreset(entry.key)
+                      : null,
+                  deleteIconColor: sub,
                 );
               },
             ),
@@ -1834,13 +2018,9 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: sub),
             ),
           ),
-          Container(
+          LiquidGlassCard(
+            radius: 22,
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: card,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: border.withAlpha(150), width: 0.8),
-            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1943,21 +2123,18 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
           const SizedBox(height: 14),
 
           // Profil headphone
-          Container(
-            decoration: BoxDecoration(
-              color: card,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: border.withAlpha(150), width: 0.8),
-            ),
+          LiquidGlassCard(
+            radius: 20,
             child: ListTile(
               leading: Icon(Icons.headphones_rounded, color: ink),
               title: Text('Profil headphone', style: TextStyle(fontWeight: FontWeight.w700, color: ink)),
-              subtitle: Text(_headphoneProfile, style: TextStyle(color: sub, fontSize: 12.5)),
+              subtitle: Text(headphoneProfile, style: TextStyle(color: sub, fontSize: 12.5)),
               trailing: Icon(Icons.chevron_right_rounded, color: sub),
-              onTap: () => _pickHeadphoneProfile(context),
+              onTap: () => _pickHeadphoneProfile(context, headphoneProfile),
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -1999,7 +2176,7 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
     );
   }
 
-  void _pickHeadphoneProfile(BuildContext context) {
+  void _pickHeadphoneProfile(BuildContext context, String currentProfile) {
     final profiles = [
       'Default / Tanpa profil khusus',
       'Sony WH-1000XM5 (Balanced Warmth)',
@@ -2015,11 +2192,11 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
             .map(
               (p) => ListTile(
                 title: Text(p),
-                trailing: _headphoneProfile == p
+                trailing: currentProfile == p
                     ? const Icon(Icons.check_rounded, color: AppColors.horizonBlue)
                     : null,
                 onTap: () {
-                  setState(() => _headphoneProfile = p);
+                  ref.read(settingsProvider.notifier).setEqHeadphoneProfile(p);
                   Navigator.pop(ctx);
                 },
               ),
@@ -2049,9 +2226,9 @@ class _EqCurvePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final leftPad = 36.0;
-    final bottomPad = 20.0;
-    final topPad = 6.0;
+    const leftPad = 42.0;
+    const bottomPad = 20.0;
+    const topPad = 6.0;
     final chartW = size.width - leftPad - 6;
     final chartH = size.height - bottomPad - topPad;
     final midY = topPad + chartH / 2;
@@ -2114,19 +2291,40 @@ class _EqCurvePainter extends CustomPainter {
       path.cubicTo(cx, p0.dy, cx, p1.dy, p1.dx, p1.dy);
     }
 
+    // Translucent area fill between curve and 0 dB baseline
+    final fillPath = Path.from(path)
+      ..lineTo(points.last.dx, midY)
+      ..lineTo(points.first.dx, midY)
+      ..close();
+    final areaColor = enabled ? AppColors.horizonBlue : lineColor;
+    canvas.drawPath(
+      fillPath,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            areaColor.withAlpha(enabled ? 78 : 26),
+            areaColor.withAlpha(12),
+          ],
+        ).createShader(Rect.fromLTWH(leftPad, topPad, chartW, chartH)),
+    );
+
     canvas.drawPath(
       path,
       Paint()
-        ..color = enabled ? lineColor : lineColor
+        ..color = enabled ? lineColor : lineColor.withAlpha(150)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.4
+        ..strokeWidth = 2.6
         ..strokeCap = StrokeCap.round,
     );
 
     if (enabled) {
+      final haloPaint = Paint()..color = AppColors.horizonBlue.withAlpha(64);
       final dotPaint = Paint()..color = lineColor;
       for (final p in points) {
-        canvas.drawCircle(p, 4.0, dotPaint);
+        canvas.drawCircle(p, 6.5, haloPaint);
+        canvas.drawCircle(p, 3.8, dotPaint);
       }
     }
   }
@@ -2423,7 +2621,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
     final auth = ref.watch(authProvider);
-    final card = AppColors.cardOf(context);
+    final perms = ref.watch(devicePermissionsProvider);
     final border = AppColors.borderOf(context);
     final query = _searchCtrl.text.trim().toLowerCase();
 
@@ -2431,8 +2629,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Pengaturan')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 48),
+      body: SubscreenMiniPlayerLayer(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 132),
         children: [
           TextField(
             controller: _searchCtrl,
@@ -2460,8 +2659,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   child: _smallAccountBanner(
                     context,
                     bg: AppColors.isDark(context)
-                        ? const Color(0xFF28171B)
-                        : const Color(0xFFFDF1F2),
+                        ? const Color(0x9928171B)
+                        : const Color(0xB8FDF1F2),
+                    chromaticAccent: const Color(0xFFFF3B30),
                     icon: const YouTubeMusicLogoIcon(size: 32),
                     title: 'YouTube Music',
                     subtitle: 'Sinkronkan pustaka dan playlist',
@@ -2471,7 +2671,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         MaterialPageRoute<void>(
                           builder: (_) => auth.isSignedInGoogle
                               ? const ProfileScreen()
-                              : const AuthScreen(allowBack: true),
+                              : const YouTubeMusicLoginScreen(),
                         ),
                       );
                     },
@@ -2482,8 +2682,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   child: _smallAccountBanner(
                     context,
                     bg: AppColors.isDark(context)
-                        ? const Color(0xFF14271C)
-                        : const Color(0xFFEEF9F2),
+                        ? const Color(0x9914271C)
+                        : const Color(0xB8EEF9F2),
+                    chromaticAccent: const Color(0xFF1DB954),
                     icon: const SpotifyLogoIcon(size: 32),
                     title: 'Spotify',
                     subtitle: 'Playlist tampil di Pustaka',
@@ -2501,36 +2702,56 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 16),
           ],
 
-          // Card 1: Audio, Appearance, Language, Lyrics
+          // Card 1: Audio, Appearance, Control Center, Language, Lyrics
           _settingsGroupCard(
-            card: card,
             border: border,
             children: [
               if (match('Suara dan pemutaran kualitas audio radio antrean'))
                 _navRow(
                   context,
-                  icon: Icons.play_arrow_rounded,
+                  icon: CupertinoIcons.play_fill,
+                  iconBg: AppColors.iosPink,
                   title: 'Suara dan pemutaran',
                   onTap: () => _showPlaybackSettingsSheet(context),
                 ),
-              if (match('Tampilan kaca datar tema terang gelap warna album'))
+              if (match('Tampilan kaca datar tema terang gelap warna album dynamic island liquid glass'))
                 _navRow(
                   context,
-                  icon: Icons.palette_outlined,
-                  title: 'Tampilan',
+                  icon: CupertinoIcons.sparkles,
+                  iconBg: AppColors.iosBlue,
+                  title: 'Tampilan & Dynamic Island',
+                  trailingBadge: settings.dynamicIslandEnabled ? 'Aktif' : null,
                   onTap: () => _showAppearanceSheet(context),
+                ),
+              if (match('Pusat Kontrol Control Center volume kaca'))
+                _navRow(
+                  context,
+                  icon: CupertinoIcons.slider_horizontal_3,
+                  iconBg: AppColors.iosIndigo,
+                  title: 'Pusat Kontrol',
+                  onTap: () => showIosControlCenter(
+                    context,
+                    ref,
+                    onOpenEqualizer: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const EqualizerScreen(),
+                      ),
+                    ),
+                  ),
                 ),
               if (match('Bahasa dan konten indonesia inggris'))
                 _navRow(
                   context,
-                  icon: Icons.language_rounded,
+                  icon: CupertinoIcons.globe,
+                  iconBg: AppColors.iosTeal,
                   title: 'Bahasa dan konten',
                   onTap: () => _showLanguageSheet(context),
                 ),
               if (match('Lirik dan terjemahan ai romanisasi interval'))
                 _navRow(
                   context,
-                  icon: Icons.translate_rounded,
+                  icon: CupertinoIcons.quote_bubble_fill,
+                  iconBg: AppColors.iosOrange,
                   title: 'Lirik dan terjemahan',
                   onTap: () => _showLyricsSettingsSheet(context),
                 ),
@@ -2538,29 +2759,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 14),
 
-          // Card 2: Privacy, Storage, Backup
+          // Card 2: Permissions, Privacy, Storage, Backup
           _settingsGroupCard(
-            card: card,
             border: border,
             children: [
+              if (match('Perizinan dan latar belakang notifikasi baterai bluetooth mikrofon dynamic island'))
+                _navRow(
+                  context,
+                  icon: CupertinoIcons.bell_fill,
+                  iconBg: AppColors.iosRed,
+                  title: 'Perizinan & Latar Belakang',
+                  trailingBadge: perms.backgroundReady ? 'Siap' : 'Perlu Izin',
+                  badgeColor: perms.backgroundReady
+                      ? AppColors.iosGreen
+                      : AppColors.iosOrange,
+                  onTap: () => showPermissionsAndBackgroundSheet(context, ref),
+                ),
               if (match('Privasi dan riwayat tontonan pencarian'))
                 _navRow(
                   context,
-                  icon: Icons.security_rounded,
+                  icon: CupertinoIcons.lock_shield_fill,
+                  iconBg: AppColors.iosBlue,
                   title: 'Privasi dan riwayat',
                   onTap: () => _showPrivacySheet(context),
                 ),
               if (match('Penyimpanan unduhan cache hapus'))
                 _navRow(
                   context,
-                  icon: Icons.storage_rounded,
+                  icon: CupertinoIcons.folder_fill,
+                  iconBg: const Color(0xFF64748B),
                   title: 'Penyimpanan',
                   onTap: () => _showStorageSheet(context),
                 ),
               if (match('Cadangan dan impor json ekspor pulihkan'))
                 _navRow(
                   context,
-                  icon: Icons.history_rounded,
+                  icon: CupertinoIcons.cloud_fill,
+                  iconBg: AppColors.iosIndigo,
                   title: 'Cadangan dan impor',
                   onTap: () => _showBackupImportSheet(context),
                 ),
@@ -2570,13 +2805,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           // Card 3: Android Auto, Links, About (node setup disembunyikan: 7x ketuk di Tentang + passcode)
           _settingsGroupCard(
-            card: card,
             border: border,
             children: [
               if (match('Android Auto mobil'))
                 _navRow(
                   context,
-                  icon: Icons.directions_car_filled_outlined,
+                  icon: CupertinoIcons.car_detailed,
+                  iconBg: AppColors.iosGreen,
                   title: 'Android Auto',
                   onTap: () {
                     final next = !settings.androidAutoEnabled;
@@ -2593,18 +2828,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               if (match('Tautan link youtube music'))
                 _navRow(
                   context,
-                  icon: Icons.link_rounded,
+                  icon: CupertinoIcons.link,
+                  iconBg: AppColors.iosTeal,
                   title: 'Tautan',
                   onTap: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Tautan lunarellys:// & music.youtube.com aktif')),
+                      const SnackBar(content: Text('Tautan archys:// & music.youtube.com aktif')),
                     );
                   },
                 ),
-              if (match('Tentang Lunarellys versi pengembang'))
+              if (match('Tentang Archys versi pengembang'))
                 _navRow(
                   context,
-                  icon: Icons.info_rounded,
+                  icon: CupertinoIcons.info_circle_fill,
+                  iconBg: const Color(0xFF475569),
                   title: 'Tentang ${AppConfig.appName}',
                   onTap: () {
                     Navigator.of(context).push(
@@ -2616,11 +2853,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ],
       ),
+      ),
     );
   }
 
   Widget _settingsGroupCard({
-    required Color card,
     required Color border,
     required List<Widget> children,
   }) {
@@ -2629,15 +2866,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     for (var i = 0; i < children.length; i++) {
       spaced.add(children[i]);
       if (i + 1 < children.length) {
-        spaced.add(Divider(height: 1, indent: 54, color: border));
+        spaced.add(Divider(height: 1, indent: 60, color: border));
       }
     }
-    return Container(
-      decoration: BoxDecoration(
-        color: card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: border, width: 0.8),
-      ),
+    return LiquidGlassCard(
+      radius: 22,
       child: Column(children: spaced),
     );
   }
@@ -2645,19 +2878,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _navRow(
     BuildContext context, {
     required IconData icon,
+    required Color iconBg,
     required String title,
+    String? trailingBadge,
+    Color? badgeColor,
     required VoidCallback onTap,
   }) {
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      leading: Icon(icon, color: ink, size: 22),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+      leading: IosSquircleBadge(icon: icon, color: iconBg),
       title: Text(
         title,
         style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600, color: ink),
       ),
-      trailing: Icon(Icons.chevron_right_rounded, color: sub),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (trailingBadge != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: (badgeColor ?? AppColors.iosBlue).withAlpha(28),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                trailingBadge,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: badgeColor ?? AppColors.iosBlue,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+          ],
+          Icon(CupertinoIcons.chevron_forward, color: sub, size: 18),
+        ],
+      ),
       onTap: onTap,
     );
   }
@@ -2665,6 +2924,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _smallAccountBanner(
     BuildContext context, {
     required Color bg,
+    required Color chromaticAccent,
     required Widget icon,
     required String title,
     required String subtitle,
@@ -2674,13 +2934,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final isDark = AppColors.isDark(context);
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
-    return Container(
+    return LiquidGlassCard(
+      radius: 24,
+      tintColor: bg,
+      chromaticAccent: chromaticAccent,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.borderOf(context).withAlpha(110)),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -2735,8 +2993,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         builder: (ctx, modalRef, _) {
           final st = modalRef.watch(settingsProvider);
           final n = modalRef.read(settingsProvider.notifier);
+          final isDark = AppColors.isDark(ctx);
+          final ink = AppColors.inkOf(ctx);
+          final sub = AppColors.subOf(ctx);
+          final isGlass = st.appearanceStyle == AppAppearanceStyle.glass;
+          final pct = (st.liquidGlassOpacity * 100).round();
+          final modeTag = st.liquidGlassOpacity < 0.25
+              ? 'Bening (Ultra Clear)'
+              : (st.liquidGlassOpacity > 0.72 ? 'Tinted (Kontras Tinggi)' : 'Seimbang');
+
           return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(18, 6, 18, 24),
+            padding: const EdgeInsets.fromLTRB(18, 6, 18, 28),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -2746,6 +3013,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
+                  runSpacing: 8,
                   children: AppAppearanceStyle.values.map((s) {
                     return ChoiceChip(
                       label: Text(s.label),
@@ -2754,6 +3022,126 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     );
                   }).toList(),
                 ),
+                if (isGlass) ...[
+                  const SizedBox(height: 16),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(22),
+                    child: SizedBox(
+                      height: 108,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: isDark
+                                    ? const [
+                                        Color(0xFF0E2A47),
+                                        Color(0xFF281B4B),
+                                        Color(0xFF103742),
+                                      ]
+                                    : const [
+                                        Color(0xFF6BB4F5),
+                                        Color(0xFFA799FF),
+                                        Color(0xFF6ED8C8),
+                                      ],
+                              ),
+                            ),
+                          ),
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 18),
+                              child: LiquidGlassCapsule(
+                                blurSigma: 28,
+                                chromaticAccent: const Color(0xFF5FA8FF),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.auto_awesome_rounded, size: 18, color: ink),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        'Pratinjau Tampilan • $modeTag',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: ink,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Tingkat Transparansi',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      Text(
+                        '$pct%',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: sub,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: st.liquidGlassOpacity,
+                    min: 0.0,
+                    max: 1.0,
+                    onChanged: n.setLiquidGlassOpacity,
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Bening', style: TextStyle(fontSize: 11.5, color: sub)),
+                      Text('Seimbang', style: TextStyle(fontSize: 11.5, color: sub)),
+                      Text('Tinted', style: TextStyle(fontSize: 11.5, color: sub)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('Bening'),
+                        selected: st.liquidGlassOpacity < 0.25,
+                        onSelected: (_) => n.setLiquidGlassOpacity(0.12),
+                      ),
+                      ChoiceChip(
+                        label: const Text('Seimbang'),
+                        selected:
+                            st.liquidGlassOpacity >= 0.25 && st.liquidGlassOpacity <= 0.72,
+                        onSelected: (_) => n.setLiquidGlassOpacity(0.48),
+                      ),
+                      ChoiceChip(
+                        label: const Text('Tinted'),
+                        selected: st.liquidGlassOpacity > 0.72,
+                        onSelected: (_) => n.setLiquidGlassOpacity(0.86),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 16),
                 const Text('Tema warna', style: TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
@@ -2769,6 +3157,140 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(height: 12),
                 SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Dynamic Island (Live Activity)'),
+                  subtitle: Text(
+                    'Pil iOS interaktif di bagian atas layar',
+                    style: TextStyle(fontSize: 12, color: sub),
+                  ),
+                  value: st.dynamicIslandEnabled,
+                  onChanged: (v) async {
+                    await n.setDynamicIslandEnabled(v);
+                    if (v) {
+                      final ok = await modalRef
+                          .read(devicePermissionsProvider.notifier)
+                          .requestNotifications();
+                      if (ok) {
+                        modalRef.read(dynamicIslandEventProvider.notifier).show(
+                              const DynamicIslandEvent(
+                                icon: Icons.album_rounded,
+                                title: 'Dynamic Island Aktif',
+                                subtitle: 'Ketuk untuk buka, tahan untuk Pusat Kontrol',
+                                accent: Color(0xFF3B82F6),
+                              ),
+                            );
+                      }
+                    }
+                  },
+                ),
+                if (st.dynamicIslandEnabled)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Tampilkan Dynamic Island saat jeda'),
+                    subtitle: Text(
+                      'Tetap tampilkan kapsul status saat tidak memutar lagu',
+                      style: TextStyle(fontSize: 12, color: sub),
+                    ),
+                    value: st.dynamicIslandAlwaysVisible,
+                    onChanged: n.setDynamicIslandAlwaysVisible,
+                  ),
+                if (st.dynamicIslandEnabled)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Tampilkan di luar aplikasi'),
+                    subtitle: Text(
+                      modalRef.watch(devicePermissionsProvider).overlayGranted
+                          ? 'Tetap muncul mengambang saat keluar dari Archys'
+                          : 'Butuh izin Tampil di Atas Aplikasi agar tetap muncul',
+                      style: TextStyle(fontSize: 12, color: sub),
+                    ),
+                    value: st.dynamicIslandSystemOverlay,
+                    onChanged: (v) async {
+                      await n.setDynamicIslandSystemOverlay(v);
+                      if (v) {
+                        final perms = modalRef.read(devicePermissionsProvider);
+                        if (!perms.overlayGranted) {
+                          await modalRef
+                              .read(devicePermissionsProvider.notifier)
+                              .requestOverlayPermission();
+                        }
+                      }
+                    },
+                  ),
+                if (st.dynamicIslandEnabled) ...[
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Posisi Dynamic Island',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    st.dynamicIslandPosition == 'notch'
+                        ? 'Kapsul mikro sejajar bilah status'
+                        : 'Di bawah bilah status agar pas di semua perangkat tanpa menimpa jam/ikon',
+                    style: TextStyle(fontSize: 12, color: sub),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('Di Bawah Status Bar'),
+                        selected: st.dynamicIslandPosition != 'notch',
+                        onSelected: (_) => n.setDynamicIslandPosition('below'),
+                      ),
+                      ChoiceChip(
+                        label: const Text('Menyatu Status Bar'),
+                        selected: st.dynamicIslandPosition == 'notch',
+                        onSelected: (_) => n.setDynamicIslandPosition('notch'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Musik & Lirik di Lock Screen'),
+                  subtitle: Text(
+                    'Tampilkan notifikasi lirik di layar kunci dengan tombol buka & tutup panel lirik',
+                    style: TextStyle(fontSize: 12, color: sub),
+                  ),
+                  value: st.lockScreenLyricsEnabled,
+                  onChanged: (v) async {
+                    await n.setLockScreenLyricsEnabled(v);
+                    if (v) {
+                      final perms = modalRef.read(devicePermissionsProvider);
+                      if (!perms.notificationsGranted) {
+                        await modalRef
+                            .read(devicePermissionsProvider.notifier)
+                            .requestNotifications();
+                      }
+                    }
+                  },
+                ),
+                if (st.lockScreenLyricsEnabled)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        modalRef
+                            .read(devicePermissionsProvider.notifier)
+                            .openLockScreenPreview();
+                      },
+                      icon: const Icon(CupertinoIcons.lock_fill, size: 17),
+                      label: const Text('Pratinjau Lirik Lock Screen'),
+                    ),
+                  ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Umpan balik haptik iOS'),
+                  value: st.hapticsEnabled,
+                  onChanged: n.setHapticsEnabled,
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
                   title: const Text('Warna adaptif sampul album'),
                   value: st.dynamicAlbumColors,
                   onChanged: n.setDynamicColors,
@@ -2778,11 +3300,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
+                  runSpacing: 8,
                   children: PlayerBackgroundStyle.values.map((p) {
                     return ChoiceChip(
                       label: Text(p.label),
                       selected: st.playerBackgroundStyle == p,
                       onSelected: (_) => n.setPlayerBackgroundStyle(p),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 14),
+                const Text('Gaya latar Mini Player', style: TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: MiniPlayerBackgroundStyle.values.map((m) {
+                    return ChoiceChip(
+                      label: Text(m.label),
+                      selected: st.miniPlayerBackgroundStyle == m,
+                      onSelected: (_) => n.setMiniPlayerBackgroundStyle(m),
                     );
                   }).toList(),
                 ),
@@ -3200,24 +3737,20 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
     final isDark = AppColors.isDark(context);
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
-    final card = isDark ? AppColors.darkSurface : Colors.white;
     final border = AppColors.borderOf(context);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Tentang')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 140),
+      body: SubscreenMiniPlayerLayer(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 140),
         children: [
           // Top Brand Version Card
           LiquidGlassTap(
             onTap: _handleVersionTap,
-            child: Container(
+            child: LiquidGlassCard(
+              radius: 24,
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 22),
-              decoration: BoxDecoration(
-                color: card,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: border.withAlpha(150), width: 0.8),
-              ),
               child: Row(
                 children: [
                   const LunarellysHorizonLogo(size: 62),
@@ -3252,13 +3785,9 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
           // Check Updates Pill Card matching screenshot 16-28-51-24
           LiquidGlassTap(
             onTap: _checking ? null : _checkUpdates,
-            child: Container(
+            child: LiquidGlassCard(
+              radius: 22,
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
-              decoration: BoxDecoration(
-                color: card,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: border.withAlpha(150), width: 0.8),
-              ),
               child: Row(
                 children: [
                   _checking
@@ -3304,7 +3833,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                stops: const [0.0, 0.56, 1.0],
+                stops: const [0.0, 0.45, 1.0],
                 colors: isDark
                     ? const [Color(0xFF0A0C10), Color(0xFF282D35), Color(0xFF151920)]
                     : const [Color(0xFF0D0F12), Color(0xFF8C919A), Color(0xFFF3F4F6)],
@@ -3331,8 +3860,32 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                     ),
                   ),
                 ),
+                // Bottom contrast backdrop fade for crisp Light & Dark mode legibility
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: 120,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: isDark
+                            ? [
+                                const Color(0xFF151920).withAlpha(0),
+                                const Color(0xFF151920).withAlpha(230),
+                              ]
+                            : [
+                                const Color(0xFFF3F4F6).withAlpha(0),
+                                const Color(0xFFF3F4F6).withAlpha(242),
+                              ],
+                      ),
+                    ),
+                  ),
+                ),
                 const Positioned(
-                  top: 52,
+                  top: 48,
                   left: 0,
                   right: 0,
                   child: Center(
@@ -3359,11 +3912,13 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Pengembang',
+                        'Pengembang • Ketuk foto untuk pratinjau',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 14.5,
+                          fontSize: 13.5,
                           fontWeight: FontWeight.w500,
-                          color: isDark ? Colors.white70 : const Color(0xFF4B515B),
+                          color: isDark ? Colors.white70 : const Color(0xFF3F454E),
                         ),
                       ),
                     ],
@@ -3372,32 +3927,30 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                 Positioned(
                   right: 18,
                   bottom: 18,
-                  child: Container(
-                    width: 92,
-                    height: 92,
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withAlpha(48),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
+                  child: GestureDetector(
+                    onTap: () => _showDeveloperPhotoPreview(context),
                     child: Container(
-                      decoration: const BoxDecoration(
+                      width: 92,
+                      height: 92,
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Color(0xFF2D333B), Color(0xFF111315)],
-                        ),
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(56),
+                            blurRadius: 18,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
                       ),
-                      child: const Center(
-                        child: Icon(Icons.terminal_rounded, color: Colors.white, size: 36),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/images/developer_avatar.jpg',
+                          fit: BoxFit.cover,
+                          width: 86,
+                          height: 86,
+                        ),
                       ),
                     ),
                   ),
@@ -3414,12 +3967,8 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: sub),
             ),
           ),
-          Container(
-            decoration: BoxDecoration(
-              color: card,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: border.withAlpha(150), width: 0.8),
-            ),
+          LiquidGlassCard(
+            radius: 22,
             child: Column(
               children: [
                 ListTile(
@@ -3458,13 +4007,9 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
               Uri.parse('https://github.com/syolikuy-dotcom/Lunarellys'),
               mode: LaunchMode.externalApplication,
             ),
-            child: Container(
+            child: LiquidGlassCard(
+              radius: 22,
               padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: card,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: border.withAlpha(150), width: 0.8),
-              ),
               child: Row(
                 children: [
                   Icon(Icons.code_rounded, color: ink, size: 24),
@@ -3483,7 +4028,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${AppConfig.appName} dikembangkan dengan inspirasi dari Metrolist, pemutar YouTube Music gratis & open-source dengan sentuhan Liquid Glass.',
+                          '${AppConfig.appName} dikembangkan dengan inspirasi dari Metrolist, pemutar YouTube Music gratis & open-source.',
                           style: TextStyle(fontSize: 13.5, height: 1.4, color: sub),
                         ),
                       ],
@@ -3542,6 +4087,75 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
             ),
           ),
         ],
+      ),
+      ),
+    );
+  }
+
+  void _showDeveloperPhotoPreview(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+    final ink = AppColors.inkOf(context);
+    final sub = AppColors.subOf(context);
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        child: LiquidGlassSurface(
+          borderRadius: BorderRadius.circular(28),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(22),
+                child: Image.asset(
+                  'assets/images/developer_avatar.jpg',
+                  width: 240,
+                  height: 240,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                AppConfig.developerName,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: ink,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Pengembang ${AppConfig.appName} • @wtf.w4n_',
+                style: TextStyle(fontSize: 13.5, color: sub),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => launchUrl(
+                      Uri.parse('https://www.instagram.com/wtf.w4n_/'),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                    icon: InstagramLogoIcon(size: 16, color: ink),
+                    label: const Text('Instagram'),
+                  ),
+                  const SizedBox(width: 10),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: isDark ? Colors.white : const Color(0xFF111315),
+                      foregroundColor: isDark ? Colors.black : Colors.white,
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Tutup'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

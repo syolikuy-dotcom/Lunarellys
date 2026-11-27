@@ -1,5 +1,5 @@
 name: lunarellys_music
-description: Lunarellys — High-fidelity music streaming client by Ikhwan Romadon.
+description: Archys — High-fidelity music streaming client by Ikhwan Romadon.
 publish_to: 'none'
 version: 1.2.0+2
 
@@ -9,6 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  cupertino_icons: ^1.0.8
   flutter_riverpod: ^2.6.1
   dio: ^5.7.0
   just_audio: ^0.9.40
@@ -24,6 +25,7 @@ dependencies:
   share_plus: ^10.1.2
   url_launcher: ^6.3.1
   app_links: ^6.3.2
+  webview_flutter: ^4.10.0
 
 dev_dependencies:
   flutter_test:
@@ -32,3 +34,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/developer_avatar.jpg
+  shaders:
+    - shaders/liquid_glass_ios27.frag

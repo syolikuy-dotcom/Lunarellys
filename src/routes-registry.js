@@ -214,6 +214,11 @@ route('GET', '/music/lyrics', 'Time-synced LRC and plain lyrics for a track', [
   response: '{ success, id, synced, lines: [{ timeMs, text }], plain, source }'
 });
 
+route('POST', '/music/lyrics-assist', 'Romanize (JP/KR/RU) and translate lyric lines', [], {
+  request: 'POST /api/music/lyrics-assist { lines: [...], targetLang: "id"|"en", romanize: true, translate: true }',
+  response: '{ success, targetLang, lines: [{ text, romanized, translated }] }'
+});
+
 route('GET', '/music/radio', 'Up-next radio queue and related tracks', [
   { name: 'id', required: true, type: 'string', description: 'Seed Video ID' }
 ], {

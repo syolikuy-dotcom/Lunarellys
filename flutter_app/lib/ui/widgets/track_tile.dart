@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,11 +35,18 @@ class TrackTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final playerState = ref.watch(playerProvider);
-    final libraryState = ref.watch(libraryProvider);
-    final isPlayingThis = playerState.currentTrack?.id == track.id;
-    final isDownloaded = libraryState.isDownloaded(track.id);
-    final dlProgress = libraryState.downloadProgress[track.id];
+    final isPlayingThis = ref.watch(
+      playerProvider.select((s) => s.currentTrack?.id == track.id),
+    );
+    final isPlayingNow = ref.watch(
+      playerProvider.select((s) => s.currentTrack?.id == track.id && s.isPlaying),
+    );
+    final isDownloaded = ref.watch(
+      libraryProvider.select((s) => s.isDownloaded(track.id)),
+    );
+    final dlProgress = ref.watch(
+      libraryProvider.select((s) => s.downloadProgress[track.id]),
+    );
 
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
@@ -75,7 +83,7 @@ class TrackTile extends ConsumerWidget {
                   child: isPlayingThis
                       ? AnimatedEqualizer(
                           color: ink,
-                          isPlaying: playerState.isPlaying,
+                          isPlaying: isPlayingNow,
                           size: 16,
                         )
                       : Text(
@@ -109,7 +117,7 @@ class TrackTile extends ConsumerWidget {
                       child: Center(
                         child: AnimatedEqualizer(
                           color: Colors.white,
-                          isPlaying: playerState.isPlaying,
+                          isPlaying: isPlayingNow,
                           size: 17,
                         ),
                       ),
@@ -140,9 +148,9 @@ class TrackTile extends ConsumerWidget {
                     children: [
                       if (isDownloaded) ...[
                         const Icon(
-                          Icons.arrow_circle_down_rounded,
+                          CupertinoIcons.arrow_down_circle_fill,
                           size: 13.5,
-                          color: AppColors.horizonBlue,
+                          color: AppColors.iosBlue,
                         ),
                         const SizedBox(width: 4),
                       ],
@@ -181,23 +189,16 @@ class TrackTile extends ConsumerWidget {
               ),
             ),
             if (dlProgress != null)
-              Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: ink,
-                  ),
-                ),
+              const Padding(
+                padding: EdgeInsets.only(right: 6),
+                child: CupertinoActivityIndicator(radius: 8),
               ),
             if (trailingExtra != null) trailingExtra!,
             IconButton(
               constraints: const BoxConstraints(minWidth: 34, minHeight: 36),
               padding: EdgeInsets.zero,
               visualDensity: VisualDensity.compact,
-              icon: Icon(Icons.more_vert_rounded, size: 20, color: sub),
+              icon: Icon(CupertinoIcons.ellipsis_vertical, size: 19, color: sub),
               onPressed: () => showTrackOptionsSheet(context, ref, track),
               tooltip: 'Opsi lainnya',
             ),
@@ -258,8 +259,8 @@ void showTrackOptionsSheet(BuildContext context, WidgetRef ref, MusicItem track)
                     Navigator.pop(sheetCtx);
                   },
                   icon: Icon(
-                    isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                    color: isLiked ? const Color(0xFFE11D48) : ink,
+                    isLiked ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
+                    color: isLiked ? AppColors.iosPink : ink,
                   ),
                 ),
               ],
@@ -269,7 +270,7 @@ void showTrackOptionsSheet(BuildContext context, WidgetRef ref, MusicItem track)
               children: [
                 _quickActionBox(
                   context,
-                  icon: Icons.radio_rounded,
+                  icon: CupertinoIcons.antenna_radiowaves_left_right,
                   label: 'Mulai radio',
                   onTap: () {
                     Navigator.pop(sheetCtx);
@@ -279,7 +280,7 @@ void showTrackOptionsSheet(BuildContext context, WidgetRef ref, MusicItem track)
                 const SizedBox(width: 8),
                 _quickActionBox(
                   context,
-                  icon: Icons.playlist_add_rounded,
+                  icon: CupertinoIcons.plus_rectangle_on_rectangle,
                   label: 'Tambah ke\nplaylist',
                   onTap: () {
                     Navigator.pop(sheetCtx);
@@ -289,7 +290,7 @@ void showTrackOptionsSheet(BuildContext context, WidgetRef ref, MusicItem track)
                 const SizedBox(width: 8),
                 _quickActionBox(
                   context,
-                  icon: Icons.link_rounded,
+                  icon: CupertinoIcons.link,
                   label: 'Salin link',
                   onTap: () {
                     Clipboard.setData(
@@ -304,7 +305,7 @@ void showTrackOptionsSheet(BuildContext context, WidgetRef ref, MusicItem track)
                 const SizedBox(width: 8),
                 _quickActionBox(
                   context,
-                  icon: Icons.share_outlined,
+                  icon: CupertinoIcons.share,
                   label: 'Bagikan',
                   onTap: () {
                     Navigator.pop(sheetCtx);
@@ -322,7 +323,7 @@ void showTrackOptionsSheet(BuildContext context, WidgetRef ref, MusicItem track)
                 contentPadding: EdgeInsets.zero,
                 title: Text('Lihat artis', style: TextStyle(fontWeight: FontWeight.w600, color: ink)),
                 subtitle: Text(track.artists.first.name, style: TextStyle(color: sub)),
-                trailing: Icon(Icons.record_voice_over_outlined, color: ink),
+                trailing: Icon(CupertinoIcons.person_fill, color: ink),
                 onTap: () {
                   Navigator.pop(sheetCtx);
                   Navigator.of(context).push(
@@ -337,7 +338,7 @@ void showTrackOptionsSheet(BuildContext context, WidgetRef ref, MusicItem track)
                 contentPadding: EdgeInsets.zero,
                 title: Text('Lihat album', style: TextStyle(fontWeight: FontWeight.w600, color: ink)),
                 subtitle: Text(track.album!.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: sub)),
-                trailing: Icon(Icons.album_outlined, color: ink),
+                trailing: Icon(CupertinoIcons.music_albums_fill, color: ink),
                 onTap: () {
                   Navigator.pop(sheetCtx);
                   Navigator.of(context).push(
@@ -354,8 +355,8 @@ void showTrackOptionsSheet(BuildContext context, WidgetRef ref, MusicItem track)
                 style: TextStyle(fontWeight: FontWeight.w600, color: ink),
               ),
               trailing: Icon(
-                isLiked ? Icons.library_add_check_rounded : Icons.library_add_outlined,
-                color: ink,
+                isLiked ? CupertinoIcons.checkmark_circle_fill : CupertinoIcons.plus,
+                color: isLiked ? AppColors.iosGreen : ink,
               ),
               onTap: () {
                 Navigator.pop(sheetCtx);
@@ -369,8 +370,8 @@ void showTrackOptionsSheet(BuildContext context, WidgetRef ref, MusicItem track)
                 style: TextStyle(fontWeight: FontWeight.w600, color: ink),
               ),
               trailing: Icon(
-                isPinned ? Icons.push_pin_rounded : Icons.add_rounded,
-                color: isPinned ? AppColors.horizonBlue : ink,
+                isPinned ? CupertinoIcons.pin_fill : CupertinoIcons.plus,
+                color: isPinned ? AppColors.iosBlue : ink,
               ),
               onTap: () {
                 Navigator.pop(sheetCtx);
@@ -380,7 +381,7 @@ void showTrackOptionsSheet(BuildContext context, WidgetRef ref, MusicItem track)
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text('Putar berikutnya', style: TextStyle(fontWeight: FontWeight.w600, color: ink)),
-              trailing: Icon(Icons.queue_play_next_rounded, color: ink),
+              trailing: Icon(CupertinoIcons.play_rectangle, color: ink),
               onTap: () {
                 Navigator.pop(sheetCtx);
                 ref.read(playerProvider.notifier).playNextInQueue(track);
@@ -389,7 +390,7 @@ void showTrackOptionsSheet(BuildContext context, WidgetRef ref, MusicItem track)
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text('Tambahkan ke antrean', style: TextStyle(fontWeight: FontWeight.w600, color: ink)),
-              trailing: Icon(Icons.queue_music_rounded, color: ink),
+              trailing: Icon(CupertinoIcons.music_note_list, color: ink),
               onTap: () {
                 Navigator.pop(sheetCtx);
                 ref.read(playerProvider.notifier).addToQueue(track);
@@ -401,12 +402,12 @@ void showTrackOptionsSheet(BuildContext context, WidgetRef ref, MusicItem track)
                 isDownloaded ? 'Hapus unduhan offline' : 'Unduh',
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  color: isDownloaded ? AppColors.error : ink,
+                  color: isDownloaded ? AppColors.iosRed : ink,
                 ),
               ),
               trailing: Icon(
-                isDownloaded ? Icons.delete_outline_rounded : Icons.download_rounded,
-                color: isDownloaded ? AppColors.error : ink,
+                isDownloaded ? CupertinoIcons.trash : CupertinoIcons.arrow_down_circle_fill,
+                color: isDownloaded ? AppColors.iosRed : ink,
               ),
               onTap: () async {
                 Navigator.pop(sheetCtx);
@@ -495,11 +496,13 @@ void showTrackPlaylistPicker(BuildContext context, WidgetRef ref, MusicItem trac
               leading: Container(
                 width: 44,
                 height: 44,
-                decoration: BoxDecoration(
+                decoration: ShapeDecoration(
                   color: pill,
-                  borderRadius: BorderRadius.circular(10),
+                  shape: ContinuousRectangleBorder(
+                    borderRadius: BorderRadius.circular(22),
+                  ),
                 ),
-                child: Icon(Icons.add_rounded, color: ink),
+                child: Icon(CupertinoIcons.plus, color: ink),
               ),
               title: Text('Playlist Baru', style: TextStyle(fontWeight: FontWeight.w700, color: ink)),
               onTap: () {
@@ -514,11 +517,13 @@ void showTrackPlaylistPicker(BuildContext context, WidgetRef ref, MusicItem trac
                 leading: Container(
                   width: 44,
                   height: 44,
-                  decoration: BoxDecoration(
+                  decoration: ShapeDecoration(
                     color: pill,
-                    borderRadius: BorderRadius.circular(10),
+                    shape: ContinuousRectangleBorder(
+                      borderRadius: BorderRadius.circular(22),
+                    ),
                   ),
-                  child: Icon(Icons.queue_music_rounded, color: sub),
+                  child: Icon(CupertinoIcons.music_note_list, color: sub),
                 ),
                 title: Text(pl.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: ink)),
                 subtitle: Text('${pl.tracks.length} lagu', style: TextStyle(color: sub)),

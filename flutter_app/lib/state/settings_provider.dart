@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/config/app_config.dart';
@@ -16,6 +17,7 @@ class AppSettingsState {
   final bool dynamicAlbumColors;
   final bool autoRadio;
   final AppAppearanceStyle appearanceStyle;
+  final double liquidGlassOpacity;
   final AppThemePreference themePreference;
   final PlayerBackgroundStyle playerBackgroundStyle;
   final MiniPlayerBackgroundStyle miniPlayerBackgroundStyle;
@@ -39,7 +41,15 @@ class AppSettingsState {
   final bool eqEnabled;
   final String eqPreset;
   final List<double> eqBands;
+  final Map<String, List<double>> customEqPresets;
+  final String eqHeadphoneProfile;
   final bool showStreakOnHome;
+  final bool dynamicIslandEnabled;
+  final bool dynamicIslandAlwaysVisible;
+  final bool dynamicIslandSystemOverlay;
+  final String dynamicIslandPosition;
+  final bool lockScreenLyricsEnabled;
+  final bool hapticsEnabled;
 
   const AppSettingsState({
     required this.serverUrl,
@@ -49,6 +59,7 @@ class AppSettingsState {
     required this.dynamicAlbumColors,
     required this.autoRadio,
     this.appearanceStyle = AppAppearanceStyle.glass,
+    this.liquidGlassOpacity = 0.48,
     this.themePreference = AppThemePreference.light,
     required this.playerBackgroundStyle,
     this.miniPlayerBackgroundStyle = MiniPlayerBackgroundStyle.blur,
@@ -62,7 +73,7 @@ class AppSettingsState {
     this.aiTranslateLyrics = false,
     this.agentPositionSync = false,
     this.romanizeLyrics = true,
-    this.lyricsSourceName = 'Lunarellys Sync',
+    this.lyricsSourceName = 'Archys Sync',
     this.defaultSleepMinutes = 30,
     this.pauseWatchHistory = false,
     this.pauseSearchHistory = false,
@@ -72,7 +83,15 @@ class AppSettingsState {
     this.eqEnabled = false,
     this.eqPreset = 'Datar',
     this.eqBands = const [0.0, 0.0, 0.0, 0.0, 0.0],
+    this.customEqPresets = const {},
+    this.eqHeadphoneProfile = 'Bawaan',
     this.showStreakOnHome = true,
+    this.dynamicIslandEnabled = false,
+    this.dynamicIslandAlwaysVisible = true,
+    this.dynamicIslandSystemOverlay = true,
+    this.dynamicIslandPosition = 'below',
+    this.lockScreenLyricsEnabled = false,
+    this.hapticsEnabled = true,
   });
 
   AppSettingsState copyWith({
@@ -83,6 +102,7 @@ class AppSettingsState {
     bool? dynamicAlbumColors,
     bool? autoRadio,
     AppAppearanceStyle? appearanceStyle,
+    double? liquidGlassOpacity,
     AppThemePreference? themePreference,
     PlayerBackgroundStyle? playerBackgroundStyle,
     MiniPlayerBackgroundStyle? miniPlayerBackgroundStyle,
@@ -106,7 +126,15 @@ class AppSettingsState {
     bool? eqEnabled,
     String? eqPreset,
     List<double>? eqBands,
+    Map<String, List<double>>? customEqPresets,
+    String? eqHeadphoneProfile,
     bool? showStreakOnHome,
+    bool? dynamicIslandEnabled,
+    bool? dynamicIslandAlwaysVisible,
+    bool? dynamicIslandSystemOverlay,
+    String? dynamicIslandPosition,
+    bool? lockScreenLyricsEnabled,
+    bool? hapticsEnabled,
   }) {
     return AppSettingsState(
       serverUrl: serverUrl ?? this.serverUrl,
@@ -116,6 +144,7 @@ class AppSettingsState {
       dynamicAlbumColors: dynamicAlbumColors ?? this.dynamicAlbumColors,
       autoRadio: autoRadio ?? this.autoRadio,
       appearanceStyle: appearanceStyle ?? this.appearanceStyle,
+      liquidGlassOpacity: liquidGlassOpacity ?? this.liquidGlassOpacity,
       themePreference: themePreference ?? this.themePreference,
       playerBackgroundStyle: playerBackgroundStyle ?? this.playerBackgroundStyle,
       miniPlayerBackgroundStyle:
@@ -141,7 +170,19 @@ class AppSettingsState {
       eqEnabled: eqEnabled ?? this.eqEnabled,
       eqPreset: eqPreset ?? this.eqPreset,
       eqBands: eqBands ?? this.eqBands,
+      customEqPresets: customEqPresets ?? this.customEqPresets,
+      eqHeadphoneProfile: eqHeadphoneProfile ?? this.eqHeadphoneProfile,
       showStreakOnHome: showStreakOnHome ?? this.showStreakOnHome,
+      dynamicIslandEnabled: dynamicIslandEnabled ?? this.dynamicIslandEnabled,
+      dynamicIslandAlwaysVisible:
+          dynamicIslandAlwaysVisible ?? this.dynamicIslandAlwaysVisible,
+      dynamicIslandSystemOverlay:
+          dynamicIslandSystemOverlay ?? this.dynamicIslandSystemOverlay,
+      dynamicIslandPosition:
+          dynamicIslandPosition ?? this.dynamicIslandPosition,
+      lockScreenLyricsEnabled:
+          lockScreenLyricsEnabled ?? this.lockScreenLyricsEnabled,
+      hapticsEnabled: hapticsEnabled ?? this.hapticsEnabled,
     );
   }
 }
@@ -153,6 +194,26 @@ class SettingsNotifier extends StateNotifier<AppSettingsState> {
     final raw = prefs.getStringList('eq_bands');
     if (raw == null || raw.length != 5) return const [0.0, 0.0, 0.0, 0.0, 0.0];
     return raw.map((e) => (double.tryParse(e) ?? 0.0).clamp(-12.5, 12.5)).toList();
+  }
+
+  static Map<String, List<double>> _loadCustomEqPresets(SharedPreferences prefs) {
+    try {
+      final raw = prefs.getString('eq_custom_presets');
+      if (raw == null || raw.isEmpty) return const {};
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return const {};
+      final out = <String, List<double>>{};
+      decoded.forEach((key, val) {
+        if (val is List && val.length == 5) {
+          out[key.toString()] = val
+              .map((n) => ((n as num?)?.toDouble() ?? 0.0).clamp(-12.5, 12.5))
+              .toList();
+        }
+      });
+      return out;
+    } catch (_) {
+      return const {};
+    }
   }
 
   SettingsNotifier(this._prefs)
@@ -167,6 +228,7 @@ class SettingsNotifier extends StateNotifier<AppSettingsState> {
             dynamicAlbumColors: _prefs.getBool('dynamic_colors') ?? true,
             autoRadio: _prefs.getBool('auto_radio') ?? true,
             appearanceStyle: AppAppearanceStyle.fromString(_prefs.getString('appearance_style')),
+            liquidGlassOpacity: (_prefs.getDouble('liquid_glass_opacity') ?? 0.48).clamp(0.0, 1.0),
             themePreference: AppThemePreference.fromString(_prefs.getString('theme_preference')),
             playerBackgroundStyle: PlayerBackgroundStyle.fromString(
               _prefs.getString('player_bg_style'),
@@ -185,7 +247,7 @@ class SettingsNotifier extends StateNotifier<AppSettingsState> {
             aiTranslateLyrics: _prefs.getBool('lyrics_ai_translate') ?? false,
             agentPositionSync: _prefs.getBool('lyrics_agent_sync') ?? false,
             romanizeLyrics: _prefs.getBool('lyrics_romanize') ?? true,
-            lyricsSourceName: _prefs.getString('lyrics_source_name') ?? 'Lunarellys Sync',
+            lyricsSourceName: _prefs.getString('lyrics_source_name') ?? 'Archys Sync',
             defaultSleepMinutes: (_prefs.getInt('default_sleep_minutes') ?? 30).clamp(5, 120),
             pauseWatchHistory: _prefs.getBool('pause_watch_history') ?? false,
             pauseSearchHistory: _prefs.getBool('pause_search_history') ?? false,
@@ -195,7 +257,19 @@ class SettingsNotifier extends StateNotifier<AppSettingsState> {
             eqEnabled: _prefs.getBool('eq_enabled') ?? false,
             eqPreset: _prefs.getString('eq_preset') ?? 'Datar',
             eqBands: _loadEqBands(_prefs),
+            customEqPresets: _loadCustomEqPresets(_prefs),
+            eqHeadphoneProfile: _prefs.getString('eq_headphone_profile') ?? 'Bawaan',
             showStreakOnHome: _prefs.getBool('show_streak_home') ?? true,
+            dynamicIslandEnabled: _prefs.getBool('dynamic_island_enabled') ?? false,
+            dynamicIslandAlwaysVisible:
+                _prefs.getBool('dynamic_island_always_visible') ?? true,
+            dynamicIslandSystemOverlay:
+                _prefs.getBool('dynamic_island_system_overlay') ?? true,
+            dynamicIslandPosition:
+                _prefs.getString('dynamic_island_position') ?? 'below',
+            lockScreenLyricsEnabled:
+                _prefs.getBool('lock_screen_lyrics_enabled') ?? false,
+            hapticsEnabled: _prefs.getBool('haptics_enabled') ?? true,
           ),
         ) {
     unawaited(syncRemoteNodeConfig());
@@ -273,6 +347,12 @@ class SettingsNotifier extends StateNotifier<AppSettingsState> {
   Future<void> setAppearanceStyle(AppAppearanceStyle style) async {
     await _prefs.setString('appearance_style', style.key);
     state = state.copyWith(appearanceStyle: style);
+  }
+
+  Future<void> setLiquidGlassOpacity(double opacity) async {
+    final clamped = opacity.clamp(0.0, 1.0);
+    await _prefs.setDouble('liquid_glass_opacity', clamped);
+    state = state.copyWith(liquidGlassOpacity: clamped);
   }
 
   Future<void> setThemePreference(AppThemePreference pref) async {
@@ -416,9 +496,71 @@ class SettingsNotifier extends StateNotifier<AppSettingsState> {
     state = state.copyWith(eqPreset: 'Kustom', eqBands: next);
   }
 
+  Future<void> saveCustomEqPreset(String name, List<double> bands) async {
+    final cleanName = name.trim();
+    if (cleanName.isEmpty || bands.length != 5) return;
+    final clamped = bands.map((b) => b.clamp(-12.5, 12.5)).toList();
+    final updated = Map<String, List<double>>.from(state.customEqPresets)
+      ..[cleanName] = clamped;
+    await _prefs.setString('eq_custom_presets', jsonEncode(updated));
+    await _prefs.setString('eq_preset', cleanName);
+    await _prefs.setStringList('eq_bands', clamped.map((b) => b.toStringAsFixed(1)).toList());
+    state = state.copyWith(
+      customEqPresets: updated,
+      eqPreset: cleanName,
+      eqBands: clamped,
+    );
+  }
+
+  Future<void> deleteCustomEqPreset(String name) async {
+    if (!state.customEqPresets.containsKey(name)) return;
+    final updated = Map<String, List<double>>.from(state.customEqPresets)..remove(name);
+    await _prefs.setString('eq_custom_presets', jsonEncode(updated));
+    state = state.copyWith(
+      customEqPresets: updated,
+      eqPreset: state.eqPreset == name ? 'Kustom' : state.eqPreset,
+    );
+  }
+
+  Future<void> setEqHeadphoneProfile(String profile) async {
+    await _prefs.setString('eq_headphone_profile', profile);
+    state = state.copyWith(eqHeadphoneProfile: profile);
+  }
+
   Future<void> setShowStreakOnHome(bool enabled) async {
     await _prefs.setBool('show_streak_home', enabled);
     state = state.copyWith(showStreakOnHome: enabled);
+  }
+
+  Future<void> setDynamicIslandEnabled(bool enabled) async {
+    await _prefs.setBool('dynamic_island_enabled', enabled);
+    state = state.copyWith(dynamicIslandEnabled: enabled);
+  }
+
+  Future<void> setDynamicIslandAlwaysVisible(bool enabled) async {
+    await _prefs.setBool('dynamic_island_always_visible', enabled);
+    state = state.copyWith(dynamicIslandAlwaysVisible: enabled);
+  }
+
+  Future<void> setDynamicIslandSystemOverlay(bool enabled) async {
+    await _prefs.setBool('dynamic_island_system_overlay', enabled);
+    state = state.copyWith(dynamicIslandSystemOverlay: enabled);
+  }
+
+  Future<void> setDynamicIslandPosition(String position) async {
+    final normalized = position == 'notch' ? 'notch' : 'below';
+    await _prefs.setString('dynamic_island_position', normalized);
+    state = state.copyWith(dynamicIslandPosition: normalized);
+  }
+
+  Future<void> setLockScreenLyricsEnabled(bool enabled) async {
+    await _prefs.setBool('lock_screen_lyrics_enabled', enabled);
+    state = state.copyWith(lockScreenLyricsEnabled: enabled);
+  }
+
+  Future<void> setHapticsEnabled(bool enabled) async {
+    await _prefs.setBool('haptics_enabled', enabled);
+    state = state.copyWith(hapticsEnabled: enabled);
   }
 }
 
@@ -427,6 +569,8 @@ final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettingsStat
 });
 
 final apiClientProvider = Provider<MusicApiClient>((ref) {
-  final settings = ref.watch(settingsProvider);
-  return MusicApiClient(baseUrl: settings.serverUrl, apiKey: settings.apiKey);
+  final creds = ref.watch(
+    settingsProvider.select((s) => (s.serverUrl, s.apiKey)),
+  );
+  return MusicApiClient(baseUrl: creds.$1, apiKey: creds.$2);
 });
