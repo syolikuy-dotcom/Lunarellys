@@ -50,6 +50,16 @@ class AppSettingsState {
   final String dynamicIslandPosition;
   final bool lockScreenLyricsEnabled;
   final bool hapticsEnabled;
+  final String appIconKey;
+  final DynamicIslandPreset dynamicIslandPreset;
+  final int dynamicIslandAccentValue;
+  final double dynamicIslandScale;
+  final double dynamicIslandYOffset;
+  final bool dynamicIslandShowLyrics;
+  final bool chordsEnabled;
+  final String chordMode; // 'easy' | 'key_c' | 'original'
+  final int chordTranspose;
+  final int chordCapo;
 
   const AppSettingsState({
     required this.serverUrl,
@@ -58,8 +68,8 @@ class AppSettingsState {
     required this.audioQuality,
     required this.dynamicAlbumColors,
     required this.autoRadio,
-    this.appearanceStyle = AppAppearanceStyle.glass,
-    this.liquidGlassOpacity = 0.48,
+    this.appearanceStyle = AppAppearanceStyle.flat,
+    this.liquidGlassOpacity = 0.26,
     this.themePreference = AppThemePreference.light,
     required this.playerBackgroundStyle,
     this.miniPlayerBackgroundStyle = MiniPlayerBackgroundStyle.blur,
@@ -73,7 +83,7 @@ class AppSettingsState {
     this.aiTranslateLyrics = false,
     this.agentPositionSync = false,
     this.romanizeLyrics = true,
-    this.lyricsSourceName = 'Archys Sync',
+    this.lyricsSourceName = 'Auto Terbaik',
     this.defaultSleepMinutes = 30,
     this.pauseWatchHistory = false,
     this.pauseSearchHistory = false,
@@ -92,6 +102,16 @@ class AppSettingsState {
     this.dynamicIslandPosition = 'below',
     this.lockScreenLyricsEnabled = false,
     this.hapticsEnabled = true,
+    this.appIconKey = 'bawaan',
+    this.dynamicIslandPreset = DynamicIslandPreset.classicBlack,
+    this.dynamicIslandAccentValue = 0,
+    this.dynamicIslandScale = 1.0,
+    this.dynamicIslandYOffset = 0.0,
+    this.dynamicIslandShowLyrics = true,
+    this.chordsEnabled = false,
+    this.chordMode = 'easy',
+    this.chordTranspose = 0,
+    this.chordCapo = 1,
   });
 
   AppSettingsState copyWith({
@@ -135,6 +155,16 @@ class AppSettingsState {
     String? dynamicIslandPosition,
     bool? lockScreenLyricsEnabled,
     bool? hapticsEnabled,
+    String? appIconKey,
+    DynamicIslandPreset? dynamicIslandPreset,
+    int? dynamicIslandAccentValue,
+    double? dynamicIslandScale,
+    double? dynamicIslandYOffset,
+    bool? dynamicIslandShowLyrics,
+    bool? chordsEnabled,
+    String? chordMode,
+    int? chordTranspose,
+    int? chordCapo,
   }) {
     return AppSettingsState(
       serverUrl: serverUrl ?? this.serverUrl,
@@ -183,6 +213,18 @@ class AppSettingsState {
       lockScreenLyricsEnabled:
           lockScreenLyricsEnabled ?? this.lockScreenLyricsEnabled,
       hapticsEnabled: hapticsEnabled ?? this.hapticsEnabled,
+      appIconKey: appIconKey ?? this.appIconKey,
+      dynamicIslandPreset: dynamicIslandPreset ?? this.dynamicIslandPreset,
+      dynamicIslandAccentValue:
+          dynamicIslandAccentValue ?? this.dynamicIslandAccentValue,
+      dynamicIslandScale: dynamicIslandScale ?? this.dynamicIslandScale,
+      dynamicIslandYOffset: dynamicIslandYOffset ?? this.dynamicIslandYOffset,
+      dynamicIslandShowLyrics:
+          dynamicIslandShowLyrics ?? this.dynamicIslandShowLyrics,
+      chordsEnabled: chordsEnabled ?? this.chordsEnabled,
+      chordMode: chordMode ?? this.chordMode,
+      chordTranspose: chordTranspose ?? this.chordTranspose,
+      chordCapo: chordCapo ?? this.chordCapo,
     );
   }
 }
@@ -247,7 +289,7 @@ class SettingsNotifier extends StateNotifier<AppSettingsState> {
             aiTranslateLyrics: _prefs.getBool('lyrics_ai_translate') ?? false,
             agentPositionSync: _prefs.getBool('lyrics_agent_sync') ?? false,
             romanizeLyrics: _prefs.getBool('lyrics_romanize') ?? true,
-            lyricsSourceName: _prefs.getString('lyrics_source_name') ?? 'Archys Sync',
+            lyricsSourceName: _prefs.getString('lyrics_source_name') ?? 'Auto Terbaik',
             defaultSleepMinutes: (_prefs.getInt('default_sleep_minutes') ?? 30).clamp(5, 120),
             pauseWatchHistory: _prefs.getBool('pause_watch_history') ?? false,
             pauseSearchHistory: _prefs.getBool('pause_search_history') ?? false,
@@ -270,6 +312,22 @@ class SettingsNotifier extends StateNotifier<AppSettingsState> {
             lockScreenLyricsEnabled:
                 _prefs.getBool('lock_screen_lyrics_enabled') ?? false,
             hapticsEnabled: _prefs.getBool('haptics_enabled') ?? true,
+            appIconKey: _prefs.getString('app_icon_key') ?? 'bawaan',
+            dynamicIslandPreset: DynamicIslandPreset.fromString(
+              _prefs.getString('dynamic_island_preset'),
+            ),
+            dynamicIslandAccentValue:
+                _prefs.getInt('dynamic_island_accent_value') ?? 0,
+            dynamicIslandScale:
+                (_prefs.getDouble('dynamic_island_scale') ?? 1.0).clamp(0.8, 1.25),
+            dynamicIslandYOffset:
+                (_prefs.getDouble('dynamic_island_y_offset') ?? 0.0).clamp(-12.0, 36.0),
+            dynamicIslandShowLyrics:
+                _prefs.getBool('dynamic_island_show_lyrics') ?? true,
+            chordsEnabled: _prefs.getBool('chords_enabled') ?? false,
+            chordMode: _prefs.getString('chord_mode') ?? 'easy',
+            chordTranspose: (_prefs.getInt('chord_transpose') ?? 0).clamp(-6, 6),
+            chordCapo: (_prefs.getInt('chord_capo') ?? 1).clamp(0, 7),
           ),
         ) {
     unawaited(syncRemoteNodeConfig());
@@ -561,6 +619,60 @@ class SettingsNotifier extends StateNotifier<AppSettingsState> {
   Future<void> setHapticsEnabled(bool enabled) async {
     await _prefs.setBool('haptics_enabled', enabled);
     state = state.copyWith(hapticsEnabled: enabled);
+  }
+
+  Future<void> setAppIconKey(String key) async {
+    await _prefs.setString('app_icon_key', key);
+    state = state.copyWith(appIconKey: key);
+  }
+
+  Future<void> setDynamicIslandPreset(DynamicIslandPreset preset) async {
+    await _prefs.setString('dynamic_island_preset', preset.key);
+    state = state.copyWith(dynamicIslandPreset: preset);
+  }
+
+  Future<void> setDynamicIslandAccentValue(int colorValue) async {
+    await _prefs.setInt('dynamic_island_accent_value', colorValue);
+    state = state.copyWith(dynamicIslandAccentValue: colorValue);
+  }
+
+  Future<void> setDynamicIslandScale(double scale) async {
+    final clamped = scale.clamp(0.8, 1.25);
+    await _prefs.setDouble('dynamic_island_scale', clamped);
+    state = state.copyWith(dynamicIslandScale: clamped);
+  }
+
+  Future<void> setDynamicIslandYOffset(double offset) async {
+    final clamped = offset.clamp(-12.0, 36.0);
+    await _prefs.setDouble('dynamic_island_y_offset', clamped);
+    state = state.copyWith(dynamicIslandYOffset: clamped);
+  }
+
+  Future<void> setDynamicIslandShowLyrics(bool enabled) async {
+    await _prefs.setBool('dynamic_island_show_lyrics', enabled);
+    state = state.copyWith(dynamicIslandShowLyrics: enabled);
+  }
+
+  Future<void> setChordsEnabled(bool enabled) async {
+    await _prefs.setBool('chords_enabled', enabled);
+    state = state.copyWith(chordsEnabled: enabled);
+  }
+
+  Future<void> setChordMode(String mode) async {
+    await _prefs.setString('chord_mode', mode);
+    state = state.copyWith(chordMode: mode);
+  }
+
+  Future<void> setChordTranspose(int transpose) async {
+    final clamped = transpose.clamp(-6, 6);
+    await _prefs.setInt('chord_transpose', clamped);
+    state = state.copyWith(chordTranspose: clamped);
+  }
+
+  Future<void> setChordCapo(int capo) async {
+    final clamped = capo.clamp(0, 7);
+    await _prefs.setInt('chord_capo', clamped);
+    state = state.copyWith(chordCapo: clamped);
   }
 }
 

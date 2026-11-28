@@ -413,13 +413,17 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       );
       if (state.currentTrack?.id != track.id) return;
       final picked = palette.vibrantColor?.color ??
-          palette.lightVibrantColor?.color ??
+          palette.darkVibrantColor?.color ??
+          palette.mutedColor?.color ??
           palette.dominantColor?.color;
       if (picked != null) {
         final hsl = HSLColor.fromColor(picked);
+        final isYellowGreen = hsl.hue >= 45 && hsl.hue <= 88;
         final balanced = hsl
-            .withSaturation(hsl.saturation.clamp(0.28, 0.72))
-            .withLightness(hsl.lightness.clamp(0.38, 0.58))
+            .withSaturation(hsl.saturation.clamp(0.36, 0.76))
+            .withLightness(
+              hsl.lightness.clamp(0.30, isYellowGreen ? 0.42 : 0.52),
+            )
             .toColor();
         state = state.copyWith(dynamicColor: balanced);
       } else {

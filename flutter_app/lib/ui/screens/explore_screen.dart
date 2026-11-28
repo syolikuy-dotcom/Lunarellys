@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/music_models.dart';
 import '../../state/settings_provider.dart';
@@ -107,15 +108,15 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                     ? ClipRect(
                         child: BackdropFilter(
                           filter: ImageFilter.blur(
-                            sigmaX: 16,
-                            sigmaY: 16,
+                            sigmaX: 6,
+                            sigmaY: 6,
                             tileMode: TileMode.clamp,
                           ),
                           child: Container(
                             decoration: BoxDecoration(
                               color: isDark
-                                  ? const Color(0x900B0F14)
-                                  : const Color(0xCCF6F7F9),
+                                  ? const Color(0x880E1218)
+                                  : const Color(0xAEF6F7FB),
                               border: Border(
                                 bottom: BorderSide(
                                   color: AppColors.borderOf(context).withAlpha(110),

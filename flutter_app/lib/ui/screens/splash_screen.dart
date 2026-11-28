@@ -112,7 +112,8 @@ class _LaunchSplashGateState extends State<LaunchSplashGate>
                         children: [
                           LiquidGlassSurface(
                             borderRadius: BorderRadius.circular(36),
-                            blurSigma: 28,
+                            blurSigma: 0,
+                            useBackdropBlur: false,
                             chromaticAccent: AppColors.horizonBlueSoft,
                             padding: const EdgeInsets.all(22),
                             child: const AnimatedLunarellysLogo(

@@ -36,6 +36,10 @@ data class ArchysPlaybackState(
     val systemOverlayEnabled: Boolean = true,
     val positionMode: String = "below", // "below" | "notch"
     val lockScreenLyricsEnabled: Boolean = false,
+    val presetKey: String = "classic",
+    val islandScale: Float = 1.0f,
+    val islandYOffset: Float = 0f,
+    val showLyrics: Boolean = true,
     val hasTrack: Boolean = false,
     val trackId: String = "",
     val title: String = "Archys",
@@ -216,7 +220,8 @@ class LiquidGlassCapsuleDrawable(
     private val cornerRadiusPx: Float,
     private val accentColor: Int,
     private val borderWidthPx: Float,
-    private val expandedStyle: Boolean
+    private val expandedStyle: Boolean,
+    private val presetKey: String = "classic"
 ) : Drawable() {
 
     private val rect = RectF()
@@ -225,7 +230,7 @@ class LiquidGlassCapsuleDrawable(
     private val outerDarkPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = borderWidthPx * 0.8f
-        color = Color.argb(175, 0, 0, 0)
+        color = if (presetKey == "minimal_light") Color.argb(65, 15, 23, 42) else Color.argb(175, 0, 0, 0)
     }
     private val specularRimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -238,29 +243,46 @@ class LiquidGlassCapsuleDrawable(
         rect.set(b.left.toFloat(), b.top.toFloat(), b.right.toFloat(), b.bottom.toFloat())
         val radius = cornerRadiusPx.coerceAtMost(minOf(rect.width(), rect.height()) * 0.5f)
 
-        val topColor = if (expandedStyle) 0xD2151B28.toInt() else 0xCA131924.toInt()
-        val midColor = if (expandedStyle) 0xC60D121C.toInt() else 0xBF0B1018.toInt()
-        val botColor = if (expandedStyle) 0xCE080B12.toInt() else 0xC6070A10.toInt()
+        val r = Color.red(accentColor)
+        val g = Color.green(accentColor)
+        val bl = Color.blue(accentColor)
+
+        val colors = when (presetKey) {
+            "minimal_light" -> intArrayOf(0xF4FFFFFF.toInt(), 0xEEF1F5F9.toInt(), 0xE6E2E8F0.toInt())
+            "ios_blue" -> intArrayOf(0xE20F3268.toInt(), 0xDA0A2452.toInt(), 0xDF06183A.toInt())
+            "aurora" -> intArrayOf(0xDC0B3532.toInt(), 0xD8211C52.toInt(), 0xDC101830.toInt())
+            "glass" -> intArrayOf(0x9E162030.toInt(), 0x900D131F.toInt(), 0x98090D16.toInt())
+            "dynamic" -> intArrayOf(
+                Color.argb(226, (r * 0.34f).toInt(), (g * 0.34f).toInt(), (bl * 0.34f).toInt()),
+                Color.argb(218, (r * 0.22f).toInt(), (g * 0.22f).toInt(), (bl * 0.22f).toInt()),
+                Color.argb(224, (r * 0.14f).toInt(), (g * 0.14f).toInt(), (bl * 0.14f).toInt())
+            )
+            else -> intArrayOf(
+                if (expandedStyle) 0xF4080A0F.toInt() else 0xF5040507.toInt(),
+                if (expandedStyle) 0xF0040508.toInt() else 0xF2020304.toInt(),
+                0xF4000000.toInt()
+            )
+        }
 
         fillPaint.shader = LinearGradient(
             rect.left,
             rect.top,
             rect.left,
             rect.bottom,
-            intArrayOf(topColor, midColor, botColor),
+            colors,
             floatArrayOf(0f, 0.52f, 1f),
             Shader.TileMode.CLAMP
         )
         canvas.drawRoundRect(rect, radius, radius, fillPaint)
 
-        // Soft chromatic album refraction on top-left corner
+        // Soft chromatic refraction on top-left corner
         val glowR = maxOf(rect.width(), rect.height()) * 0.65f
-        val accentAlpha = Color.argb(
-            if (expandedStyle) 56 else 44,
-            Color.red(accentColor),
-            Color.green(accentColor),
-            Color.blue(accentColor)
-        )
+        val accentAlpha = when (presetKey) {
+            "minimal_light" -> Color.argb(28, r, g, bl)
+            "aurora" -> Color.argb(72, 94, 234, 212)
+            "ios_blue" -> Color.argb(74, 59, 130, 246)
+            else -> Color.argb(if (expandedStyle) 56 else 44, r, g, bl)
+        }
         glowPaint.shader = RadialGradient(
             rect.left + rect.width() * 0.18f,
             rect.top + rect.height() * 0.15f,
@@ -279,21 +301,21 @@ class LiquidGlassCapsuleDrawable(
         // Inner Fresnel specular bevel highlight
         val innerRect = RectF(rect).apply { inset(borderWidthPx * 1.05f, borderWidthPx * 1.05f) }
         val innerRadius = (radius - borderWidthPx * 1.05f).coerceAtLeast(1f)
-        val accentRim = Color.argb(
-            if (expandedStyle) 110 else 86,
-            Color.red(accentColor),
-            Color.green(accentColor),
-            Color.blue(accentColor)
-        )
+        val accentRim = when (presetKey) {
+            "minimal_light" -> Color.argb(95, r, g, bl)
+            "aurora" -> Color.argb(145, 94, 234, 212)
+            "ios_blue" -> Color.argb(145, 96, 165, 250)
+            else -> Color.argb(if (expandedStyle) 110 else 86, r, g, bl)
+        }
         specularRimPaint.shader = LinearGradient(
             innerRect.left,
             innerRect.top,
             innerRect.right,
             innerRect.bottom,
             intArrayOf(
-                0xC8FFFFFF.toInt(),
+                if (presetKey == "minimal_light") 0xFFFFFFFF.toInt() else 0xC8FFFFFF.toInt(),
                 accentRim,
-                0x24FFFFFF,
+                if (presetKey == "minimal_light") 0x380F172A else 0x24FFFFFF,
                 0x70FFFFFF
             ),
             floatArrayOf(0f, 0.32f, 0.68f, 1f),

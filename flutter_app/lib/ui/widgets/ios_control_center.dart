@@ -210,12 +210,17 @@ class _IosControlCenterSheet extends ConsumerWidget {
                                   ],
                                 ),
                               ),
-                              if (track != null)
+                              if (track != null) ...[
+                                const SizedBox(width: 8),
                                 AnimatedEqualizer(
-                                  color: accent,
+                                  color: AppColors.readableAccent(
+                                    accent,
+                                    Theme.of(context).brightness,
+                                  ),
                                   isPlaying: player.isPlaying,
                                   size: 15,
                                 ),
+                              ],
                             ],
                           ),
                         ),
@@ -284,7 +289,7 @@ class _IosControlCenterSheet extends ConsumerWidget {
                                   ? CupertinoIcons.volume_down
                                   : CupertinoIcons.volume_up),
                           label: 'Vol',
-                          accent: accent,
+                          accent: AppColors.iosBlue,
                           onChanged: pNotifier.setVolume,
                         ),
                       ),
@@ -294,7 +299,7 @@ class _IosControlCenterSheet extends ConsumerWidget {
                           value: settings.liquidGlassOpacity,
                           icon: CupertinoIcons.sparkles,
                           label: 'Kaca',
-                          accent: AppColors.iosBlue,
+                          accent: AppColors.iosIndigo,
                           onChanged: sNotifier.setLiquidGlassOpacity,
                         ),
                       ),
@@ -313,7 +318,7 @@ class _IosControlCenterSheet extends ConsumerWidget {
             physics: const NeverScrollableScrollPhysics(),
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
-            childAspectRatio: 1.0,
+            childAspectRatio: 0.94,
             children: [
               _CcTile(
                 icon: settings.themePreference == AppThemePreference.dark
@@ -465,17 +470,23 @@ class _IosControlCenterSheet extends ConsumerWidget {
                   children: [
                     Icon(CupertinoIcons.speaker_2_fill, size: 17, color: ink),
                     const SizedBox(width: 8),
-                    Text(
-                      'Kualitas Streaming & Perizinan',
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                        color: ink,
+                    Expanded(
+                      child: Text(
+                        'Kualitas Streaming & Perizinan',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: ink,
+                        ),
                       ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 8),
                     Text(
-                      '${(settings.liquidGlassOpacity * 100).round()}% Kaca',
+                      settings.appearanceStyle == AppAppearanceStyle.glass
+                          ? '${(settings.liquidGlassOpacity * 100).round()}% Kaca'
+                          : 'Mode Datar',
                       style: GoogleFonts.jetBrainsMono(
                         fontSize: 11.5,
                         color: sub,
@@ -535,6 +546,8 @@ class _IosControlCenterSheet extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         'Lirik Lock Screen',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
@@ -542,6 +555,7 @@ class _IosControlCenterSheet extends ConsumerWidget {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 6),
                     LiquidGlassTap(
                       onTap: () {
                         Navigator.pop(context);
@@ -551,8 +565,8 @@ class _IosControlCenterSheet extends ConsumerWidget {
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 11,
-                          vertical: 6,
+                          horizontal: 10,
+                          vertical: 5,
                         ),
                         decoration: BoxDecoration(
                           color: AppColors.pillOf(context),
@@ -560,6 +574,7 @@ class _IosControlCenterSheet extends ConsumerWidget {
                         ),
                         child: Text(
                           'Pratinjau',
+                          maxLines: 1,
                           style: TextStyle(
                             fontSize: 11.5,
                             fontWeight: FontWeight.w700,
@@ -572,6 +587,7 @@ class _IosControlCenterSheet extends ConsumerWidget {
                     LiquidGlassToggleSwitch(
                       value: settings.lockScreenLyricsEnabled,
                       onChanged: sNotifier.setLockScreenLyricsEnabled,
+                      reserveSwellRoom: false,
                     ),
                   ],
                 ),
@@ -640,49 +656,52 @@ class _IosVerticalCapsuleSlider extends StatelessWidget {
           onTapDown: (d) => updateFromLocalY(d.localPosition.dy),
           child: LiquidGlassCard(
             radius: 24,
-            chromaticAccent: accent,
-            child: Stack(
-              alignment: Alignment.bottomCenter,
-              children: [
-                FractionallySizedBox(
-                  heightFactor: clamped,
-                  widthFactor: 1.0,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          accent.withAlpha(isDark ? 190 : 210),
-                          accent.withAlpha(isDark ? 230 : 235),
-                        ],
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                alignment: Alignment.bottomCenter,
+                children: [
+                  FractionallySizedBox(
+                    heightFactor: clamped,
+                    widthFactor: 1.0,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            accent.withAlpha(isDark ? 215 : 225),
+                            accent.withAlpha(isDark ? 245 : 250),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Icon(
-                        icon,
-                        size: 20,
-                        color: clamped > 0.25 ? Colors.white : ink,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: clamped > 0.18 ? Colors.white : ink,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Icon(
+                          icon,
+                          size: 20,
+                          color: clamped > 0.28 ? Colors.white : ink,
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+                        Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: clamped > 0.20 ? Colors.white : ink,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -712,9 +731,10 @@ class _CcTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = AppColors.isDark(context);
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
+    final titleColor = active ? Colors.white : ink;
+    final subColor = active ? Colors.white.withAlpha(224) : sub;
 
     return LiquidGlassTap(
       onTap: () {
@@ -725,55 +745,61 @@ class _CcTile extends StatelessWidget {
       pressedScale: 0.94,
       child: LiquidGlassCard(
         radius: 22,
-        tintColor: active ? accent.withAlpha(isDark ? 72 : 42) : null,
-        chromaticAccent: active ? accent : null,
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: active ? accent : AppColors.pillOf(context),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                size: 17,
-                color: active ? Colors.white : ink,
-              ),
-            ),
-            Flexible(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12.2,
-                      fontWeight: FontWeight.w800,
-                      color: ink,
-                    ),
+        tintColor: active ? accent : null,
+        showBorder: !active,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: active ? Colors.white : AppColors.pillOf(context),
+                    shape: BoxShape.circle,
                   ),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 10.8,
-                      fontWeight: FontWeight.w600,
-                      color: active ? accent : sub,
-                    ),
+                  child: Icon(
+                    icon,
+                    size: 16,
+                    color: active ? accent : ink,
                   ),
-                ],
-              ),
+                ),
+                Flexible(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12.2,
+                          fontWeight: FontWeight.w800,
+                          color: titleColor,
+                        ),
+                      ),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10.8,
+                          fontWeight: FontWeight.w600,
+                          color: subColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

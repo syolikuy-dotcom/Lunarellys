@@ -171,6 +171,10 @@ class DevicePermissionsNotifier extends StateNotifier<DevicePermissionSnapshot> 
     required bool systemOverlayEnabled,
     required String positionMode,
     required bool lockScreenLyricsEnabled,
+    String presetKey = 'classic',
+    double islandScale = 1.0,
+    double islandYOffset = 0.0,
+    bool showLyrics = true,
     required bool hasTrack,
     required String trackId,
     required String title,
@@ -191,6 +195,10 @@ class DevicePermissionsNotifier extends StateNotifier<DevicePermissionSnapshot> 
         'systemOverlayEnabled': systemOverlayEnabled,
         'positionMode': positionMode,
         'lockScreenLyricsEnabled': lockScreenLyricsEnabled,
+        'presetKey': presetKey,
+        'islandScale': islandScale,
+        'islandYOffset': islandYOffset,
+        'showLyrics': showLyrics,
         'hasTrack': hasTrack,
         'trackId': trackId,
         'title': title,
@@ -233,6 +241,25 @@ class DevicePermissionsNotifier extends StateNotifier<DevicePermissionSnapshot> 
       lyricsOffsetMs: 0,
       accentColor: accentColor,
     );
+  }
+
+  Future<bool> setAppIcon(String iconKey) async {
+    if (!Platform.isAndroid) return true;
+    try {
+      return await _channel.invokeMethod<bool>('setAppIcon', {'key': iconKey}) ??
+          false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<String?> pickMediaImage() async {
+    if (!Platform.isAndroid) return null;
+    try {
+      return await _channel.invokeMethod<String>('pickMediaImage');
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<bool> openLockScreenPreview() async {

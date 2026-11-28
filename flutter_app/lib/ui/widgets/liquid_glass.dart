@@ -1,37 +1,16 @@
 import 'dart:math' as math;
 import 'dart:ui';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart' as lge;
+import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../state/settings_provider.dart';
 import 'artwork_image.dart';
 
 export 'package:liquid_glass_easy/liquid_glass_easy.dart' hide showLiquidGlassSheet;
-
-class _LiquidGlassPressScope extends InheritedWidget {
-  final double pressIntensity;
-
-  const _LiquidGlassPressScope({
-    required this.pressIntensity,
-    required super.child,
-  });
-
-  static double of(BuildContext context) {
-    return context
-            .dependOnInheritedWidgetOfExactType<_LiquidGlassPressScope>()
-            ?.pressIntensity ??
-        0.0;
-  }
-
-  @override
-  bool updateShouldNotify(covariant _LiquidGlassPressScope oldWidget) =>
-      oldWidget.pressIntensity != pressIntensity;
-}
 
 /// Primary Archys Liquid Glass surface powered by `liquid_glass_easy`.
 /// Uses `LiquidGlassLens` (true refractive shader lens on Impeller & inside
@@ -85,24 +64,25 @@ class LiquidGlassSurface extends ConsumerWidget {
     final glassOpacity = ref.watch(
       settingsProvider.select((s) => s.liquidGlassOpacity),
     );
-    final pressIntensity = _LiquidGlassPressScope.of(context);
 
-    final clearAlpha = isDark ? 42 : 66;
-    final tintedAlpha = isDark ? 210 : 224;
+    final clearAlpha = isDark ? 42 : 76;
+    final tintedAlpha = isDark ? 148 : 194;
     final dynamicAlpha = lerpDouble(clearAlpha, tintedAlpha, glassOpacity)!.round();
 
     final baseTint = tintColor != null
-        ? tintColor!.withAlpha(
-            lerpDouble(
-              (tintColor!.a * 255).round().clamp(40, 185),
-              228,
-              glassOpacity * 0.55,
-            )!
-                .round(),
-          )
+        ? (isGlass
+            ? tintColor!.withAlpha(
+                lerpDouble(
+                  (tintColor!.a * 255).round().clamp(44, 158),
+                  186,
+                  glassOpacity * 0.55,
+                )!
+                    .round(),
+              )
+            : tintColor!)
         : (isDark
             ? (isGlass
-                ? const Color(0xFF141A24).withAlpha(dynamicAlpha)
+                ? const Color(0xFF16191F).withAlpha(dynamicAlpha)
                 : AppColors.darkSurface)
             : (isGlass
                 ? const Color(0xFFFFFFFF).withAlpha(dynamicAlpha)
@@ -123,71 +103,47 @@ class LiquidGlassSurface extends ConsumerWidget {
     final secondaryChromatic = accent != null
         ? HSLColor.fromColor(accent)
             .withHue((HSLColor.fromColor(accent).hue + 145) % 360)
-            .withSaturation(0.64)
+            .withSaturation(0.58)
             .toColor()
         : null;
 
     if (isGlass && (accent != null || gradient != null)) {
-      content = Stack(
-        fit: StackFit.passthrough,
-        children: [
-          if (gradient != null)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: gradient,
-                    borderRadius: borderRadius,
+      content = ClipRRect(
+        borderRadius: borderRadius,
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.passthrough,
+          children: [
+            if (gradient != null)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(gradient: gradient),
                   ),
                 ),
               ),
-            ),
-          if (accent != null && secondaryChromatic != null) ...[
-            Positioned(
-              left: -18,
-              top: -16,
-              bottom: -16,
-              width: 112,
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: const Alignment(-0.2, 0.05),
-                      radius: 0.95,
-                      colors: [
-                        accent.withAlpha(isDark ? 58 : 48),
-                        accent.withAlpha(isDark ? 16 : 12),
-                        Colors.transparent,
-                      ],
+            if (accent != null && secondaryChromatic != null)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          accent.withAlpha(isDark ? 38 : 22),
+                          accent.withAlpha(isDark ? 10 : 6),
+                          secondaryChromatic.withAlpha(isDark ? 24 : 14),
+                        ],
+                        stops: const [0.0, 0.52, 1.0],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            Positioned(
-              right: -18,
-              top: -16,
-              bottom: -16,
-              width: 106,
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: const Alignment(0.2, -0.05),
-                      radius: 0.95,
-                      colors: [
-                        secondaryChromatic.withAlpha(isDark ? 48 : 38),
-                        secondaryChromatic.withAlpha(isDark ? 12 : 10),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            content,
           ],
-          content,
-        ],
+        ),
       );
     }
 
@@ -197,14 +153,14 @@ class LiquidGlassSurface extends ConsumerWidget {
         gradient: gradient,
         borderRadius: borderRadius,
         border: showBorder
-            ? Border.all(color: AppColors.borderOf(context), width: 1.0)
+            ? Border.all(color: AppColors.borderOf(context), width: 0.75)
             : null,
         boxShadow: shadows ??
             [
               BoxShadow(
-                color: Colors.black.withAlpha(isDark ? 72 : 12),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
+                color: Colors.black.withAlpha(isDark ? 64 : 10),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
             ],
       );
@@ -217,59 +173,63 @@ class LiquidGlassSurface extends ConsumerWidget {
     }
 
     final effectiveBlur = useBackdropBlur
-        ? (blurSigma * (0.28 + 0.35 * glassOpacity)).clamp(2.5, 16.0)
-        : (2.0 + glassOpacity * 4.5);
+        ? (blurSigma * (0.10 + 0.12 * glassOpacity)).clamp(1.2, 4.2)
+        : 0.0;
 
     final specular = showBorder
         ? lge.LiquidGlassLight.specular(
-            thickness: 4.5 + pressIntensity * 1.5,
-            sharpness: 0.55,
-            angle: 39.0,
-            spread: 0.92,
-            intensity: isDark ? 0.72 + pressIntensity * 0.25 : 0.96,
-            oppositeIntensity: isDark ? 0.45 : 0.80,
-            color: isDark ? Colors.white : Colors.white,
+            thickness: 1.8,
+            sharpness: 0.70,
+            angle: 42.0,
+            spread: 0.88,
+            intensity: isDark ? 0.62 : 0.92,
+            oppositeIntensity: isDark ? 0.34 : 0.64,
+            color: Colors.white,
           )
         : const lge.LiquidGlassLight.specular(thickness: 0, intensity: 0, oppositeIntensity: 0);
 
-    final glow = accent != null
+    final glow = (useBackdropBlur && accent != null)
         ? lge.LiquidGlassLight.glow(
-            thickness: 10,
-            spread: 0.55,
-            intensity: isDark ? 0.35 : 0.28,
-            oppositeIntensity: 0.18,
+            thickness: 6,
+            spread: 0.45,
+            intensity: isDark ? 0.22 : 0.16,
+            oppositeIntensity: 0.10,
             color: accent,
           )
         : null;
 
     final lgeShadow = lge.LiquidGlassShadow(
-      blur: isDark ? 16 : 14,
-      opacity: isDark ? 0.28 : 0.12,
+      blur: isDark ? 12 : 10,
+      opacity: isDark ? 0.20 : 0.08,
       color: Colors.black,
     );
 
     Widget result;
     if (useBackdropBlur) {
-      result = lge.LiquidGlassLens(
-        style: lge.LiquidGlassStyle(
-          shape: shape,
-          specular: specular,
-          glow: glow,
-          refractionIndex: refractionIndex,
-          refractionWidth: refractionWidth,
-          magnification: magnification,
-          dispersion: dispersion,
-          saturation: isDark ? 1.25 : 1.45,
-          blur: effectiveBlur,
-          color: baseTint,
-          shadow: lgeShadow,
-        ),
-        touch: interactiveFlex
-            ? const lge.LiquidGlassTouch.flexing(lge.LiquidGlassFlex.subtle())
-            : null,
-        child: Material(
-          type: MaterialType.transparency,
-          child: content,
+      result = ClipRRect(
+        borderRadius: borderRadius,
+        clipBehavior: Clip.antiAlias,
+        child: lge.LiquidGlassLens(
+          style: lge.LiquidGlassStyle(
+            shape: shape,
+            specular: specular,
+            glow: glow,
+            refractionIndex: refractionIndex.clamp(1.03, 1.07),
+            refractionWidth: refractionWidth.clamp(5.0, 8.0),
+            magnification: magnification,
+            dispersion: dispersion,
+            saturation: isDark ? 1.12 : 1.18,
+            blur: effectiveBlur,
+            color: baseTint,
+            shadow: lgeShadow,
+          ),
+          touch: interactiveFlex
+              ? const lge.LiquidGlassTouch.flexing(lge.LiquidGlassFlex.subtle())
+              : null,
+          child: Material(
+            type: MaterialType.transparency,
+            child: content,
+          ),
         ),
       );
     } else {
@@ -279,24 +239,28 @@ class LiquidGlassSurface extends ConsumerWidget {
           boxShadow: shadows ??
               [
                 BoxShadow(
-                  color: Colors.black.withAlpha(isDark ? 56 : 14),
-                  blurRadius: 16,
+                  color: Colors.black.withAlpha(isDark ? 56 : 12),
+                  blurRadius: 14,
                   spreadRadius: -2,
-                  offset: const Offset(0, 6),
+                  offset: const Offset(0, 5),
                 ),
               ],
         ),
-        child: lge.LiquidGlassLite(
-          shape: shape,
-          specular: specular,
-          glow: glow,
-          borderAlpha: showBorder ? 1.0 : 0.0,
-          blur: effectiveBlur,
-          magnification: 1.0,
-          color: baseTint,
-          child: Material(
-            type: MaterialType.transparency,
-            child: content,
+        child: ClipRRect(
+          borderRadius: borderRadius,
+          clipBehavior: Clip.antiAlias,
+          child: lge.LiquidGlassLite(
+            shape: shape,
+            specular: specular,
+            glow: glow,
+            borderAlpha: showBorder ? 1.0 : 0.0,
+            blur: effectiveBlur,
+            magnification: 1.0,
+            color: baseTint,
+            child: Material(
+              type: MaterialType.transparency,
+              child: content,
+            ),
           ),
         ),
       );
@@ -372,7 +336,7 @@ class StickyLiquidGlassHeader extends ConsumerWidget {
       valueListenable: scrollOffset,
       builder: (context, offset, headerChild) {
         final t = ((offset - 4) / 28).clamp(0.0, 1.0);
-        final maxHeaderAlpha = lerpDouble(105, 226, glassOpacity)!.round();
+        final maxHeaderAlpha = lerpDouble(92, 168, glassOpacity)!.round();
         final headerTint = isGlass
             ? (isDark
                 ? const Color(0xFF0E131B).withAlpha((t * maxHeaderAlpha).round())
@@ -387,8 +351,8 @@ class StickyLiquidGlassHeader extends ConsumerWidget {
                 ? Border(
                     bottom: BorderSide(
                       color: isDark
-                          ? Colors.white.withAlpha((t * 38).round())
-                          : const Color(0xFF1D2430).withAlpha((t * 32).round()),
+                          ? Colors.white.withAlpha((t * 36).round())
+                          : const Color(0xFF1D2430).withAlpha((t * 28).round()),
                       width: 0.7,
                     ),
                   )
@@ -397,8 +361,8 @@ class StickyLiquidGlassHeader extends ConsumerWidget {
           child: headerChild,
         );
 
-        if (isGlass && t > 0.04) {
-          final sigma = (14 + 14 * glassOpacity) * t;
+        if (isGlass && t > 0.08) {
+          final sigma = (4.0 + 3.5 * glassOpacity) * t;
           inner = ClipRect(
             child: BackdropFilter(
               filter: ImageFilter.blur(
@@ -442,7 +406,6 @@ class LiquidGlassTap extends ConsumerStatefulWidget {
 class _LiquidGlassTapState extends ConsumerState<LiquidGlassTap>
     with SingleTickerProviderStateMixin {
   late final AnimationController _springCtrl;
-  bool _pressed = false;
 
   static const _spring = SpringDescription(
     mass: 1.0,
@@ -480,18 +443,9 @@ class _LiquidGlassTapState extends ConsumerState<LiquidGlassTap>
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTapDown: (_) {
-        setState(() => _pressed = true);
-        _animateTo(widget.pressedScale);
-      },
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        _animateTo(1.0);
-      },
-      onTapCancel: () {
-        setState(() => _pressed = false);
-        _animateTo(1.0);
-      },
+      onTapDown: (_) => _animateTo(widget.pressedScale),
+      onTapUp: (_) => _animateTo(1.0),
+      onTapCancel: () => _animateTo(1.0),
       onTap: widget.onTap == null
           ? null
           : () {
@@ -508,17 +462,8 @@ class _LiquidGlassTapState extends ConsumerState<LiquidGlassTap>
               }
               widget.onLongPress!();
             },
-      child: AnimatedBuilder(
-        animation: _springCtrl,
-        builder: (context, child) {
-          return _LiquidGlassPressScope(
-            pressIntensity: _pressed ? 1.0 : 0.0,
-            child: Transform.scale(
-              scale: _springCtrl.value,
-              child: child,
-            ),
-          );
-        },
+      child: ScaleTransition(
+        scale: _springCtrl,
         child: widget.child,
       ),
     );
@@ -774,43 +719,43 @@ class SpinningVinylDisc extends StatefulWidget {
 
 class _SpinningVinylDiscState extends State<SpinningVinylDisc>
     with SingleTickerProviderStateMixin {
-  late final Ticker _ticker;
-  Duration _lastElapsed = Duration.zero;
-  double _angle = 0.0;
-  double _angularVelocity = 0.0;
-
-  // Target ~10.5 RPM visual pace (~1.1 rad/s) — silky & smooth without strobing
-  static const double _targetSpeed = 1.12;
+  late final AnimationController _spinCtrl;
+  bool _tickerActive = true;
 
   @override
   void initState() {
     super.initState();
-    _angularVelocity = widget.isPlaying ? _targetSpeed : 0.0;
-    _ticker = createTicker(_onTick)..start();
+    _spinCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 5600),
+    );
   }
 
-  void _onTick(Duration elapsed) {
-    final dt = (_lastElapsed == Duration.zero)
-        ? 0.016
-        : ((elapsed - _lastElapsed).inMicroseconds / 1000000.0).clamp(0.0, 0.05);
-    _lastElapsed = elapsed;
-
-    final target = widget.isPlaying ? _targetSpeed : 0.0;
-    final lerpRate = widget.isPlaying ? 3.8 : 2.6;
-    _angularVelocity += (target - _angularVelocity) * (dt * lerpRate).clamp(0.0, 1.0);
-
-    if (_angularVelocity.abs() > 0.002) {
-      if (mounted) {
-        setState(() {
-          _angle = (_angle + _angularVelocity * dt) % (math.pi * 2);
-        });
-      }
+  void _syncSpin() {
+    final shouldSpin = widget.isPlaying && _tickerActive;
+    if (shouldSpin && !_spinCtrl.isAnimating) {
+      _spinCtrl.repeat();
+    } else if (!shouldSpin && _spinCtrl.isAnimating) {
+      _spinCtrl.stop();
     }
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _tickerActive = TickerMode.valuesOf(context).enabled;
+    _syncSpin();
+  }
+
+  @override
+  void didUpdateWidget(covariant SpinningVinylDisc oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncSpin();
+  }
+
+  @override
   void dispose() {
-    _ticker.dispose();
+    _spinCtrl.dispose();
     super.dispose();
   }
 
@@ -818,6 +763,80 @@ class _SpinningVinylDiscState extends State<SpinningVinylDisc>
   Widget build(BuildContext context) {
     final s = widget.size;
     final isDark = AppColors.isDark(context);
+
+    final platter = Container(
+      width: s,
+      height: s,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const RadialGradient(
+          colors: [
+            Color(0xFF20242C),
+            Color(0xFF0E1015),
+            Color(0xFF171B22),
+            Color(0xFF090B0E),
+          ],
+          stops: [0.0, 0.45, 0.78, 1.0],
+        ),
+        border: Border.all(
+          color: Colors.white.withAlpha(36),
+          width: 1.4,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(140),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _VinylGroovesPainter(accent: widget.accentColor),
+            ),
+          ),
+          Container(
+            width: s * 0.48,
+            height: s * 0.48,
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: widget.accentColor.withAlpha(190),
+              border: Border.all(
+                color: Colors.white.withAlpha(120),
+                width: 1.2,
+              ),
+            ),
+            child: ArtworkImage(
+              url: widget.artworkUrl,
+              size: s * 0.48,
+              isCircle: true,
+            ),
+          ),
+          Container(
+            width: s * 0.11,
+            height: s * 0.11,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF151820),
+              border: Border.all(
+                color: Colors.white.withAlpha(175),
+                width: 1.8,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(120),
+                  blurRadius: 4,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
 
     return GestureDetector(
       onTap: widget.onTap,
@@ -828,7 +847,6 @@ class _SpinningVinylDiscState extends State<SpinningVinylDisc>
           alignment: Alignment.center,
           clipBehavior: Clip.none,
           children: [
-            // Dynamic glowing halo behind the vinyl
             AnimatedContainer(
               duration: const Duration(milliseconds: 520),
               width: s * (widget.isPlaying ? 0.98 : 0.88),
@@ -846,91 +864,12 @@ class _SpinningVinylDiscState extends State<SpinningVinylDisc>
                 ],
               ),
             ),
-
-            // Rotating vinyl platter + grooves + artwork center label
-            Transform.rotate(
-              angle: _angle,
-              child: Container(
-                width: s,
-                height: s,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const RadialGradient(
-                    colors: [
-                      Color(0xFF20242C),
-                      Color(0xFF0E1015),
-                      Color(0xFF171B22),
-                      Color(0xFF090B0E),
-                    ],
-                    stops: [0.0, 0.45, 0.78, 1.0],
-                  ),
-                  border: Border.all(
-                    color: Colors.white.withAlpha(36),
-                    width: 1.4,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withAlpha(140),
-                      blurRadius: 24,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Subtle concentric grooves & anisotropic light sweep
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: _VinylGroovesPainter(accent: widget.accentColor),
-                      ),
-                    ),
-
-                    // Center album artwork label
-                    Container(
-                      width: s * 0.48,
-                      height: s * 0.48,
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: widget.accentColor.withAlpha(190),
-                        border: Border.all(
-                          color: Colors.white.withAlpha(120),
-                          width: 1.2,
-                        ),
-                      ),
-                      child: ArtworkImage(
-                        url: widget.artworkUrl,
-                        size: s * 0.48,
-                        isCircle: true,
-                      ),
-                    ),
-
-                    // Spindle metallic ring & center hole
-                    Container(
-                      width: s * 0.11,
-                      height: s * 0.11,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: const Color(0xFF151820),
-                        border: Border.all(
-                          color: Colors.white.withAlpha(175),
-                          width: 1.8,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withAlpha(120),
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+            RepaintBoundary(
+              child: RotationTransition(
+                turns: _spinCtrl,
+                child: platter,
               ),
             ),
-
-            // Animated pivoting tonearm (jarum piringan)
             if (widget.showTonearm)
               Positioned(
                 top: -s * 0.04,
@@ -944,7 +883,6 @@ class _SpinningVinylDiscState extends State<SpinningVinylDisc>
                     duration: const Duration(milliseconds: 520),
                     curve: Curves.easeOutCubic,
                     builder: (context, engage, _) {
-                      // 0 = parked (-0.42 rad), 1 = reading groove (+0.08 rad)
                       final armAngle = lerpDouble(-0.44, 0.06, engage)!;
                       return Transform.rotate(
                         alignment: const Alignment(0.0, -0.78),
@@ -986,90 +924,100 @@ class MiniSpinningVinyl extends StatefulWidget {
 
 class _MiniSpinningVinylState extends State<MiniSpinningVinyl>
     with SingleTickerProviderStateMixin {
-  late final Ticker _ticker;
-  Duration _lastElapsed = Duration.zero;
-  double _angle = 0.0;
-  double _vel = 0.0;
+  late final AnimationController _spinCtrl;
+  bool _tickerActive = true;
 
   @override
   void initState() {
     super.initState();
-    _vel = widget.isPlaying ? 1.35 : 0.0;
-    _ticker = createTicker(_onTick)..start();
+    _spinCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 4600),
+    );
   }
 
-  void _onTick(Duration elapsed) {
-    final dt = (_lastElapsed == Duration.zero)
-        ? 0.016
-        : ((elapsed - _lastElapsed).inMicroseconds / 1000000.0).clamp(0.0, 0.05);
-    _lastElapsed = elapsed;
-    final target = widget.isPlaying ? 1.35 : 0.0;
-    _vel += (target - _vel) * (dt * 3.8).clamp(0.0, 1.0);
-    if (_vel.abs() > 0.002 && mounted) {
-      setState(() {
-        _angle = (_angle + _vel * dt) % (math.pi * 2);
-      });
+  void _syncSpin() {
+    final shouldSpin = widget.isPlaying && _tickerActive;
+    if (shouldSpin && !_spinCtrl.isAnimating) {
+      _spinCtrl.repeat();
+    } else if (!shouldSpin && _spinCtrl.isAnimating) {
+      _spinCtrl.stop();
     }
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _tickerActive = TickerMode.valuesOf(context).enabled;
+    _syncSpin();
+  }
+
+  @override
+  void didUpdateWidget(covariant MiniSpinningVinyl oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncSpin();
+  }
+
+  @override
   void dispose() {
-    _ticker.dispose();
+    _spinCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final s = widget.size;
-    return Transform.rotate(
-      angle: _angle,
-      child: Container(
-        width: s,
-        height: s,
-        padding: EdgeInsets.all((s * 0.12).clamp(3.0, 6.0)),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const SweepGradient(
-            colors: [
-              Color(0xFF141820),
-              Color(0xFF2D3340),
-              Color(0xFF10131A),
-              Color(0xFF272D38),
-              Color(0xFF141820),
+    return RepaintBoundary(
+      child: RotationTransition(
+        turns: _spinCtrl,
+        child: Container(
+          width: s,
+          height: s,
+          padding: EdgeInsets.all((s * 0.12).clamp(3.0, 6.0)),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const SweepGradient(
+              colors: [
+                Color(0xFF141820),
+                Color(0xFF2D3340),
+                Color(0xFF10131A),
+                Color(0xFF272D38),
+                Color(0xFF141820),
+              ],
+            ),
+            border: Border.all(
+              color: widget.isPlaying
+                  ? widget.accentColor.withAlpha(165)
+                  : Colors.white.withAlpha(48),
+              width: 1.2,
+            ),
+            boxShadow: [
+              if (widget.isPlaying)
+                BoxShadow(
+                  color: widget.accentColor.withAlpha(88),
+                  blurRadius: 10,
+                ),
             ],
           ),
-          border: Border.all(
-            color: widget.isPlaying
-                ? widget.accentColor.withAlpha(165)
-                : Colors.white.withAlpha(48),
-            width: 1.2,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              ArtworkImage(
+                url: widget.artworkUrl,
+                size: s * 0.76,
+                isCircle: true,
+              ),
+              Container(
+                width: (s * 0.18).clamp(6.0, 10.0),
+                height: (s * 0.18).clamp(6.0, 10.0),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF11141B),
+                  border: Border.all(color: Colors.white.withAlpha(190), width: 1.1),
+                ),
+              ),
+            ],
           ),
-          boxShadow: [
-            if (widget.isPlaying)
-              BoxShadow(
-                color: widget.accentColor.withAlpha(88),
-                blurRadius: 10,
-              ),
-          ],
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            ArtworkImage(
-              url: widget.artworkUrl,
-              size: s * 0.76,
-              isCircle: true,
-            ),
-            Container(
-              width: (s * 0.18).clamp(6.0, 10.0),
-              height: (s * 0.18).clamp(6.0, 10.0),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF11141B),
-                border: Border.all(color: Colors.white.withAlpha(190), width: 1.1),
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -1222,6 +1170,7 @@ class HarmonicSpectrumBars extends StatefulWidget {
 class _HarmonicSpectrumBarsState extends State<HarmonicSpectrumBars>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
+  bool _tickerActive = true;
 
   @override
   void initState() {
@@ -1230,17 +1179,28 @@ class _HarmonicSpectrumBarsState extends State<HarmonicSpectrumBars>
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     );
-    if (widget.isPlaying) _ctrl.repeat();
+  }
+
+  void _syncTicker() {
+    final shouldRun = widget.isPlaying && _tickerActive;
+    if (shouldRun && !_ctrl.isAnimating) {
+      _ctrl.repeat();
+    } else if (!shouldRun && _ctrl.isAnimating) {
+      _ctrl.stop();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _tickerActive = TickerMode.valuesOf(context).enabled;
+    _syncTicker();
   }
 
   @override
   void didUpdateWidget(covariant HarmonicSpectrumBars oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.isPlaying && !_ctrl.isAnimating) {
-      _ctrl.repeat();
-    } else if (!widget.isPlaying && _ctrl.isAnimating) {
-      _ctrl.stop();
-    }
+    _syncTicker();
   }
 
   @override
@@ -1251,8 +1211,9 @@ class _HarmonicSpectrumBarsState extends State<HarmonicSpectrumBars>
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: widget.height,
+    return RepaintBoundary(
+      child: SizedBox(
+        height: widget.height,
       child: AnimatedBuilder(
         animation: _ctrl,
         builder: (context, _) {
@@ -1287,6 +1248,7 @@ class _HarmonicSpectrumBarsState extends State<HarmonicSpectrumBars>
             }),
           );
         },
+      ),
       ),
     );
   }
@@ -1367,45 +1329,39 @@ class LiquidGlassAmbientBackground extends StatelessWidget {
           child: ColoredBox(color: baseBg),
         ),
         if (accent != null)
-          Positioned(
-            top: -120,
-            left: -80,
-            right: -80,
-            height: 360,
+          Positioned.fill(
             child: IgnorePointer(
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 520),
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
-                    center: const Alignment(-0.2, -0.5),
-                    radius: 1.05,
+                    center: const Alignment(-0.35, -0.78),
+                    radius: 1.15,
                     colors: [
-                      accent.withAlpha(isDark ? 72 : 28),
-                      accent.withAlpha(isDark ? 20 : 9),
+                      accent.withAlpha(isDark ? 64 : 24),
+                      accent.withAlpha(isDark ? 18 : 7),
                       Colors.transparent,
                     ],
+                    stops: const [0.0, 0.45, 1.0],
                   ),
                 ),
               ),
             ),
           ),
         if (secondary != null)
-          Positioned(
-            bottom: -140,
-            right: -90,
-            width: 320,
-            height: 320,
+          Positioned.fill(
             child: IgnorePointer(
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 620),
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
-                    center: const Alignment(0.25, 0.25),
-                    radius: 0.95,
+                    center: const Alignment(0.75, 0.85),
+                    radius: 1.10,
                     colors: [
-                      secondary.withAlpha(isDark ? 44 : 18),
+                      secondary.withAlpha(isDark ? 36 : 14),
                       Colors.transparent,
                     ],
+                    stops: const [0.0, 1.0],
                   ),
                 ),
               ),
@@ -1427,6 +1383,7 @@ class LiquidGlassCard extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final EdgeInsetsGeometry? margin;
   final bool showBorder;
+  final Gradient? gradient;
   final List<BoxShadow>? shadows;
 
   const LiquidGlassCard({
@@ -1438,6 +1395,7 @@ class LiquidGlassCard extends StatelessWidget {
     this.padding,
     this.margin,
     this.showBorder = true,
+    this.gradient,
     this.shadows,
   });
 
@@ -1452,6 +1410,7 @@ class LiquidGlassCard extends StatelessWidget {
       padding: padding,
       margin: margin,
       showBorder: showBorder,
+      gradient: gradient,
       shadows: shadows,
       child: child,
     );
@@ -1557,93 +1516,74 @@ class PercikanBannerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = AppColors.isDark(context);
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
+    final isDark = AppColors.isDark(context);
 
     return LiquidGlassTap(
       onTap: onTap,
       child: LiquidGlassCard(
         radius: 22,
-        chromaticAccent: const Color(0xFFFF982E),
-        child: SizedBox(
-          height: 82,
-          child: Stack(
-            children: [
-              Positioned(
-                left: -12,
-                top: -12,
-                bottom: -12,
-                width: 112,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: const Alignment(-0.1, 0),
-                      radius: 0.9,
-                      colors: [
-                        const Color(0xFFFF9F43).withAlpha(isDark ? 48 : 42),
-                        Colors.transparent,
-                      ],
+        chromaticAccent: const Color(0xFFFF8C24),
+        gradient: RadialGradient(
+          center: const Alignment(-0.78, 0.0),
+          radius: 0.85,
+          colors: [
+            const Color(0xFFFF8C24).withAlpha(isDark ? 42 : 28),
+            Colors.transparent,
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            const PercikanFlameIcon(size: 46),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        '$streakDays',
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                          color: ink,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'hari berturut-turut',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: sub,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Percikan',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w500,
+                      color: sub,
                     ),
                   ),
-                ),
+                ],
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  children: [
-                    const PercikanFlameIcon(size: 46),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
-                            children: [
-                              Text(
-                                '$streakDays',
-                                style: TextStyle(
-                                  fontSize: 19,
-                                  fontWeight: FontWeight.w800,
-                                  color: ink,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  'hari berturut-turut',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: sub,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Percikan',
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w500,
-                              color: sub,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.chevron_right_rounded, color: sub, size: 20),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: sub, size: 20),
+          ],
         ),
       ),
     );
@@ -1680,7 +1620,7 @@ Future<T?> showLiquidGlassSheet<T>({
           );
 
           final maxH = MediaQuery.of(ctx).size.height * maxHeightFactor;
-          final sheetAlpha = lerpDouble(175, 240, glassOpacity)!.round();
+          final sheetAlpha = lerpDouble(116, 186, glassOpacity)!.round();
           final sheetBg = isGlass
               ? (isDark
                   ? const Color(0xFF141822).withAlpha(sheetAlpha)
@@ -1704,15 +1644,15 @@ Future<T?> showLiquidGlassSheet<T>({
                       cornerRadius: 32,
                     ),
                     specular: lge.LiquidGlassLight.specular(
-                      thickness: 5,
-                      intensity: isDark ? 0.65 : 0.92,
-                      oppositeIntensity: 0.35,
+                      thickness: 3.0,
+                      intensity: isDark ? 0.56 : 0.88,
+                      oppositeIntensity: 0.28,
                     ),
                     color: sheetBg,
-                    blur: (14 + 14 * glassOpacity).clamp(10.0, 28.0),
-                    refractionIndex: 1.08,
-                    refractionWidth: 12,
-                    saturation: isDark ? 1.2 : 1.4,
+                    blur: (2.6 + 3.2 * glassOpacity).clamp(2.4, 5.8),
+                    refractionIndex: 1.05,
+                    refractionWidth: 7,
+                    saturation: isDark ? 1.12 : 1.18,
                   ),
                   child: Material(
                     type: MaterialType.transparency,
@@ -1819,14 +1759,14 @@ Future<T?> _openArchysDialog<T>({
     );
   }
 
-  final alpha = lerpDouble(150, 224, settings.liquidGlassOpacity)!.round();
+  final alpha = lerpDouble(112, 180, settings.liquidGlassOpacity)!.round();
   final tint = isDark
       ? const Color(0xFF161B26).withAlpha(alpha)
       : const Color(0xFFFDFEFF).withAlpha(alpha);
 
   return lge.showLiquidGlassDialog<T>(
     context: context,
-    barrierColor: Colors.black.withAlpha(isDark ? 140 : 85),
+    barrierColor: Colors.black.withAlpha(isDark ? 130 : 72),
     builder: (dialogCtx) => lge.LiquidGlassAlertDialog(
       icon: icon,
       title: title,
@@ -1847,17 +1787,104 @@ Future<T?> _openArchysDialog<T>({
           cornerRadius: 30,
         ),
         specular: lge.LiquidGlassLight.specular(
-          thickness: 4.5,
-          intensity: isDark ? 0.65 : 0.92,
-          oppositeIntensity: 0.35,
+          thickness: 3.0,
+          intensity: isDark ? 0.56 : 0.88,
+          oppositeIntensity: 0.28,
         ),
         color: tint,
-        blur: (14 + 12 * settings.liquidGlassOpacity).clamp(10.0, 26.0),
-        refractionIndex: 1.1,
-        refractionWidth: 12,
-        saturation: isDark ? 1.2 : 1.4,
+        blur: (2.6 + 3.2 * settings.liquidGlassOpacity).clamp(2.4, 5.8),
+        refractionIndex: 1.05,
+        refractionWidth: 7,
+        saturation: isDark ? 1.12 : 1.18,
       ),
     ),
   );
 }
+
+/// Authentic iOS inset-grouped uppercase section header.
+class IosSectionHeader extends StatelessWidget {
+  final String title;
+  final Widget? trailing;
+  final EdgeInsetsGeometry padding;
+
+  const IosSectionHeader({
+    super.key,
+    required this.title,
+    this.trailing,
+    this.padding = const EdgeInsets.fromLTRB(16, 4, 16, 7),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sub = AppColors.subOf(context);
+    return Padding(
+      padding: padding,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12.2,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.45,
+                color: sub,
+              ),
+            ),
+          ),
+          if (trailing != null) trailing!,
+        ],
+      ),
+    );
+  }
+}
+
+/// Authentic iOS inset-grouped list card with hairline dividers between rows.
+class IosGroupedListCard extends StatelessWidget {
+  final List<Widget> children;
+  final double radius;
+  final Color? chromaticAccent;
+  final EdgeInsetsGeometry? margin;
+  final double dividerIndent;
+
+  const IosGroupedListCard({
+    super.key,
+    required this.children,
+    this.radius = 20,
+    this.chromaticAccent,
+    this.margin,
+    this.dividerIndent = 58,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dividerColor = AppColors.borderOf(context);
+    final spaced = <Widget>[];
+    for (var i = 0; i < children.length; i++) {
+      spaced.add(children[i]);
+      if (i < children.length - 1) {
+        spaced.add(
+          Divider(
+            height: 0.6,
+            thickness: 0.6,
+            indent: dividerIndent,
+            color: dividerColor,
+          ),
+        );
+      }
+    }
+    return LiquidGlassCard(
+      radius: radius,
+      chromaticAccent: chromaticAccent,
+      margin: margin,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: spaced,
+      ),
+    );
+  }
+}
+
 

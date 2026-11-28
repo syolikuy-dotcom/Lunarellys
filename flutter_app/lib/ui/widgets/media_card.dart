@@ -192,6 +192,7 @@ class _MediaCardState extends ConsumerState<MediaCard> {
                     size: widget.width,
                     radius: 14,
                     isCircle: isArtist,
+                    preserveFull: !isArtist,
                   ),
                   if (isCurrent)
                     Positioned(
@@ -211,7 +212,7 @@ class _MediaCardState extends ConsumerState<MediaCard> {
                                 color: Colors.black.withAlpha(190),
                                 shape: BoxShape.circle,
                               ),
-                              child: Center(
+                              child: const Center(
                                 child: AnimatedEqualizer(
                                   color: Colors.white,
                                   isPlaying: false,

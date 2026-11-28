@@ -1,15 +1,20 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/music_models.dart';
+import '../../services/chord_engine.dart';
 import '../../services/device_permissions_service.dart';
 import '../../state/dynamic_island_provider.dart';
 import '../../state/library_provider.dart';
@@ -21,6 +26,7 @@ import '../widgets/ios_control_center.dart';
 import '../widgets/liquid_glass.dart';
 import '../widgets/track_tile.dart';
 import 'detail_screens.dart';
+import 'poster_editor_screen.dart';
 
 String _formatPlayerDuration(Duration d) {
   final totalSec = d.inSeconds.clamp(0, 359999);
@@ -86,11 +92,60 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   int _panelMode = 0; // 0 = Player, 1 = Lyrics, 2 = Queue
   bool _lyricsFullscreen = false;
   bool _vinylMode = false;
+  bool _videoMode = false;
+  WebViewController? _videoController;
+  String? _videoTrackId;
+  Timer? _musicAlarmTimer;
+  int? _musicAlarmMinutes;
 
   @override
   void dispose() {
+    _musicAlarmTimer?.cancel();
     _lyricsScrollCtrl.dispose();
     super.dispose();
+  }
+
+  void _ensureVideoController(String trackId) {
+    final embedUri = Uri.parse(
+      'https://www.youtube.com/embed/$trackId?autoplay=1&playsinline=1&rel=0',
+    );
+    if (_videoController == null) {
+      _videoController = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setBackgroundColor(Colors.black)
+        ..loadRequest(embedUri);
+      _videoTrackId = trackId;
+    } else if (_videoTrackId != trackId) {
+      _videoTrackId = trackId;
+      _videoController!.loadRequest(embedUri);
+    }
+  }
+
+  void _scheduleMusicAlarm(int minutes, MusicItem track) {
+    _musicAlarmTimer?.cancel();
+    setState(() => _musicAlarmMinutes = minutes);
+    _musicAlarmTimer = Timer(Duration(minutes: minutes), () {
+      if (!mounted) return;
+      setState(() => _musicAlarmMinutes = null);
+      final p = ref.read(playerProvider);
+      if (!p.isPlaying) {
+        ref.read(playerProvider.notifier).togglePlayPause();
+      }
+      ref.read(dynamicIslandEventProvider.notifier).show(
+            DynamicIslandEvent(
+              icon: CupertinoIcons.alarm_fill,
+              title: 'Alarm Musik Berbunyi',
+              subtitle: track.title,
+              accent: const Color(0xFF0A84FF),
+            ),
+          );
+    });
+  }
+
+  void _cancelMusicAlarm() {
+    _musicAlarmTimer?.cancel();
+    _musicAlarmTimer = null;
+    setState(() => _musicAlarmMinutes = null);
   }
 
   void _toggleLyricsPanel() {
@@ -121,6 +176,10 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
       );
     }
 
+    if (_videoMode && _videoTrackId != track.id) {
+      _ensureVideoController(track.id);
+    }
+
     final dynamicColor =
         ref.watch(playerProvider.select((s) => s.dynamicColor));
     final playingContext =
@@ -129,7 +188,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
       playerProvider.select(
         (s) => s.sleepTimerRemaining != null || s.stopAfterCurrentTrack,
       ),
-    );
+    ) || _musicAlarmMinutes != null;
     final dynamicAlbumColors =
         ref.watch(settingsProvider.select((s) => s.dynamicAlbumColors));
     final playerBgStyle =
@@ -239,237 +298,328 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     required Color sub,
   }) {
     final topPad = MediaQuery.of(context).padding.top;
-    final screenW = MediaQuery.of(context).size.width;
     final isPlaying = ref.watch(playerProvider.select((s) => s.isPlaying));
+    final pill = AppColors.pillOf(context);
+    final border = AppColors.borderOf(context);
 
     return Column(
       children: [
-        // Top blended edge-to-edge Artwork Hero OR Spinning Vinyl Platter
+        // Clean edge-to-edge Top Header (separated from artwork so faces/titles are never covered)
+        Padding(
+          padding: EdgeInsets.fromLTRB(20, topPad + 6, 16, 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4.5,
+                  decoration: BoxDecoration(
+                    color: sub.withAlpha(110),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Sedang diputar',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: sub,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          playingContext.isNotEmpty
+                              ? playingContext
+                              : 'Mix ${track.title}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 17.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.4,
+                            color: ink,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  LiquidGlassTap(
+                    onTap: () => showIosControlCenter(
+                      context,
+                      ref,
+                      onOpenEqualizer: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const EqualizerScreen(),
+                        ),
+                      ),
+                    ),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: pill,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: border, width: 0.7),
+                      ),
+                      child: Icon(
+                        CupertinoIcons.slider_horizontal_3,
+                        color: ink,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  LiquidGlassTap(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: pill,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: border, width: 0.7),
+                      ),
+                      child: Icon(
+                        CupertinoIcons.chevron_down,
+                        color: ink,
+                        size: 19,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // Full Uncropped Artwork Hero OR Spinning Vinyl Platter OR Embedded Video
         Expanded(
           child: RepaintBoundary(
             child: Stack(
               fit: StackFit.expand,
               children: [
                 AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 380),
+                  duration: const Duration(milliseconds: 340),
                   switchInCurve: Curves.easeOutCubic,
                   switchOutCurve: Curves.easeInCubic,
-                  child: _vinylMode
-                      ? Container(
-                          key: const ValueKey('vinyl_stage'),
-                          alignment: Alignment.center,
-                          padding: EdgeInsets.only(top: topPad + 44, bottom: 8),
-                          child: LayoutBuilder(
-                            builder: (ctx, c) {
-                              final maxDim = math.min(
-                                c.maxWidth * 0.72,
-                                c.maxHeight - 54,
-                              );
-                              final discSize = maxDim.clamp(140.0, 268.0);
-                              return Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SpinningVinylDisc(
-                                    artworkUrl: track.bestThumbUrl(size: 700),
-                                    size: discSize,
-                                    isPlaying: isPlaying,
-                                    accentColor: baseAccent,
-                                    showTonearm: true,
-                                    onTap: () => ref
-                                        .read(playerProvider.notifier)
-                                        .togglePlayPause(),
+                  child: _videoMode
+                      ? Padding(
+                          key: ValueKey('video_${track.id}'),
+                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 56),
+                          child: Center(
+                            child: AspectRatio(
+                              aspectRatio: 16 / 9,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(22),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black,
+                                    borderRadius: BorderRadius.circular(22),
+                                    border: Border.all(
+                                      color: Colors.white.withAlpha(36),
+                                      width: 1,
+                                    ),
                                   ),
-                                  const SizedBox(height: 12),
-                                  HarmonicSpectrumBars(
-                                    isPlaying: isPlaying,
-                                    color: baseAccent,
-                                    barCount: 24,
-                                    height: 24,
-                                  ),
-                                ],
-                              );
-                            },
+                                  child: _videoController != null
+                                      ? WebViewWidget(controller: _videoController!)
+                                      : const Center(
+                                          child: CupertinoActivityIndicator(
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ),
                           ),
                         )
-                      : ShaderMask(
-                          key: const ValueKey('cover_stage'),
-                          shaderCallback: (rect) => const LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            stops: [0.0, 0.72, 1.0],
-                            colors: [
-                              Colors.white,
-                              Colors.white,
-                              Colors.transparent,
-                            ],
-                          ).createShader(rect),
-                          blendMode: BlendMode.dstIn,
-                          child: ArtworkImage(
-                            url: track.bestThumbUrl(size: 900),
-                            size: screenW,
-                            radius: 0,
-                          ),
-                        ),
+                      : _vinylMode
+                          ? Container(
+                              key: const ValueKey('vinyl_stage'),
+                              alignment: Alignment.center,
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: LayoutBuilder(
+                                builder: (ctx, c) {
+                                  final maxDim = math.min(
+                                    c.maxWidth * 0.72,
+                                    c.maxHeight - 50,
+                                  );
+                                  final discSize = maxDim.clamp(140.0, 268.0);
+                                  return Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SpinningVinylDisc(
+                                        artworkUrl: track.bestThumbUrl(size: 700),
+                                        size: discSize,
+                                        isPlaying: isPlaying,
+                                        accentColor: baseAccent,
+                                        showTonearm: true,
+                                        onTap: () => ref
+                                            .read(playerProvider.notifier)
+                                            .togglePlayPause(),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      HarmonicSpectrumBars(
+                                        isPlaying: isPlaying,
+                                        color: AppColors.readableAccent(
+                                          baseAccent,
+                                          Theme.of(context).brightness,
+                                        ),
+                                        barCount: 24,
+                                        height: 24,
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            )
+                          : LayoutBuilder(
+                              key: const ValueKey('cover_stage'),
+                              builder: (ctx, c) {
+                                final artW = (c.maxWidth - 40).clamp(160.0, 440.0);
+                                final artH = (c.maxHeight - 16).clamp(150.0, 440.0);
+                                final frameSide = math.min(artW, artH);
+                                final boxW = artW > frameSide * 1.18
+                                    ? math.min(artW, frameSide * 1.38)
+                                    : frameSide;
+                                return Center(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(22),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black
+                                              .withAlpha(isDark ? 115 : 44),
+                                          blurRadius: 26,
+                                          spreadRadius: -4,
+                                          offset: const Offset(0, 12),
+                                        ),
+                                      ],
+                                    ),
+                                    child: ArtworkImage(
+                                      url: track.bestThumbUrl(size: 900),
+                                      width: boxW,
+                                      height: artH,
+                                      size: boxW,
+                                      radius: 22,
+                                      preserveFull: true,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                 ),
+                // Left [Audio | Video] mode switcher capsule
                 Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: topPad + 92,
+                  left: 24,
+                  bottom: 14,
                   child: Container(
+                    padding: const EdgeInsets.all(3),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withAlpha(110),
-                          Colors.transparent,
-                        ],
+                      color: Colors.black.withAlpha(isDark ? 148 : 168),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: Colors.white.withAlpha(76),
+                        width: 0.8,
                       ),
                     ),
-                  ),
-                ),
-                Positioned(
-                  top: topPad + 4,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: Container(
-                      width: 38,
-                      height: 4.5,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withAlpha(165),
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: topPad + 14,
-                  left: 20,
-                  right: 112,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Sedang diputar',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white.withAlpha(225),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _audioVideoSegment(
+                          label: 'Audio',
+                          selected: !_videoMode,
+                          onTap: () {
+                            if (_videoMode) {
+                              HapticFeedback.selectionClick();
+                              setState(() => _videoMode = false);
+                            }
+                          },
                         ),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        playingContext.isNotEmpty
-                            ? playingContext
-                            : 'Mix ${track.title}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.4,
-                          color: Colors.white,
-                          shadows: const [
-                            Shadow(color: Colors.black38, blurRadius: 8),
+                        _audioVideoSegment(
+                          label: 'Video',
+                          selected: _videoMode,
+                          onTap: () {
+                            if (!_videoMode) {
+                              HapticFeedback.selectionClick();
+                              if (isPlaying) {
+                                ref.read(playerProvider.notifier).togglePlayPause();
+                              }
+                              _ensureVideoController(track.id);
+                              setState(() {
+                                _videoMode = true;
+                                _vinylMode = false;
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Right Interactive Sampul / Piringan Vinyl switcher pill
+                if (!_videoMode)
+                  Positioned(
+                    right: 26,
+                    bottom: 14,
+                    child: LiquidGlassTap(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _vinylMode = !_vinylMode);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withAlpha(isDark ? 148 : 168),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: Colors.white.withAlpha(82),
+                            width: 0.8,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withAlpha(42),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _vinylMode
+                                  ? CupertinoIcons.photo_fill
+                                  : CupertinoIcons.circle_grid_hex_fill,
+                              color: Colors.white,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _vinylMode ? 'Sampul' : 'Piringan',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  top: topPad + 12,
-                  right: 14,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      LiquidGlassTap(
-                        onTap: () => showIosControlCenter(
-                          context,
-                          ref,
-                          onOpenEqualizer: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => const EqualizerScreen(),
-                            ),
-                          ),
-                        ),
-                        child: Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withAlpha(82),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white.withAlpha(64),
-                              width: 0.7,
-                            ),
-                          ),
-                          child: const Icon(
-                            CupertinoIcons.slider_horizontal_3,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.black.withAlpha(82),
-                        ),
-                        icon: const Icon(
-                          CupertinoIcons.chevron_down,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Interactive Sampul / Piringan Vinyl switcher pill
-                Positioned(
-                  right: 16,
-                  bottom: 14,
-                  child: LiquidGlassTap(
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      setState(() => _vinylMode = !_vinylMode);
-                    },
-                    child: LiquidGlassCapsule(
-                      blurSigma: 20,
-                      tintColor: Colors.black.withAlpha(isDark ? 115 : 140),
-                      chromaticAccent: baseAccent,
-                      interactiveFlex: true,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 7,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _vinylMode
-                                ? CupertinoIcons.photo_fill
-                                : CupertinoIcons.circle_grid_hex_fill,
-                            color: Colors.white,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            _vinylMode ? 'Sampul' : 'Piringan',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -803,12 +953,40 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     );
   }
 
+  Widget _audioVideoSegment({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.black : Colors.white.withAlpha(210),
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showSleepTimerDialog(BuildContext context) {
     final settings = ref.read(settingsProvider);
     final player = ref.read(playerProvider);
+    final track = player.currentTrack;
     var minutes =
         (player.sleepTimerRemaining?.inMinutes ?? settings.defaultSleepMinutes)
             .clamp(5, 120);
+    var alarmMinutes = _musicAlarmMinutes ?? 30;
     final isDark = AppColors.isDark(context);
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
@@ -821,188 +999,270 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
         builder: (ctx, setModalState) => Dialog(
           backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 26),
           child: LiquidGlassSurface(
             borderRadius: BorderRadius.circular(28),
             blurSigma: 28,
             chromaticAccent: const Color(0xFFF59E0B),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Timer tidur',
-                        style: TextStyle(
-                          fontSize: 21,
-                          fontWeight: FontWeight.w800,
-                          color: ink,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '$minutes menit',
-                        style: TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w500,
-                          color: ink.withAlpha(210),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      LiquidGlassRangeSlider(
-                        min: 5,
-                        max: 120,
-                        value: minutes.toDouble(),
-                        activeColor: const Color(0xFFF59E0B),
-                        onChanged: (v) =>
-                            setModalState(() => minutes = v.round()),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: 196,
-                        height: 46,
-                        child: FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor:
-                                isDark ? Colors.white : const Color(0xFF111315),
-                            foregroundColor:
-                                isDark ? Colors.black : Colors.white,
-                            shape: const StadiumBorder(),
-                          ),
-                          onPressed: () {
-                            ref
-                                .read(settingsProvider.notifier)
-                                .setDefaultSleepMinutes(minutes);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('$minutes menit dijadikan bawaan'),
-                              ),
-                            );
-                          },
-                          child: const Text(
-                            'Jadikan bawaan',
-                            style: TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w700,
-                            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Timer tidur & Alarm',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: ink,
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        width: 140,
-                        height: 40,
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: ink,
-                            side: BorderSide(color: border),
-                            shape: const StadiumBorder(),
+                        const SizedBox(height: 6),
+                        Text(
+                          '$minutes menit',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: ink.withAlpha(210),
                           ),
-                          onPressed: () {
-                            ref
-                                .read(playerProvider.notifier)
-                                .setSleepAfterTrack(true);
-                            ref.read(dynamicIslandEventProvider.notifier).show(
-                                  const DynamicIslandEvent(
-                                    icon: Icons.bedtime_rounded,
-                                    title: 'Berhenti di Akhir Lagu',
-                                    accent: Color(0xFFF59E0B),
+                        ),
+                        const SizedBox(height: 12),
+                        LiquidGlassRangeSlider(
+                          min: 5,
+                          max: 120,
+                          value: minutes.toDouble(),
+                          activeColor: const Color(0xFFF59E0B),
+                          onChanged: (v) =>
+                              setModalState(() => minutes = v.round()),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: FilledButton(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF111315),
+                                  foregroundColor:
+                                      isDark ? Colors.black : Colors.white,
+                                  shape: const StadiumBorder(),
+                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                ),
+                                onPressed: () {
+                                  ref
+                                      .read(settingsProvider.notifier)
+                                      .setDefaultSleepMinutes(minutes);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('$minutes menit dijadikan bawaan'),
+                                    ),
+                                  );
+                                },
+                                child: const Text(
+                                  'Jadikan bawaan',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
                                   ),
-                                );
-                            Navigator.pop(ctx);
-                          },
-                          child: const Text(
-                            'Akhir lagu',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: ink,
+                                  side: BorderSide(color: border),
+                                  shape: const StadiumBorder(),
+                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                ),
+                                onPressed: () {
+                                  ref
+                                      .read(playerProvider.notifier)
+                                      .setSleepAfterTrack(true);
+                                  ref.read(dynamicIslandEventProvider.notifier).show(
+                                        const DynamicIslandEvent(
+                                          icon: Icons.bedtime_rounded,
+                                          title: 'Berhenti di Akhir Lagu',
+                                          accent: Color(0xFFF59E0B),
+                                        ),
+                                      );
+                                  Navigator.pop(ctx);
+                                },
+                                child: const Text(
+                                  'Akhir lagu',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                Divider(height: 1, thickness: 0.7, color: border),
-                InkWell(
-                  onTap: () {
-                    ref
-                        .read(playerProvider.notifier)
-                        .setSleepTimer(Duration(minutes: minutes));
-                    ref.read(dynamicIslandEventProvider.notifier).show(
-                          DynamicIslandEvent(
-                            icon: Icons.bedtime_rounded,
-                            title: 'Timer Tidur $minutes menit',
-                            accent: const Color(0xFFF59E0B),
+                        if (track != null) ...[
+                          const SizedBox(height: 16),
+                          Divider(height: 1, color: border),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              const Icon(
+                                CupertinoIcons.alarm_fill,
+                                size: 17,
+                                color: AppColors.iosBlue,
+                              ),
+                              const SizedBox(width: 7),
+                              Text(
+                                'Alarm Musik',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: ink,
+                                ),
+                              ),
+                              const Spacer(),
+                              if (_musicAlarmMinutes != null)
+                                GestureDetector(
+                                  onTap: () {
+                                    _cancelMusicAlarm();
+                                    setModalState(() {});
+                                  },
+                                  child: Text(
+                                    'Aktif (${_musicAlarmMinutes}m) ×',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.iosRed,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
-                        );
-                    Navigator.pop(ctx);
-                  },
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: Center(
-                      child: Text(
-                        'OK',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: ink,
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            alignment: WrapAlignment.center,
+                            children: [
+                              for (final m in const [15, 30, 60, 120])
+                                ChoiceChip(
+                                  label: Text('${m}m'),
+                                  selected: alarmMinutes == m,
+                                  onSelected: (_) =>
+                                      setModalState(() => alarmMinutes = m),
+                                ),
+                              FilledButton.tonal(
+                                onPressed: () {
+                                  _scheduleMusicAlarm(alarmMinutes, track);
+                                  ref.read(dynamicIslandEventProvider.notifier).show(
+                                        DynamicIslandEvent(
+                                          icon: CupertinoIcons.alarm_fill,
+                                          title: 'Alarm Musik $alarmMinutes menit',
+                                          subtitle: track.title,
+                                          accent: AppColors.iosBlue,
+                                        ),
+                                      );
+                                  Navigator.pop(ctx);
+                                },
+                                child: const Text(
+                                  'Setel Alarm',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Divider(height: 1, thickness: 0.7, color: border),
+                  InkWell(
+                    onTap: () {
+                      ref
+                          .read(playerProvider.notifier)
+                          .setSleepTimer(Duration(minutes: minutes));
+                      ref.read(dynamicIslandEventProvider.notifier).show(
+                            DynamicIslandEvent(
+                              icon: Icons.bedtime_rounded,
+                              title: 'Timer Tidur $minutes menit',
+                              accent: const Color(0xFFF59E0B),
+                            ),
+                          );
+                      Navigator.pop(ctx);
+                    },
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: Center(
+                        child: Text(
+                          'OK',
+                          style: TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w700,
+                            color: ink,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                Divider(height: 1, thickness: 0.7, color: border),
-                InkWell(
-                  onTap: () {
-                    ref.read(playerProvider.notifier).setSleepTimer(null);
-                    ref.read(dynamicIslandEventProvider.notifier).show(
-                          const DynamicIslandEvent(
-                            icon: Icons.bedtime_off_rounded,
-                            title: 'Timer Tidur Dimatikan',
-                            accent: Color(0xFFF59E0B),
+                  Divider(height: 1, thickness: 0.7, color: border),
+                  InkWell(
+                    onTap: () {
+                      ref.read(playerProvider.notifier).setSleepTimer(null);
+                      _cancelMusicAlarm();
+                      ref.read(dynamicIslandEventProvider.notifier).show(
+                            const DynamicIslandEvent(
+                              icon: Icons.bedtime_off_rounded,
+                              title: 'Timer Tidur Dimatikan',
+                              accent: Color(0xFFF59E0B),
+                            ),
+                          );
+                      Navigator.pop(ctx);
+                    },
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: Center(
+                        child: Text(
+                          'Atur ulang',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: ink,
                           ),
-                        );
-                    Navigator.pop(ctx);
-                  },
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: Center(
-                      child: Text(
-                        'Atur ulang',
-                        style: TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w500,
-                          color: ink,
                         ),
                       ),
                     ),
                   ),
-                ),
-                Divider(height: 1, thickness: 0.7, color: border),
-                InkWell(
-                  onTap: () => Navigator.pop(ctx),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: Center(
-                      child: Text(
-                        'Batalkan',
-                        style: TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w500,
-                          color: sub,
+                  Divider(height: 1, thickness: 0.7, color: border),
+                  InkWell(
+                    onTap: () => Navigator.pop(ctx),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: Center(
+                        child: Text(
+                          'Batalkan',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: sub,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -1141,9 +1401,9 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                   ),
                   trailing: Icon(Icons.chevron_right_rounded, color: sub),
                   onTap: () {
-                    final next = st.lyricsSourceName == 'BiniLyrics'
-                        ? 'LRCLIB Sync'
-                        : 'BiniLyrics';
+                    final idx = kLyricsSources.indexOf(st.lyricsSourceName);
+                    final next =
+                        kLyricsSources[(idx + 1) % kLyricsSources.length];
                     modalRef
                         .read(settingsProvider.notifier)
                         .setLyricsSourceName(next);
@@ -1326,59 +1586,181 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Icon(Icons.volume_down_rounded, size: 20, color: sub),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: LiquidGlassRangeSlider(
-                        min: 0.0,
-                        max: 1.0,
-                        compact: true,
-                        value: volume,
+                const SizedBox(height: 14),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Kontrol Pemutar',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: sub,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 224,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Left vertical iOS Volume Bar
+                      _VerticalVolumeBentoBar(
+                        volume: volume,
+                        ink: ink,
+                        pill: pill,
                         onChanged: (v) =>
                             modalRef.read(playerProvider.notifier).setVolume(v),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Icon(Icons.volume_up_rounded, size: 20, color: sub),
-                  ],
+                      const SizedBox(width: 10),
+                      // Right Bento Tiles Grid (3 columns x 3 rows)
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  _bentoTile(
+                                    pill: pill,
+                                    ink: ink,
+                                    icon: CupertinoIcons.moon_stars_fill,
+                                    label: 'Timer tidur',
+                                    onTap: () {
+                                      Navigator.pop(sheetCtx);
+                                      _showSleepTimerDialog(context);
+                                    },
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _bentoTile(
+                                    pill: pill,
+                                    ink: ink,
+                                    icon: CupertinoIcons.slider_horizontal_3,
+                                    label: 'Ekualiser',
+                                    onTap: () {
+                                      Navigator.pop(sheetCtx);
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => const EqualizerScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _bentoTile(
+                                    pill: pill,
+                                    ink: ink,
+                                    icon: CupertinoIcons.waveform_path_ecg,
+                                    label: 'Gaya suara',
+                                    onTap: () {
+                                      Navigator.pop(sheetCtx);
+                                      _showSoundStylesSheet(context);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  _bentoTile(
+                                    pill: pill,
+                                    ink: ink,
+                                    icon: CupertinoIcons.speedometer,
+                                    label: 'Tempo & nada',
+                                    onTap: () {
+                                      Navigator.pop(sheetCtx);
+                                      _showAdvancedTempoPitchSheet(context);
+                                    },
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _bentoTile(
+                                    pill: pill,
+                                    ink: ink,
+                                    icon: CupertinoIcons.sparkles,
+                                    label: 'Ambient',
+                                    onTap: () {
+                                      Navigator.pop(sheetCtx);
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => const AmbientModeScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _bentoTile(
+                                    pill: pill,
+                                    ink: ink,
+                                    icon: CupertinoIcons.radiowaves_right,
+                                    label: 'Mulai radio',
+                                    onTap: () {
+                                      Navigator.pop(sheetCtx);
+                                      ref.read(playerProvider.notifier).startRadio(track);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  _bentoTile(
+                                    pill: pill,
+                                    ink: ink,
+                                    icon: CupertinoIcons.text_quote,
+                                    label: 'Bagikan lirik',
+                                    onTap: () {
+                                      Navigator.pop(sheetCtx);
+                                      _showShareSongCardModal(context, track);
+                                    },
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _bentoTile(
+                                    pill: pill,
+                                    ink: ink,
+                                    icon: CupertinoIcons.photo_on_rectangle,
+                                    label: 'Buat poster',
+                                    onTap: () {
+                                      Navigator.pop(sheetCtx);
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) =>
+                                              PosterEditorScreen(initialTrack: track),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _bentoTile(
+                                    pill: pill,
+                                    ink: ink,
+                                    icon: CupertinoIcons.music_note_list,
+                                    label: 'Playlist',
+                                    onTap: () {
+                                      Navigator.pop(sheetCtx);
+                                      showTrackPlaylistPicker(context, ref, track);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _sheetGridBtn(
-                      context,
-                      pill: pill,
-                      ink: ink,
-                      icon: Icons.radio_rounded,
-                      label: 'Mulai radio',
-                      onTap: () {
-                        Navigator.pop(sheetCtx);
-                        ref.read(playerProvider.notifier).startRadio(track);
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    _sheetGridBtn(
-                      context,
-                      pill: pill,
-                      ink: ink,
-                      icon: Icons.playlist_add_rounded,
-                      label: 'Tambah ke\nplaylist',
-                      onTap: () {
-                        Navigator.pop(sheetCtx);
-                        showTrackPlaylistPicker(context, ref, track);
-                      },
-                    ),
-                    const SizedBox(width: 8),
                     _sheetGridBtn(
                       context,
                       pill: pill,
                       ink: ink,
                       icon: Icons.link_rounded,
-                      label: 'Salin link',
+                      label: 'Salin\ntautan',
                       onTap: () {
                         Clipboard.setData(
                           ClipboardData(
@@ -1389,22 +1771,6 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Tautan disalin')),
                         );
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    _sheetGridBtn(
-                      context,
-                      pill: pill,
-                      ink: ink,
-                      icon: Icons.share_outlined,
-                      label: 'Bagikan\nkartu lagu',
-                      onTap: () {
-                        Navigator.pop(sheetCtx);
-                        _showShareSongCardModal(context, track);
                       },
                     ),
                     const SizedBox(width: 8),
@@ -1744,6 +2110,45 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     );
   }
 
+  Widget _bentoTile({
+    required Color pill,
+    required Color ink,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: LiquidGlassTap(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+          decoration: BoxDecoration(
+            color: pill,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 21, color: ink),
+              const SizedBox(height: 5),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showSoundStylesSheet(BuildContext context) {
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
@@ -1753,60 +2158,96 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
         builder: (ctx, modalRef, _) {
           final current =
               modalRef.watch(playerProvider.select((s) => s.soundStyle));
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(18, 6, 18, 22),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Gaya suara',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                    color: ink,
+          final maxH = MediaQuery.of(ctx).size.height * 0.72;
+          return ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxH),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Gaya suara',
+                    style: TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                      color: ink,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Ubah nuansa tempo dan nada lagu secara instan',
-                  style: TextStyle(fontSize: 13, color: sub),
-                ),
-                const SizedBox(height: 10),
-                ...SoundStylePreset.values.map(
-                  (preset) => ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      preset.label,
-                      style: TextStyle(fontWeight: FontWeight.w700, color: ink),
-                    ),
-                    subtitle: Text(
-                      preset.description,
-                      style: TextStyle(color: sub, fontSize: 12.5),
-                    ),
-                    trailing: current == preset
-                        ? const Icon(
-                            Icons.check_circle_rounded,
-                            color: AppColors.horizonBlue,
-                          )
-                        : null,
-                    onTap: () async {
-                      await modalRef
-                          .read(playerProvider.notifier)
-                          .setSoundStyle(preset);
-                      ref.read(dynamicIslandEventProvider.notifier).show(
-                            DynamicIslandEvent(
-                              icon: Icons.speed_rounded,
-                              title: 'Gaya Audio: ${preset.label}',
-                              subtitle: preset.description,
-                              accent: const Color(0xFFEC4899),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Ubah nuansa tempo dan nada lagu secara instan',
+                    style: TextStyle(fontSize: 13, color: sub),
+                  ),
+                  const SizedBox(height: 10),
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: SoundStylePreset.values
+                          .map(
+                            (preset) => ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                preset.label,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: ink,
+                                ),
+                              ),
+                              subtitle: Text(
+                                preset.description,
+                                style: TextStyle(color: sub, fontSize: 12.5),
+                              ),
+                              trailing: current == preset
+                                  ? const Icon(
+                                      Icons.check_circle_rounded,
+                                      color: AppColors.iosBlue,
+                                    )
+                                  : Icon(
+                                      Icons.radio_button_unchecked_rounded,
+                                      color: sub.withAlpha(110),
+                                    ),
+                              onTap: () async {
+                                HapticFeedback.selectionClick();
+                                await modalRef
+                                    .read(playerProvider.notifier)
+                                    .setSoundStyle(preset);
+                                ref.read(dynamicIslandEventProvider.notifier).show(
+                                      DynamicIslandEvent(
+                                        icon: Icons.speed_rounded,
+                                        title: 'Gaya Audio: ${preset.label}',
+                                        subtitle: preset.description,
+                                        accent: const Color(0xFFEC4899),
+                                      ),
+                                    );
+                              },
                             ),
-                          );
-                      if (ctx.mounted) Navigator.pop(ctx);
-                    },
+                          )
+                          .toList(),
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.iosBlue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text(
+                        'Oke',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -1937,160 +2378,782 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     MusicItem track, {
     String? quotedLyric,
   }) {
-    final accent = ref.read(playerProvider).dynamicColor ?? AppColors.horizonBlue;
-    var cardStyleIdx = 0; // 0 = Liquid, 1 = Gelap, 2 = Minimalis
+    final accent = ref.read(playerProvider).dynamicColor ?? AppColors.iosBlue;
+    final lyrics = ref.read(playerProvider).lyrics;
+    final allLines = lyrics?.lines
+            .map((l) => l.text.trim())
+            .where((t) => t.isNotEmpty && t != '•••')
+            .toList() ??
+        const <String>[];
+
     showDialog<void>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) {
-          final gradColors = switch (cardStyleIdx) {
-            1 => const [Color(0xFF14171D), Color(0xFF090B0E)],
-            2 => const [Color(0xFFF6F7FA), Color(0xFFE7EBF2)],
-            _ => [
-                Color.lerp(const Color(0xFF1A222E), accent, 0.48)!,
-                Color.lerp(const Color(0xFF0E1218), accent, 0.16)!,
-              ],
-          };
-          final lightCard = cardStyleIdx == 2;
-          final fg = lightCard ? AppColors.lightTextPrimary : Colors.white;
-          final fgSub = lightCard ? AppColors.lightTextSecondary : Colors.white70;
+      barrierColor: Colors.black.withAlpha(190),
+      builder: (ctx) => _ShareLyricsStudioModal(
+        track: track,
+        accent: accent,
+        initialQuote: quotedLyric,
+        lyricLines: allLines,
+      ),
+    );
+  }
+}
 
-          return Dialog(
-            backgroundColor: Colors.transparent,
-            insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(26),
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: gradColors,
-                    ),
-                    border: Border.all(
-                      color: lightCard
-                          ? Colors.black.withAlpha(18)
-                          : Colors.white.withAlpha(32),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withAlpha(90),
-                        blurRadius: 28,
-                        offset: const Offset(0, 14),
+class _VerticalVolumeBentoBar extends StatelessWidget {
+  final double volume;
+  final Color ink;
+  final Color pill;
+  final ValueChanged<double> onChanged;
+
+  const _VerticalVolumeBentoBar({
+    required this.volume,
+    required this.ink,
+    required this.pill,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = (volume.clamp(0.0, 1.0) * 100).round();
+    return SizedBox(
+      width: 64,
+      child: LayoutBuilder(
+        builder: (ctx, c) {
+          final h = c.maxHeight > 0 ? c.maxHeight : 200.0;
+          void updateFromDy(double dy) {
+            final next = (1.0 - (dy / h)).clamp(0.0, 1.0);
+            onChanged(next);
+          }
+
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onVerticalDragStart: (d) => updateFromDy(d.localPosition.dy),
+            onVerticalDragUpdate: (d) => updateFromDy(d.localPosition.dy),
+            onTapDown: (d) => updateFromDy(d.localPosition.dy),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Container(color: pill),
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: FractionallySizedBox(
+                      heightFactor: volume.clamp(0.04, 1.0),
+                      widthFactor: 1.0,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              AppColors.iosBlue.withAlpha(220),
+                              AppColors.iosBlue,
+                            ],
+                          ),
+                        ),
                       ),
-                    ],
+                    ),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Center(
-                        child: ArtworkImage(
-                          url: track.bestThumbUrl(size: 500),
-                          size: 230,
-                          radius: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      if (quotedLyric != null && quotedLyric.trim().isNotEmpty) ...[
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            color: lightCard
-                                ? Colors.black.withAlpha(12)
-                                : Colors.white.withAlpha(20),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Text(
-                            '"${quotedLyric.trim()}"',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              fontStyle: FontStyle.italic,
-                              color: fg,
-                              height: 1.32,
-                            ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: Text(
+                          '$pct%',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: pct > 78 ? Colors.white : ink,
                           ),
                         ),
-                      ],
-                      Text(
-                        track.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w800,
-                          color: fg,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Icon(
+                          volume <= 0.02
+                              ? CupertinoIcons.volume_off
+                              : CupertinoIcons.volume_up,
+                          color: Colors.white,
+                          size: 20,
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        track.artistDisplay,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 14, color: fgSub),
-                      ),
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          Text(
-                            'Archys',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w800,
-                              color: fgSub,
-                            ),
-                          ),
-                          const Spacer(),
-                          FilledButton.icon(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: fg,
-                              foregroundColor: lightCard ? Colors.white : Colors.black,
-                            ),
-                            onPressed: () {
-                              Navigator.pop(ctx);
-                              final quotePart =
-                                  (quotedLyric != null && quotedLyric.trim().isNotEmpty)
-                                      ? '"${quotedLyric.trim()}"\n\n'
-                                      : '';
-                              Share.share(
-                                '$quotePart🎵 ${track.title} — ${track.artistDisplay}\nhttps://music.youtube.com/watch?v=${track.id}',
-                              );
-                            },
-                            icon: const Icon(Icons.share_rounded, size: 17),
-                            label: const Text('Bagikan'),
-                          ),
-                        ],
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    for (final entry in ['Liquid', 'Gelap', 'Minimalis'].asMap().entries)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: ChoiceChip(
-                          label: Text(entry.value),
-                          selected: cardStyleIdx == entry.key,
-                          onSelected: (_) =>
-                              setModalState(() => cardStyleIdx = entry.key),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
+                ],
+              ),
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _ShareLyricsStudioModal extends StatefulWidget {
+  final MusicItem track;
+  final Color accent;
+  final String? initialQuote;
+  final List<String> lyricLines;
+
+  const _ShareLyricsStudioModal({
+    required this.track,
+    required this.accent,
+    this.initialQuote,
+    this.lyricLines = const [],
+  });
+
+  @override
+  State<_ShareLyricsStudioModal> createState() =>
+      _ShareLyricsStudioModalState();
+}
+
+class _ShareLyricsStudioModalState extends State<_ShareLyricsStudioModal>
+    with SingleTickerProviderStateMixin {
+  final GlobalKey _captureKey = GlobalKey();
+  late final AnimationController _karaokeCtrl;
+
+  String _mode = 'Lirik'; // 'Fokus' | 'Lirik' | 'Kartu pemutar'
+  String _ratio = '4:5'; // '1:1' | '4:5' | '9:16' | '16:9'
+  String _bgStyle = 'Gradasi'; // 'Kaca' | 'Polos' | 'Buram' | 'Gradasi'
+  String _fontFamily = 'Plus Jakarta Sans';
+  bool _boldWeight = true;
+  bool _centerAlign = false;
+  double _startOffsetSec = 0.0;
+  bool _animateKaraoke = true;
+  bool _exporting = false;
+  late List<String> _selectedLines;
+
+  static const _modes = ['Fokus', 'Lirik', 'Kartu pemutar'];
+  static const _ratios = ['1:1', '4:5', '9:16', '16:9'];
+  static const _bgStyles = ['Kaca', 'Polos', 'Buram', 'Gradasi'];
+  static const _fonts = [
+    'Plus Jakarta Sans',
+    'Inter',
+    'Playfair',
+    'JetBrains Mono',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _karaokeCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3400),
+    )..repeat();
+
+    if (widget.initialQuote != null && widget.initialQuote!.trim().isNotEmpty) {
+      final idx = widget.lyricLines.indexWhere(
+        (l) => l.toLowerCase() == widget.initialQuote!.trim().toLowerCase(),
+      );
+      if (idx != -1) {
+        _selectedLines = widget.lyricLines
+            .skip(idx)
+            .take(2)
+            .toList();
+      } else {
+        _selectedLines = [widget.initialQuote!.trim()];
+      }
+      _mode = 'Lirik';
+    } else if (widget.lyricLines.isNotEmpty) {
+      _selectedLines = widget.lyricLines.take(2).toList();
+      _mode = 'Lirik';
+    } else {
+      _selectedLines = ['${widget.track.title} — ${widget.track.artistDisplay}'];
+      _mode = 'Kartu pemutar';
+    }
+  }
+
+  @override
+  void dispose() {
+    _karaokeCtrl.dispose();
+    super.dispose();
+  }
+
+  double get _aspectRatioValue {
+    switch (_ratio) {
+      case '1:1':
+        return 1.0;
+      case '9:16':
+        return 9 / 16;
+      case '16:9':
+        return 16 / 9;
+      case '4:5':
+      default:
+        return 4 / 5;
+    }
+  }
+
+  TextStyle _quoteTextStyle(Color fg) {
+    final weight = _boldWeight ? FontWeight.w800 : FontWeight.w500;
+    final baseSize = _mode == 'Fokus' ? 20.0 : 16.5;
+    switch (_fontFamily) {
+      case 'Playfair':
+        return GoogleFonts.playfairDisplay(
+          fontSize: baseSize + 1,
+          fontWeight: weight,
+          height: 1.28,
+          color: fg,
+        );
+      case 'JetBrains Mono':
+        return GoogleFonts.jetBrainsMono(
+          fontSize: baseSize - 1.5,
+          fontWeight: weight,
+          height: 1.32,
+          color: fg,
+        );
+      case 'Inter':
+        return GoogleFonts.inter(
+          fontSize: baseSize,
+          fontWeight: weight,
+          height: 1.28,
+          color: fg,
+        );
+      case 'Plus Jakarta Sans':
+      default:
+        return GoogleFonts.plusJakartaSans(
+          fontSize: baseSize,
+          fontWeight: weight,
+          height: 1.28,
+          color: fg,
+        );
+    }
+  }
+
+  Future<void> _exportAndShare({bool saveOnly = false}) async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    try {
+      final boundary = _captureKey.currentContext?.findRenderObject()
+          as RenderRepaintBoundary?;
+      if (boundary == null) return;
+      final img = await boundary.toImage(pixelRatio: 2.5);
+      final byteData = await img.toByteData(format: ImageByteFormat.png);
+      if (byteData == null) return;
+      final dir = await getTemporaryDirectory();
+      final outPath =
+          '${dir.path}/archys_lirik_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File(outPath);
+      await file.writeAsBytes(byteData.buffer.asUint8List());
+      if (saveOnly) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Kartu lirik tersimpan di ${file.path}')),
+          );
+        }
+      } else {
+        final quote = _selectedLines.join('\n');
+        await Share.shareXFiles(
+          [XFile(outPath)],
+          text:
+              '"$quote"\n\n🎵 ${widget.track.title} — ${widget.track.artistDisplay}',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal ekspor gambar: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+    final ink = AppColors.inkOf(context);
+    final sub = AppColors.subOf(context);
+    final pill = AppColors.pillOf(context);
+    final quoteText = _selectedLines.join('\n');
+
+    final List<Color> gradColors = switch (_bgStyle) {
+      'Polos' => [const Color(0xFF101319), const Color(0xFF07090D)],
+      'Kaca' => [
+          Color.lerp(const Color(0xFF1E293B), widget.accent, 0.25)!,
+          Color.lerp(const Color(0xFF0F172A), widget.accent, 0.14)!,
+        ],
+      _ => [
+          Color.lerp(const Color(0xFF1D283A), widget.accent, 0.56)!,
+          Color.lerp(const Color(0xFF0C111B), widget.accent, 0.18)!,
+        ],
+    };
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
+      child: LiquidGlassSurface(
+        borderRadius: BorderRadius.circular(28),
+        blurSigma: 26,
+        chromaticAccent: widget.accent,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'Studio Bagikan Lirik',
+                    style: TextStyle(
+                      fontSize: 17.5,
+                      fontWeight: FontWeight.w800,
+                      color: ink,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(CupertinoIcons.xmark_circle_fill, color: sub),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Live Card Preview Stage
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 280),
+                  child: AspectRatio(
+                    aspectRatio: _aspectRatioValue,
+                    child: RepaintBoundary(
+                      key: _captureKey,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(22),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            if (_bgStyle == 'Buram')
+                              Positioned.fill(
+                                child: ImageFiltered(
+                                  imageFilter: ImageFilter.blur(
+                                    sigmaX: 18,
+                                    sigmaY: 18,
+                                    tileMode: TileMode.clamp,
+                                  ),
+                                  child: FittedBox(
+                                    fit: BoxFit.cover,
+                                    child: ArtworkImage(
+                                      url: widget.track.bestThumbUrl(size: 500),
+                                      size: 320,
+                                      radius: 0,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            else
+                              DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: gradColors,
+                                  ),
+                                ),
+                              ),
+                            Container(
+                              color: Colors.black.withAlpha(
+                                _bgStyle == 'Buram' ? 115 : (_bgStyle == 'Kaca' ? 40 : 20),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(18),
+                              child: Column(
+                                crossAxisAlignment: _centerAlign
+                                    ? CrossAxisAlignment.center
+                                    : CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  // Header track info
+                                  Row(
+                                    mainAxisAlignment: _centerAlign
+                                        ? MainAxisAlignment.center
+                                        : MainAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      ArtworkImage(
+                                        url: widget.track.bestThumbUrl(size: 200),
+                                        size: _mode == 'Kartu pemutar' ? 54 : 38,
+                                        radius: 10,
+                                        preserveFull: true,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Flexible(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              widget.track.title,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 13.5,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                            Text(
+                                              widget.track.artistDisplay,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                color: Colors.white70,
+                                                fontSize: 11.5,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  // Quote body or Player Card bar
+                                  if (_mode != 'Kartu pemutar')
+                                    Flexible(
+                                      child: AnimatedBuilder(
+                                        animation: _karaokeCtrl,
+                                        builder: (_, __) {
+                                          final p = _animateKaraoke
+                                              ? _karaokeCtrl.value
+                                              : 1.0;
+                                          final split = (quoteText.length * p)
+                                              .round()
+                                              .clamp(0, quoteText.length);
+                                          final baseStyle =
+                                              _quoteTextStyle(Colors.white);
+                                          return RichText(
+                                            textAlign: _centerAlign
+                                                ? TextAlign.center
+                                                : TextAlign.left,
+                                            maxLines: 5,
+                                            overflow: TextOverflow.ellipsis,
+                                            text: TextSpan(
+                                              style: baseStyle,
+                                              children: [
+                                                TextSpan(
+                                                  text: quoteText.substring(0, split),
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                                TextSpan(
+                                                  text: quoteText.substring(split),
+                                                  style: TextStyle(
+                                                    color: Colors.white.withAlpha(118),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    )
+                                  else
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 9,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withAlpha(24),
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: Colors.white.withAlpha(55),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(
+                                            CupertinoIcons.play_fill,
+                                            color: Colors.white,
+                                            size: 16,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: LinearProgressIndicator(
+                                              value: 0.42,
+                                              backgroundColor: Colors.white24,
+                                              color: Colors.white,
+                                              minHeight: 3,
+                                              borderRadius: BorderRadius.circular(99),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  // Bottom Archys watermark
+                                  Row(
+                                    mainAxisAlignment: _centerAlign
+                                        ? MainAxisAlignment.center
+                                        : MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        AppConfig.appName,
+                                        style: TextStyle(
+                                          color: Colors.white.withAlpha(190),
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      if (_startOffsetSec != 0 && !_centerAlign)
+                                        Text(
+                                          '${_startOffsetSec > 0 ? '+' : ''}${_startOffsetSec.toStringAsFixed(1)} dtk',
+                                          style: TextStyle(
+                                            color: Colors.white.withAlpha(145),
+                                            fontSize: 10.5,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Mode selector
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final m in _modes) ...[
+                      ChoiceChip(
+                        label: Text(m),
+                        selected: _mode == m,
+                        onSelected: (_) => setState(() => _mode = m),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              // Ratio + Background + Font controls
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final r in _ratios) ...[
+                      _miniChip(
+                        label: r,
+                        selected: _ratio == r,
+                        pill: pill,
+                        ink: ink,
+                        onTap: () => setState(() => _ratio = r),
+                      ),
+                      const SizedBox(width: 5),
+                    ],
+                    const SizedBox(width: 6),
+                    for (final b in _bgStyles) ...[
+                      _miniChip(
+                        label: b,
+                        selected: _bgStyle == b,
+                        pill: pill,
+                        ink: ink,
+                        onTap: () => setState(() => _bgStyle = b),
+                      ),
+                      const SizedBox(width: 5),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final f in _fonts) ...[
+                      _miniChip(
+                        label: f,
+                        selected: _fontFamily == f,
+                        pill: pill,
+                        ink: ink,
+                        onTap: () => setState(() => _fontFamily = f),
+                      ),
+                      const SizedBox(width: 5),
+                    ],
+                    const SizedBox(width: 6),
+                    _miniChip(
+                      label: _boldWeight ? 'Tebal' : 'Normal',
+                      selected: _boldWeight,
+                      pill: pill,
+                      ink: ink,
+                      onTap: () => setState(() => _boldWeight = !_boldWeight),
+                    ),
+                    const SizedBox(width: 5),
+                    _miniChip(
+                      label: _centerAlign ? 'Tengah' : 'Kiri',
+                      selected: _centerAlign,
+                      pill: pill,
+                      ink: ink,
+                      onTap: () => setState(() => _centerAlign = !_centerAlign),
+                    ),
+                    const SizedBox(width: 5),
+                    _miniChip(
+                      label: _animateKaraoke ? 'Karaoke' : 'Statis',
+                      selected: _animateKaraoke,
+                      pill: pill,
+                      ink: ink,
+                      onTap: () {
+                        setState(() {
+                          _animateKaraoke = !_animateKaraoke;
+                          if (_animateKaraoke) {
+                            _karaokeCtrl.repeat();
+                          } else {
+                            _karaokeCtrl.stop();
+                          }
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Start offset (-0,5 dtk / +0,5 dtk) & Lyric lines picker
+              Row(
+                children: [
+                  Text(
+                    'Mulai: ${_startOffsetSec.toStringAsFixed(1)} dtk',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: sub),
+                  ),
+                  const SizedBox(width: 8),
+                  _miniChip(
+                    label: '-0,5 dtk',
+                    selected: false,
+                    pill: pill,
+                    ink: ink,
+                    onTap: () => setState(
+                      () => _startOffsetSec = (_startOffsetSec - 0.5).clamp(-5.0, 5.0),
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  _miniChip(
+                    label: '+0,5 dtk',
+                    selected: false,
+                    pill: pill,
+                    ink: ink,
+                    onTap: () => setState(
+                      () => _startOffsetSec = (_startOffsetSec + 0.5).clamp(-5.0, 5.0),
+                    ),
+                  ),
+                ],
+              ),
+              if (widget.lyricLines.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 32,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: widget.lyricLines.take(18).length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 6),
+                    itemBuilder: (_, i) {
+                      final l = widget.lyricLines[i];
+                      final sel = _selectedLines.contains(l);
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            if (sel && _selectedLines.length > 1) {
+                              _selectedLines.remove(l);
+                            } else if (!sel) {
+                              if (_selectedLines.length >= 3) {
+                                _selectedLines.removeAt(0);
+                              }
+                              _selectedLines.add(l);
+                            }
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: sel ? AppColors.iosBlue : pill,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            l,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: sel ? Colors.white : ink,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
+              // Save & Share Action Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _exporting
+                          ? null
+                          : () => _exportAndShare(saveOnly: true),
+                      icon: const Icon(CupertinoIcons.arrow_down_to_line, size: 17),
+                      label: const Text('Simpan gambar'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: isDark ? Colors.white : AppColors.iosBlue,
+                        foregroundColor: isDark ? Colors.black : Colors.white,
+                      ),
+                      onPressed: _exporting ? null : () => _exportAndShare(),
+                      icon: _exporting
+                          ? const CupertinoActivityIndicator(radius: 8)
+                          : const Icon(CupertinoIcons.share, size: 17),
+                      label: const Text('Bagikan'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _miniChip({
+    required String label,
+    required bool selected,
+    required Color pill,
+    required Color ink,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.iosBlue : pill,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            color: selected ? Colors.white : ink,
+          ),
+        ),
       ),
     );
   }
@@ -2118,6 +3181,7 @@ class _NowPlayingBackdrop extends StatefulWidget {
 class _NowPlayingBackdropState extends State<_NowPlayingBackdrop>
     with SingleTickerProviderStateMixin {
   late final AnimationController _glowCtrl;
+  bool _tickerActive = true;
 
   @override
   void initState() {
@@ -2126,19 +3190,29 @@ class _NowPlayingBackdropState extends State<_NowPlayingBackdrop>
       vsync: this,
       duration: const Duration(seconds: 5),
     );
-    if (widget.style == PlayerBackgroundStyle.glowAnimated) {
+  }
+
+  void _syncGlow() {
+    final shouldRun =
+        widget.style == PlayerBackgroundStyle.glowAnimated && _tickerActive;
+    if (shouldRun && !_glowCtrl.isAnimating) {
       _glowCtrl.repeat(reverse: true);
+    } else if (!shouldRun && _glowCtrl.isAnimating) {
+      _glowCtrl.stop();
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _tickerActive = TickerMode.valuesOf(context).enabled;
+    _syncGlow();
   }
 
   @override
   void didUpdateWidget(covariant _NowPlayingBackdrop oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.style == PlayerBackgroundStyle.glowAnimated && !_glowCtrl.isAnimating) {
-      _glowCtrl.repeat(reverse: true);
-    } else if (widget.style != PlayerBackgroundStyle.glowAnimated && _glowCtrl.isAnimating) {
-      _glowCtrl.stop();
-    }
+    _syncGlow();
   }
 
   @override
@@ -2150,14 +3224,14 @@ class _NowPlayingBackdropState extends State<_NowPlayingBackdrop>
   @override
   Widget build(BuildContext context) {
     final bgTop = widget.isDark
-        ? Color.lerp(const Color(0xFF101318), widget.baseAccent, 0.34)!
-        : Color.lerp(const Color(0xFFDFE2DF), widget.baseAccent, 0.28)!;
+        ? Color.lerp(const Color(0xFF0A0D12), widget.baseAccent, 0.34)!
+        : Color.lerp(const Color(0xFFF2F4F8), widget.baseAccent, 0.24)!;
     final bgBottom = widget.isDark
-        ? const Color(0xFF0B0D10)
-        : Color.lerp(const Color(0xFFE5E7E4), widget.baseAccent, 0.14)!;
+        ? const Color(0xFF000000)
+        : Color.lerp(const Color(0xFFF6F7FB), widget.baseAccent, 0.08)!;
 
     if (widget.style == PlayerBackgroundStyle.blur) {
-      final thumb = widget.track.bestThumbUrl(size: 500);
+      final thumb = widget.track.bestThumbUrl(size: 400);
       return Stack(
         fit: StackFit.expand,
         children: [
@@ -2174,12 +3248,12 @@ class _NowPlayingBackdropState extends State<_NowPlayingBackdrop>
             Positioned.fill(
               child: ImageFiltered(
                 imageFilter: ImageFilter.blur(
-                  sigmaX: 46,
-                  sigmaY: 46,
+                  sigmaX: 24,
+                  sigmaY: 24,
                   tileMode: TileMode.clamp,
                 ),
                 child: Opacity(
-                  opacity: widget.isDark ? 0.55 : 0.42,
+                  opacity: widget.isDark ? 0.52 : 0.34,
                   child: ArtworkImage(
                     url: thumb,
                     size: MediaQuery.of(context).size.height,
@@ -2195,12 +3269,12 @@ class _NowPlayingBackdropState extends State<_NowPlayingBackdrop>
                 end: Alignment.bottomCenter,
                 colors: widget.isDark
                     ? [
-                        Colors.black.withAlpha(80),
-                        const Color(0xCC0B0D10),
+                        Colors.black.withAlpha(88),
+                        const Color(0xD905070B),
                       ]
                     : [
-                        Colors.white.withAlpha(65),
-                        const Color(0xDDE5E8EC),
+                        Colors.white.withAlpha(88),
+                        const Color(0xE8F3F5F9),
                       ],
               ),
             ),
@@ -2342,6 +3416,7 @@ class _PlayerSeekBarDeckState extends ConsumerState<_PlayerSeekBarDeck>
     with SingleTickerProviderStateMixin {
   double? _draggingValue;
   late final AnimationController _waveCtrl;
+  bool _tickerActive = true;
 
   @override
   void initState() {
@@ -2349,7 +3424,13 @@ class _PlayerSeekBarDeckState extends ConsumerState<_PlayerSeekBarDeck>
     _waveCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1600),
-    )..repeat();
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _tickerActive = TickerMode.valuesOf(context).enabled;
   }
 
   @override
@@ -2383,10 +3464,11 @@ class _PlayerSeekBarDeckState extends ConsumerState<_PlayerSeekBarDeck>
     final loopB = posDur.$5;
     final speed = posDur.$6;
 
-    if ((sliderStyle == PlayerSliderStyle.squiggly) && isPlaying && !_waveCtrl.isAnimating) {
+    final shouldWave =
+        sliderStyle == PlayerSliderStyle.squiggly && isPlaying && _tickerActive;
+    if (shouldWave && !_waveCtrl.isAnimating) {
       _waveCtrl.repeat();
-    } else if ((!isPlaying || sliderStyle != PlayerSliderStyle.squiggly) &&
-        _waveCtrl.isAnimating) {
+    } else if (!shouldWave && _waveCtrl.isAnimating) {
       _waveCtrl.stop();
     }
 
@@ -2640,15 +3722,22 @@ class _PlayerTransportButtons extends ConsumerWidget {
         (s) => (s.isPlaying, s.isBuffering, s.shuffle, s.repeat),
       ),
     );
+    final isDark = AppColors.isDark(context);
+    final iosAccent = isDark ? const Color(0xFF0A84FF) : AppColors.iosBlue;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         IconButton(
+          style: IconButton.styleFrom(
+            backgroundColor: controls.$3
+                ? iosAccent.withAlpha(isDark ? 44 : 26)
+                : Colors.transparent,
+          ),
           icon: Icon(
             CupertinoIcons.shuffle,
-            size: 22,
-            color: controls.$3 ? ink : sub.withAlpha(170),
+            size: 21,
+            color: controls.$3 ? iosAccent : sub.withAlpha(175),
           ),
           onPressed: () => ref.read(playerProvider.notifier).toggleShuffle(),
         ),
@@ -2680,12 +3769,18 @@ class _PlayerTransportButtons extends ConsumerWidget {
           onPressed: () => ref.read(playerProvider.notifier).skipNext(),
         ),
         IconButton(
+          style: IconButton.styleFrom(
+            backgroundColor: controls.$4 != RepeatSetting.off
+                ? iosAccent.withAlpha(isDark ? 44 : 26)
+                : Colors.transparent,
+          ),
           icon: Icon(
             controls.$4 == RepeatSetting.one
                 ? CupertinoIcons.repeat_1
                 : CupertinoIcons.repeat,
-            size: 22,
-            color: controls.$4 == RepeatSetting.off ? sub.withAlpha(170) : ink,
+            size: 21,
+            color:
+                controls.$4 == RepeatSetting.off ? sub.withAlpha(175) : iosAccent,
           ),
           onPressed: () => ref.read(playerProvider.notifier).cycleRepeat(),
         ),
@@ -2854,15 +3949,37 @@ class _LyricsPanelViewState extends ConsumerState<_LyricsPanelView> {
     );
     final lyricOpts = ref.watch(
       settingsProvider.select(
-        (s) => (s.lyricsOffsetMs, s.romanizeLyrics, s.aiTranslateLyrics),
+        (s) => (
+          s.lyricsOffsetMs,
+          s.romanizeLyrics,
+          s.aiTranslateLyrics,
+          s.chordsEnabled,
+          s.chordMode,
+          s.chordTranspose,
+          s.chordCapo,
+        ),
       ),
     );
     final lyricsOffsetMs = lyricOpts.$1;
     final showRoman = lyricOpts.$2;
     final showTranslate = lyricOpts.$3;
+    final chordsEnabled = lyricOpts.$4;
+    final chordMode = ChordMode.fromString(lyricOpts.$5);
+    final chordTranspose = lyricOpts.$6;
+    final chordCapo = lyricOpts.$7;
     final lyrics = lyricState.$1;
     final loadingLyrics = lyricState.$2;
     final position = lyricState.$3;
+
+    final chordAnalysis = (chordsEnabled && lyrics != null && lyrics.lines.isNotEmpty)
+        ? ChordEngine.analyzeTrack(
+            widget.track,
+            lyrics.lines,
+            mode: chordMode,
+            transpose: chordTranspose,
+            capo: chordCapo,
+          )
+        : null;
 
     final activeLyricIdx =
         _findActiveLyricIndex(lyrics, position, lyricsOffsetMs);
@@ -2871,6 +3988,62 @@ class _LyricsPanelViewState extends ConsumerState<_LyricsPanelView> {
 
     return Column(
       children: [
+        if (chordAnalysis != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 6, 24, 4),
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                showChordSettingsSheet(
+                  context,
+                  ref,
+                  progression: chordAnalysis.progression,
+                  baseKey: chordAnalysis.baseKey,
+                  accentColor: const Color(0xFF4FD1C5),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF14181F).withAlpha(widget.isDark ? 195 : 32),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: (widget.isDark ? Colors.white : Colors.black).withAlpha(46),
+                    width: 0.8,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      CupertinoIcons.guitars,
+                      size: 15,
+                      color: Color(0xFF5CE1E6),
+                    ),
+                    const SizedBox(width: 7),
+                    Flexible(
+                      child: Text(
+                        chordAnalysis.summaryLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: widget.ink,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      CupertinoIcons.chevron_down,
+                      size: 13,
+                      color: widget.sub,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         Expanded(
           child: Stack(
             children: [
@@ -2939,30 +4112,135 @@ class _LyricsPanelViewState extends ConsumerState<_LyricsPanelView> {
                             lyricsOffsetMs,
                           );
                           final fontSize = widget.fullscreen ? 27.0 : 25.5;
+                          final placements = (chordAnalysis != null &&
+                                  idx < chordAnalysis.lineChords.length)
+                              ? chordAnalysis.lineChords[idx]
+                              : const <ChordPlacement>[];
 
-                          final mainLineWidget = isActive && lyrics.synced
-                              ? _ContrastSweepText(
-                                  text: line.text,
-                                  progress: progress,
-                                  activeColor: widget.ink,
-                                  inactiveColor: widget.ink.withAlpha(115),
-                                  fontSize: fontSize + 0.5,
-                                  fontWeight: FontWeight.w800,
-                                )
-                              : Text(
-                                  line.text,
-                                  style: TextStyle(
-                                    fontSize: fontSize,
-                                    height: 1.24,
-                                    letterSpacing: -0.5,
-                                    fontWeight: isActive
-                                        ? FontWeight.w800
-                                        : FontWeight.w600,
-                                    color: isActive
-                                        ? widget.ink
-                                        : widget.ink.withAlpha(88),
+                          final Widget mainLineWidget;
+                          if (placements.isNotEmpty) {
+                            final words = line.text
+                                .trim()
+                                .split(RegExp(r'\s+'))
+                                .where((w) => w.isNotEmpty)
+                                .toList();
+                            final chordMap = <int, ChordPlacement>{
+                              for (final p in placements) p.wordIndex: p,
+                            };
+                            mainLineWidget = Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.end,
+                              children: [
+                                for (var wi = 0; wi < words.length; wi++)
+                                  Builder(
+                                    builder: (_) {
+                                      final cp = chordMap[wi];
+                                      final wordFraction =
+                                          (wi + 1) / math.max(words.length, 1);
+                                      final wordDone = !lyrics.synced ||
+                                          (isActive && progress >= wordFraction);
+                                      final wordCol = isActive
+                                          ? (wordDone
+                                              ? widget.ink
+                                              : widget.ink.withAlpha(118))
+                                          : widget.ink.withAlpha(88);
+                                      return Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          if (cp != null)
+                                            GestureDetector(
+                                              onTap: () {
+                                                HapticFeedback.selectionClick();
+                                                showGuitarChordDiagramDialog(
+                                                  context,
+                                                  chordName: cp.displayChord,
+                                                  accentColor: const Color(0xFF4FD1C5),
+                                                );
+                                              },
+                                              child: Container(
+                                                margin: const EdgeInsets.only(
+                                                  bottom: 3,
+                                                ),
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal: isActive ? 7 : 2,
+                                                  vertical: isActive ? 1.5 : 1,
+                                                ),
+                                                decoration: isActive
+                                                    ? BoxDecoration(
+                                                        color: const Color(0xFF4FD1C5)
+                                                            .withAlpha(38),
+                                                        borderRadius:
+                                                            BorderRadius.circular(8),
+                                                        border: Border.all(
+                                                          color: const Color(0xFF5CE1E6)
+                                                              .withAlpha(110),
+                                                          width: 0.75,
+                                                        ),
+                                                      )
+                                                    : null,
+                                                child: Text(
+                                                  cp.displayChord,
+                                                  style: GoogleFonts
+                                                      .jetBrainsMono(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: widget.isDark
+                                                        ? const Color(0xFF5CE1E6)
+                                                            .withAlpha(isActive ? 255 : 135)
+                                                        : AppColors.iosTeal
+                                                            .withAlpha(isActive ? 255 : 145),
+                                                  ),
+                                                ),
+                                              ),
+                                            )
+                                          else
+                                            const SizedBox(height: 19),
+                                          Text(
+                                            words[wi],
+                                            style: TextStyle(
+                                              fontSize: fontSize - 2,
+                                              height: 1.2,
+                                              letterSpacing: -0.4,
+                                              fontWeight: isActive
+                                                  ? FontWeight.w800
+                                                  : FontWeight.w600,
+                                              color: wordCol,
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
                                   ),
-                                );
+                              ],
+                            );
+                          } else if (isActive && lyrics.synced) {
+                            mainLineWidget = _ContrastSweepText(
+                              text: line.text,
+                              progress: progress,
+                              activeColor: widget.ink,
+                              inactiveColor: widget.ink.withAlpha(115),
+                              fontSize: fontSize + 0.5,
+                              fontWeight: FontWeight.w800,
+                            );
+                          } else {
+                            mainLineWidget = Text(
+                              line.text,
+                              style: TextStyle(
+                                fontSize: fontSize,
+                                height: 1.24,
+                                letterSpacing: -0.5,
+                                fontWeight: isActive
+                                    ? FontWeight.w800
+                                    : FontWeight.w600,
+                                color: isActive
+                                    ? widget.ink
+                                    : widget.ink.withAlpha(88),
+                              ),
+                            );
+                          }
 
                           final hasRoman = showRoman &&
                               line.romanized != null &&
@@ -3105,6 +4383,20 @@ class _LyricsPanelViewState extends ConsumerState<_LyricsPanelView> {
                         ),
                       ],
                     ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      CupertinoIcons.guitars,
+                      color: chordsEnabled ? AppColors.iosBlue : widget.ink,
+                      size: 21,
+                    ),
+                    tooltip: chordsEnabled ? 'Sembunyikan chord' : 'Tampilkan chord',
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      ref
+                          .read(settingsProvider.notifier)
+                          .setChordsEnabled(!chordsEnabled);
+                    },
                   ),
                   IconButton(
                     icon: Icon(
@@ -3287,7 +4579,7 @@ class _QueuePanelView extends ConsumerWidget {
                           );
                         }
                       } else if (action == 'clear_upcoming') {
-                        await ref
+                        ref
                             .read(playerProvider.notifier)
                             .clearUpcomingQueue();
                       }

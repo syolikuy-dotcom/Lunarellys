@@ -13,7 +13,6 @@ import '../widgets/liquid_glass.dart';
 import '../widgets/lunarellys_logo.dart';
 import '../widgets/track_tile.dart';
 import 'detail_screens.dart';
-import 'main_shell.dart';
 import 'you_screen.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
@@ -218,7 +217,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final islandShown = islandEnabled && (islandAlways || hasTrack);
     final islandClearance =
         islandShown ? (islandPosition == 'notch' ? 8.0 : 42.0) : 0.0;
-    final navCollapsed = ref.watch(navCollapsedProvider);
     final T = AppStrings.of(appLanguage);
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
@@ -227,9 +225,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     return SafeArea(
       bottom: false,
-      child: Stack(
-        children: [
-          Column(
+      child: Column(
             children: [
               Padding(
                 padding: EdgeInsets.fromLTRB(16, 12 + islandClearance, 16, 10),
@@ -286,20 +282,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                 _controller.clear();
                                 _onQueryChanged('');
                               },
-                            )
-                          else
-                            IconButton(
-                              visualDensity: VisualDensity.compact,
-                              icon: Icon(CupertinoIcons.mic_fill, color: ink, size: 20),
-                              tooltip: T.recognizeSong,
-                              onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => const SongRecognitionScreen(),
-                                  ),
-                                );
-                              },
                             ),
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            icon: Icon(CupertinoIcons.mic_fill, color: ink, size: 20),
+                            tooltip: T.recognizeSong,
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const SongRecognitionScreen(),
+                                ),
+                              );
+                            },
+                          ),
                         ],
                         ),
                       ),
@@ -344,34 +339,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
             ],
           ),
-
-          // Floating Mic button above MiniPlayer when viewing search results
-          if (_hasSearched && _sourceTab == 0)
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 280),
-              curve: Curves.easeOutCubic,
-              right: 16,
-              bottom: MediaQuery.of(context).padding.bottom +
-                  (navCollapsed ? (hasTrack ? 86 : 84) : (hasTrack ? 156 : 92)),
-              child: LiquidGlassTap(
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const SongRecognitionScreen(),
-                  ),
-                ),
-                child: LiquidGlassSurface(
-                  borderRadius: BorderRadius.circular(999),
-                  blurSigma: 28,
-                  child: SizedBox(
-                    width: 50,
-                    height: 50,
-                    child: Icon(CupertinoIcons.mic_fill, color: ink, size: 21),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
     );
   }
 
@@ -501,6 +468,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                             url: track.bestThumbUrl(size: 320),
                             size: 142,
                             radius: 14,
+                            preserveFull: true,
                           ),
                           const SizedBox(height: 7),
                           Text(

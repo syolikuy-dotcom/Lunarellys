@@ -30,12 +30,12 @@ class AppConfig {
 }
 
 enum AppAppearanceStyle {
+  flat('flat', 'Datar (Flat)', 'Permukaan iOS bersih & ringan tanpa efek kaca'),
   glass(
     'glass',
     'Liquid Glass',
-    'Permukaan kaca adaptif dengan efek buram lembut',
-  ),
-  flat('flat', 'Datar (Flat)', 'Permukaan bersih minimalis tanpa blur');
+    'Permukaan kaca iOS adaptif dengan efek buram lembut',
+  );
 
   final String key;
   final String label;
@@ -45,7 +45,7 @@ enum AppAppearanceStyle {
   static AppAppearanceStyle fromString(String? raw) {
     return AppAppearanceStyle.values.firstWhere(
       (s) => s.key == raw,
-      orElse: () => AppAppearanceStyle.glass,
+      orElse: () => AppAppearanceStyle.flat,
     );
   }
 }
@@ -72,9 +72,10 @@ enum SoundStylePreset {
   normal('normal', 'Normal', 'Audio asli tanpa modifikasi', 1.0, 1.0),
   spedUp('sped_up', 'Sped up', 'Tempo lebih cepat (+22%) & nada naik', 1.22, 1.12),
   slowedReverb('slowed', 'Slowed + reverb', 'Tempo lambat (-16%) & nuansa dalam', 0.84, 0.88),
+  nightcore('nightcore', 'Nightcore', 'Energi tinggi (+30% kecepatan)', 1.30, 1.20),
   lofi('lofi', 'Lo-fi', 'Tempo santai hangat & lembut', 0.92, 0.95),
   eightD('8d', '8D', 'Nuansa spasial imersif seimbang', 0.98, 1.0),
-  nightcore('nightcore', 'Nightcore', 'Energi tinggi (+30% kecepatan)', 1.30, 1.20);
+  concert('concert', 'Konser', 'Gema aula konser lebar & vokal hangat', 0.97, 0.98);
 
   final String key;
   final String label;
@@ -97,6 +98,250 @@ enum SoundStylePreset {
     );
   }
 }
+
+enum DynamicIslandPreset {
+  classicBlack('classic', 'Klasik Hitam', 'OLED hitam pekat khas iPhone'),
+  ultraGlass('glass', 'Kaca Clear', 'Liquid Glass ultra bening & tajam'),
+  dynamicCover('dynamic', 'Dinamis', 'Otomatis ikuti warna sampul lagu'),
+  iosBlue('ios_blue', 'Biru iOS', 'Aksen safir cerah khas Apple'),
+  aurora('aurora', 'Aurora', 'Bias spektrum ungu-biru neon'),
+  minimalLight('minimal_light', 'Minimal Putih', 'Pil terang bersih kontras tinggi');
+
+  final String key;
+  final String label;
+  final String description;
+  const DynamicIslandPreset(this.key, this.label, this.description);
+
+  static DynamicIslandPreset fromString(String? raw) {
+    return DynamicIslandPreset.values.firstWhere(
+      (p) => p.key == raw,
+      orElse: () => DynamicIslandPreset.classicBlack,
+    );
+  }
+}
+
+class AppIconStyle {
+  final String key;
+  final String label;
+  final String androidAlias;
+  final Color bgTop;
+  final Color bgBottom;
+  final Color primary;
+  final Color accent;
+  final bool hasInnerBox;
+
+  const AppIconStyle({
+    required this.key,
+    required this.label,
+    required this.androidAlias,
+    required this.bgTop,
+    required this.bgBottom,
+    required this.primary,
+    required this.accent,
+    this.hasInnerBox = false,
+  });
+
+  static const List<AppIconStyle> presets = [
+    AppIconStyle(
+      key: 'bawaan',
+      label: 'Bawaan',
+      androidAlias: 'com.lunarellys.music.IconBawaan',
+      bgTop: Color(0xFF0E1726),
+      bgBottom: Color(0xFF070C14),
+      primary: Color(0xFFF8FAFC),
+      accent: Color(0xFF60A5FA),
+    ),
+    AppIconStyle(
+      key: 'malam',
+      label: 'Malam',
+      androidAlias: 'com.lunarellys.music.IconMalam',
+      bgTop: Color(0xFF08090C),
+      bgBottom: Color(0xFF000000),
+      primary: Color(0xFFFFFFFF),
+      accent: Color(0xFF94A3B8),
+    ),
+    AppIconStyle(
+      key: 'kaca',
+      label: 'Kaca',
+      androidAlias: 'com.lunarellys.music.IconKaca',
+      bgTop: Color(0xFFE6EEF9),
+      bgBottom: Color(0xFFC9D9EE),
+      primary: Color(0xFF0F172A),
+      accent: Color(0xFF2563EB),
+      hasInnerBox: true,
+    ),
+    AppIconStyle(
+      key: 'emas',
+      label: 'Emas',
+      androidAlias: 'com.lunarellys.music.IconEmas',
+      bgTop: Color(0xFF2B2212),
+      bgBottom: Color(0xFF140F07),
+      primary: Color(0xFFFDE68A),
+      accent: Color(0xFFF59E0B),
+    ),
+    AppIconStyle(
+      key: 'hutan',
+      label: 'Hutan',
+      androidAlias: 'com.lunarellys.music.IconHutan',
+      bgTop: Color(0xFF0F3D2E),
+      bgBottom: Color(0xFF072119),
+      primary: Color(0xFFECFDF5),
+      accent: Color(0xFF34D399),
+    ),
+    AppIconStyle(
+      key: 'samudra',
+      label: 'Samudra',
+      androidAlias: 'com.lunarellys.music.IconSamudra',
+      bgTop: Color(0xFF0C4A6E),
+      bgBottom: Color(0xFF082F49),
+      primary: Color(0xFFF0F9FF),
+      accent: Color(0xFF38BDF8),
+    ),
+    AppIconStyle(
+      key: 'senja',
+      label: 'Senja',
+      androidAlias: 'com.lunarellys.music.IconSenja',
+      bgTop: Color(0xFFF97316),
+      bgBottom: Color(0xFF9D174D),
+      primary: Color(0xFFFFF7ED),
+      accent: Color(0xFFFDE047),
+    ),
+    AppIconStyle(
+      key: 'piringan',
+      label: 'Piringan',
+      androidAlias: 'com.lunarellys.music.IconPiringan',
+      bgTop: Color(0xFF1E1B2E),
+      bgBottom: Color(0xFF110F1B),
+      primary: Color(0xFFF1F5F9),
+      accent: Color(0xFFA78BFA),
+      hasInnerBox: true,
+    ),
+    AppIconStyle(
+      key: 'neon',
+      label: 'Neon',
+      androidAlias: 'com.lunarellys.music.IconNeon',
+      bgTop: Color(0xFF050816),
+      bgBottom: Color(0xFF0D1B2A),
+      primary: Color(0xFF22D3EE),
+      accent: Color(0xFFF472B6),
+    ),
+    AppIconStyle(
+      key: 'gema',
+      label: 'Gema',
+      androidAlias: 'com.lunarellys.music.IconGema',
+      bgTop: Color(0xFF3B0764),
+      bgBottom: Color(0xFF1E1B4B),
+      primary: Color(0xFFF5F3FF),
+      accent: Color(0xFFC084FC),
+    ),
+    AppIconStyle(
+      key: 'bintang',
+      label: 'Bintang',
+      androidAlias: 'com.lunarellys.music.IconBintang',
+      bgTop: Color(0xFF172554),
+      bgBottom: Color(0xFF090D16),
+      primary: Color(0xFFFEF08A),
+      accent: Color(0xFF60A5FA),
+    ),
+    AppIconStyle(
+      key: 'aurora',
+      label: 'Aurora',
+      androidAlias: 'com.lunarellys.music.IconAurora',
+      bgTop: Color(0xFF065F46),
+      bgBottom: Color(0xFF312E81),
+      primary: Color(0xFFF8FAFC),
+      accent: Color(0xFF5EEAD4),
+    ),
+    AppIconStyle(
+      key: 'sakura',
+      label: 'Sakura',
+      androidAlias: 'com.lunarellys.music.IconSakura',
+      bgTop: Color(0xFFFBCFE8),
+      bgBottom: Color(0xFFF472B6),
+      primary: Color(0xFF500724),
+      accent: Color(0xFFFFFFFF),
+      hasInnerBox: true,
+    ),
+    AppIconStyle(
+      key: 'mono',
+      label: 'Mono',
+      androidAlias: 'com.lunarellys.music.IconMono',
+      bgTop: Color(0xFFF8FAFC),
+      bgBottom: Color(0xFFE2E8F0),
+      primary: Color(0xFF0F172A),
+      accent: Color(0xFF475569),
+    ),
+    AppIconStyle(
+      key: 'kopi',
+      label: 'Kopi',
+      androidAlias: 'com.lunarellys.music.IconKopi',
+      bgTop: Color(0xFF451A03),
+      bgBottom: Color(0xFF271206),
+      primary: Color(0xFFFEF3C7),
+      accent: Color(0xFFD97706),
+    ),
+    AppIconStyle(
+      key: 'ruby',
+      label: 'Ruby',
+      androidAlias: 'com.lunarellys.music.IconRuby',
+      bgTop: Color(0xFF9F1239),
+      bgBottom: Color(0xFF4C0519),
+      primary: Color(0xFFFFF1F2),
+      accent: Color(0xFFFB7185),
+    ),
+    AppIconStyle(
+      key: 'zamrud',
+      label: 'Zamrud',
+      androidAlias: 'com.lunarellys.music.IconZamrud',
+      bgTop: Color(0xFF047857),
+      bgBottom: Color(0xFF022C22),
+      primary: Color(0xFFECFDF5),
+      accent: Color(0xFF6EE7B7),
+    ),
+    AppIconStyle(
+      key: 'siber',
+      label: 'Siber',
+      androidAlias: 'com.lunarellys.music.IconSiber',
+      bgTop: Color(0xFF111827),
+      bgBottom: Color(0xFF030712),
+      primary: Color(0xFFA3E635),
+      accent: Color(0xFF38BDF8),
+    ),
+    AppIconStyle(
+      key: 'pastel',
+      label: 'Pastel',
+      androidAlias: 'com.lunarellys.music.IconPastel',
+      bgTop: Color(0xFFDDD6FE),
+      bgBottom: Color(0xFFBFDBFE),
+      primary: Color(0xFF1E293B),
+      accent: Color(0xFF6366F1),
+      hasInnerBox: true,
+    ),
+    AppIconStyle(
+      key: 'baja',
+      label: 'Baja',
+      androidAlias: 'com.lunarellys.music.IconBaja',
+      bgTop: Color(0xFF475569),
+      bgBottom: Color(0xFF1E293B),
+      primary: Color(0xFFF8FAFC),
+      accent: Color(0xFF94A3B8),
+    ),
+  ];
+
+  static AppIconStyle byKey(String? key) {
+    return presets.firstWhere(
+      (e) => e.key == key,
+      orElse: () => presets.first,
+    );
+  }
+}
+
+const List<String> kLyricsSources = [
+  'Auto Terbaik',
+  'Archys Sync',
+  'LRCLIB Sync',
+  'YouTube Music',
+];
 
 enum AudioQuality {
   high('high', 'Tinggi (Bitrate Terbaik)'),

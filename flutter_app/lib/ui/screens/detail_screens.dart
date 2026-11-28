@@ -1591,28 +1591,362 @@ class _StatsRecapScreenState extends ConsumerState<StatsRecapScreen> {
   }
 
   void _showRecapSummaryDialog(BuildContext context, LibraryState library, int totalMin) {
-    showArchysGlassDialog<void>(
+    final topTrack = library.top50Tracks.isNotEmpty
+        ? library.top50Tracks.first
+        : (library.recentlyPlayed.isNotEmpty ? library.recentlyPlayed.first : null);
+    final topPlayCount = topTrack != null ? (library.playCounts[topTrack.id] ?? 1) : 0;
+    final topArtist = topTrack?.artistDisplay.isNotEmpty == true
+        ? topTrack!.artistDisplay
+        : 'Musisi Favoritmu';
+
+    final pageCtrl = PageController();
+    var currentSlide = 0;
+
+    showGeneralDialog<void>(
       context: context,
-      title: const Text('Recap kamu 2026'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+      barrierDismissible: true,
+      barrierLabel: 'Tutup Recap',
+      barrierColor: Colors.black.withAlpha(220),
+      transitionDuration: const Duration(milliseconds: 260),
+      pageBuilder: (ctx, _, __) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            void goSlide(int delta) {
+              final next = (currentSlide + delta).clamp(0, 3);
+              if (next != currentSlide) {
+                HapticFeedback.selectionClick();
+                pageCtrl.animateToPage(
+                  next,
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutCubic,
+                );
+              } else if (delta > 0 && currentSlide == 3) {
+                Navigator.of(ctx).pop();
+              }
+            }
+
+            final slideGradients = [
+              const [Color(0xFF0A2444), Color(0xFF0E1320), Color(0xFF04060A)],
+              const [Color(0xFF28124B), Color(0xFF130E24), Color(0xFF050609)],
+              const [Color(0xFF0B3B36), Color(0xFF0A1B24), Color(0xFF040609)],
+              const [Color(0xFF471F09), Color(0xFF1F100B), Color(0xFF060608)],
+            ];
+
+            return Scaffold(
+              backgroundColor: Colors.black,
+              body: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(28),
+                    child: Stack(
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 350),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: slideGradients[currentSlide],
+                            ),
+                          ),
+                        ),
+                        PageView(
+                          controller: pageCtrl,
+                          onPageChanged: (idx) =>
+                              setModalState(() => currentSlide = idx),
+                          children: [
+                            // Slide 1: Lagu teratas
+                            _recapStorySlide(
+                              eyebrow: 'Lagu teratas',
+                              headline: topTrack?.title ?? 'Belum ada lagu',
+                              subline: topTrack != null
+                                  ? topTrack.artistDisplay
+                                  : 'Putar lagu favoritmu untuk mengisi Recap',
+                              pillLabel: topTrack != null
+                                  ? 'Diputar $topPlayCount kali'
+                                  : 'Mulai mendengarkan',
+                              hero: topTrack != null
+                                  ? ArtworkImage(
+                                      url: topTrack.bestThumbUrl(size: 500),
+                                      size: 210,
+                                      radius: 24,
+                                      preserveFull: true,
+                                    )
+                                  : const ArchysHorizonLogo(
+                                      size: 130,
+                                      color: Colors.white,
+                                    ),
+                            ),
+                            // Slide 2: Artis teratas
+                            _recapStorySlide(
+                              eyebrow: 'Artis teratas',
+                              headline: topArtist,
+                              subline:
+                                  '${library.top50Tracks.length} lagu teratas tercatat di pustakamu',
+                              pillLabel: '${library.followedArtists.length} artis diikuti',
+                              hero: Container(
+                                width: 168,
+                                height: 168,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withAlpha(24),
+                                  border: Border.all(
+                                    color: Colors.white.withAlpha(80),
+                                    width: 1.4,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: topTrack != null
+                                      ? ClipOval(
+                                          child: ArtworkImage(
+                                            url: topTrack.bestThumbUrl(size: 400),
+                                            size: 160,
+                                            radius: 80,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          CupertinoIcons.music_mic,
+                                          color: Colors.white,
+                                          size: 64,
+                                        ),
+                                ),
+                              ),
+                            ),
+                            // Slide 3: Waktu mendengarkan
+                            _recapStorySlide(
+                              eyebrow: 'Waktu mendengarkan',
+                              headline: '$totalMin menit',
+                              subline:
+                                  '${library.likedSongs.length} lagu disukai · ${library.downloadedTracks.length} unduhan offline',
+                              pillLabel: 'Statistik 2026',
+                              hero: Container(
+                                padding: const EdgeInsets.all(28),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.tealAccent.withAlpha(32),
+                                  border: Border.all(
+                                    color: Colors.tealAccent.withAlpha(110),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  CupertinoIcons.headphones,
+                                  color: Colors.white,
+                                  size: 76,
+                                ),
+                              ),
+                            ),
+                            // Slide 4: Percikan harian
+                            _recapStorySlide(
+                              eyebrow: 'Percikan harian',
+                              headline: '${library.currentStreak} hari berturut-turut',
+                              subline:
+                                  'Rekor terbaik: ${library.longestStreak} hari · Total ${library.totalActiveDays} hari aktif',
+                              pillLabel: 'Tetap nyalakan apimu',
+                              hero: Container(
+                                padding: const EdgeInsets.all(28),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: const Color(0xFFFF982E).withAlpha(45),
+                                  border: Border.all(
+                                    color: const Color(0xFFFF982E).withAlpha(140),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  CupertinoIcons.flame_fill,
+                                  color: Color(0xFFFFB347),
+                                  size: 84,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        // Tap Left / Right navigation overlays (excluding top bar)
+                        Positioned.fill(
+                          top: 78,
+                          bottom: 92,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.translucent,
+                                  onTap: () => goSlide(-1),
+                                ),
+                              ),
+                              Expanded(
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.translucent,
+                                  onTap: () => goSlide(1),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Top Story Progress Bars & Brand Header
+                        Positioned(
+                          top: 14,
+                          left: 14,
+                          right: 14,
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  for (var i = 0; i < 4; i++) ...[
+                                    Expanded(
+                                      child: Container(
+                                        height: 3.2,
+                                        decoration: BoxDecoration(
+                                          color: i <= currentSlide
+                                              ? Colors.white
+                                              : Colors.white.withAlpha(65),
+                                          borderRadius: BorderRadius.circular(99),
+                                        ),
+                                      ),
+                                    ),
+                                    if (i < 3) const SizedBox(width: 6),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  const ArchysHorizonLogo(
+                                    size: 24,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Recap kamu 2026',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  IconButton(
+                                    icon: const Icon(
+                                      CupertinoIcons.xmark,
+                                      color: Colors.white,
+                                      size: 22,
+                                    ),
+                                    onPressed: () => Navigator.of(ctx).pop(),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Bottom Share Action
+                        Positioned(
+                          left: 20,
+                          right: 20,
+                          bottom: 22,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: FilledButton.icon(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: Colors.black,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(18),
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    Share.share(
+                                      'Recap Archys 2026 saya: $totalMin menit mendengar musik, lagu teratas ${topTrack?.title ?? '-'} ($topPlayCount kali putar), dan streak ${library.currentStreak} hari berturut-turut!',
+                                    );
+                                  },
+                                  icon: const Icon(CupertinoIcons.share, size: 18),
+                                  label: const Text(
+                                    'Bagikan Recap',
+                                    style: TextStyle(fontWeight: FontWeight.w800),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(pageCtrl.dispose);
+  }
+
+  Widget _recapStorySlide({
+    required String eyebrow,
+    required String headline,
+    required String subline,
+    required String pillLabel,
+    required Widget hero,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(26, 86, 26, 94),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('Total waktu dengar: $totalMin menit'),
-          const SizedBox(height: 6),
-          Text('Lagu teratas tercatat: ${library.top50Tracks.length} lagu'),
-          const SizedBox(height: 6),
-          Text('Lagu disukai: ${library.likedSongs.length} lagu'),
-          const SizedBox(height: 6),
-          Text('Percikan aktif: ${library.currentStreak} hari berturut-turut'),
+          hero,
+          const SizedBox(height: 26),
+          Text(
+            eyebrow.toUpperCase(),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.4,
+              color: Colors.white.withAlpha(180),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            headline,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: -0.6,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subline,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 14.5,
+              color: Colors.white.withAlpha(200),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(26),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: Colors.white.withAlpha(65)),
+            ),
+            child: Text(
+              pillLabel,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ],
       ),
-      actionsBuilder: (ctx) => [
-        FilledButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('Tutup'),
-        ),
-      ],
     );
   }
 }
@@ -1854,7 +2188,7 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
     'Datar': [0.0, 0.0, 0.0, 0.0, 0.0],
     'Bass kuat': [7.5, 4.5, 0.0, -1.0, 1.5],
     'Treble kuat': [-1.0, 0.5, 2.5, 6.0, 8.5],
-    'Vokal jernih': [-2.5, 1.5, 6.5, 4.5, 0.5],
+    'Vokal jelas': [-2.5, 1.5, 6.5, 4.5, 0.5],
     'Elektronik': [5.5, 3.0, -1.5, 4.0, 6.0],
     'Rock': [4.5, 2.0, -1.0, 3.5, 5.5],
   };
@@ -2612,258 +2946,319 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
+    final soundStyle = ref.watch(playerProvider.select((s) => s.soundStyle));
     final auth = ref.watch(authProvider);
     final perms = ref.watch(devicePermissionsProvider);
-    final border = AppColors.borderOf(context);
+    final ink = AppColors.inkOf(context);
+    final sub = AppColors.subOf(context);
+    final pill = AppColors.pillOf(context);
     final query = _searchCtrl.text.trim().toLowerCase();
 
     bool match(String s) => query.isEmpty || s.toLowerCase().contains(query);
+
+    final qualityShort = switch (settings.audioQuality) {
+      AudioQuality.high => 'Tinggi',
+      AudioQuality.medium => 'Sedang',
+      AudioQuality.low => 'Hemat',
+    };
+    final appearanceShort =
+        settings.appearanceStyle == AppAppearanceStyle.flat
+            ? 'Datar'
+            : 'Liquid Glass';
+    final langShort = settings.appLanguage == AppLanguageOption.en
+        ? 'English'
+        : 'Indonesia';
+
+    final playbackRows = <Widget>[
+      if (match('Suara dan pemutaran kualitas audio radio antrean'))
+        _navRow(
+          context,
+          icon: CupertinoIcons.play_fill,
+          iconBg: AppColors.iosPink,
+          title: 'Suara dan pemutaran',
+          trailingValue: qualityShort,
+          onTap: () => _showPlaybackSettingsSheet(context),
+        ),
+      if (match('Tampilan kaca datar tema terang gelap warna album dynamic island liquid glass'))
+        _navRow(
+          context,
+          icon: CupertinoIcons.sparkles,
+          iconBg: AppColors.iosBlue,
+          title: 'Tampilan & Gaya iOS',
+          trailingValue: appearanceShort,
+          trailingBadge: settings.dynamicIslandEnabled ? 'Island' : null,
+          onTap: () => _showAppearanceSheet(context),
+        ),
+      if (match('Pusat Kontrol Control Center volume kaca'))
+        _navRow(
+          context,
+          icon: CupertinoIcons.slider_horizontal_3,
+          iconBg: AppColors.iosIndigo,
+          title: 'Pusat Kontrol',
+          trailingValue: soundStyle.label,
+          onTap: () => showIosControlCenter(
+            context,
+            ref,
+            onOpenEqualizer: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const EqualizerScreen(),
+              ),
+            ),
+          ),
+        ),
+      if (match('Bahasa dan konten indonesia inggris'))
+        _navRow(
+          context,
+          icon: CupertinoIcons.globe,
+          iconBg: AppColors.iosTeal,
+          title: 'Bahasa dan konten',
+          trailingValue: langShort,
+          onTap: () => _showLanguageSheet(context),
+        ),
+      if (match('Lirik dan terjemahan ai romanisasi interval'))
+        _navRow(
+          context,
+          icon: CupertinoIcons.quote_bubble_fill,
+          iconBg: AppColors.iosOrange,
+          title: 'Lirik dan terjemahan',
+          trailingValue: settings.aiTranslateLyrics ? 'AI Aktif' : null,
+          onTap: () => _showLyricsSettingsSheet(context),
+        ),
+    ];
+
+    final privacyRows = <Widget>[
+      if (match('Perizinan dan latar belakang notifikasi baterai bluetooth mikrofon dynamic island'))
+        _navRow(
+          context,
+          icon: CupertinoIcons.bell_fill,
+          iconBg: AppColors.iosRed,
+          title: 'Perizinan & Latar Belakang',
+          trailingBadge: perms.backgroundReady ? 'Siap' : 'Perlu Izin',
+          badgeColor:
+              perms.backgroundReady ? AppColors.iosGreen : AppColors.iosOrange,
+          onTap: () => showPermissionsAndBackgroundSheet(context, ref),
+        ),
+      if (match('Privasi dan riwayat tontonan pencarian'))
+        _navRow(
+          context,
+          icon: CupertinoIcons.lock_shield_fill,
+          iconBg: AppColors.iosBlue,
+          title: 'Privasi dan riwayat',
+          onTap: () => _showPrivacySheet(context),
+        ),
+      if (match('Penyimpanan unduhan cache hapus'))
+        _navRow(
+          context,
+          icon: CupertinoIcons.folder_fill,
+          iconBg: const Color(0xFF64748B),
+          title: 'Penyimpanan',
+          onTap: () => _showStorageSheet(context),
+        ),
+      if (match('Cadangan dan impor json ekspor pulihkan'))
+        _navRow(
+          context,
+          icon: CupertinoIcons.cloud_fill,
+          iconBg: AppColors.iosIndigo,
+          title: 'Cadangan dan impor',
+          onTap: () => _showBackupImportSheet(context),
+        ),
+    ];
+
+    final systemRows = <Widget>[
+      if (match('Android Auto mobil'))
+        _navRow(
+          context,
+          icon: CupertinoIcons.car_detailed,
+          iconBg: AppColors.iosGreen,
+          title: 'Android Auto',
+          trailingValue: settings.androidAutoEnabled ? 'Aktif' : 'Mati',
+          onTap: () {
+            final next = !settings.androidAutoEnabled;
+            ref.read(settingsProvider.notifier).setAndroidAutoEnabled(next);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  next
+                      ? 'Integrasi Android Auto diaktifkan'
+                      : 'Android Auto dinonaktifkan',
+                ),
+              ),
+            );
+          },
+        ),
+      if (match('Tautan link youtube music'))
+        _navRow(
+          context,
+          icon: CupertinoIcons.link,
+          iconBg: AppColors.iosTeal,
+          title: 'Tautan',
+          trailingValue: 'Aktif',
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Tautan archys:// & music.youtube.com aktif'),
+              ),
+            );
+          },
+        ),
+      if (match('Tentang Archys versi pengembang'))
+        _navRow(
+          context,
+          icon: CupertinoIcons.info_circle_fill,
+          iconBg: const Color(0xFF475569),
+          title: 'Tentang ${AppConfig.appName}',
+          trailingValue: 'v${AppConfig.appVersion}',
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const AboutScreen()),
+            );
+          },
+        ),
+    ];
 
     return Scaffold(
       appBar: AppBar(title: const Text('Pengaturan')),
       body: SubscreenMiniPlayerLayer(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 132),
-        children: [
-          TextField(
-            controller: _searchCtrl,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              hintText: 'Cari pengaturan...',
-              prefixIcon: const Icon(Icons.search_rounded),
-              suffixIcon: query.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.close_rounded),
-                      onPressed: () {
-                        _searchCtrl.clear();
-                        setState(() {});
-                      },
-                    )
-                  : null,
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          if (query.isEmpty) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: _smallAccountBanner(
-                    context,
-                    bg: AppColors.isDark(context)
-                        ? const Color(0x9928171B)
-                        : const Color(0xB8FDF1F2),
-                    chromaticAccent: const Color(0xFFFF3B30),
-                    icon: const YouTubeMusicLogoIcon(size: 32),
-                    title: 'YouTube Music',
-                    subtitle: 'Sinkronkan pustaka dan playlist',
-                    btnLabel: auth.isSignedInGoogle ? 'Tersambung' : 'Masuk',
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => auth.isSignedInGoogle
-                              ? const ProfileScreen()
-                              : const YouTubeMusicLoginScreen(),
-                        ),
-                      );
-                    },
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 132),
+          children: [
+            Container(
+              height: 44,
+              decoration: BoxDecoration(
+                color: pill,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: TextField(
+                controller: _searchCtrl,
+                onChanged: (_) => setState(() {}),
+                style: TextStyle(fontSize: 15, color: ink),
+                decoration: InputDecoration(
+                  hintText: 'Cari pengaturan...',
+                  hintStyle: TextStyle(color: sub, fontSize: 15),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 11),
+                  prefixIcon: Icon(
+                    CupertinoIcons.search,
+                    size: 19,
+                    color: sub,
                   ),
+                  suffixIcon: query.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(
+                            CupertinoIcons.clear_circled_solid,
+                            size: 18,
+                            color: sub,
+                          ),
+                          onPressed: () {
+                            _searchCtrl.clear();
+                            setState(() {});
+                          },
+                        )
+                      : null,
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _smallAccountBanner(
-                    context,
-                    bg: AppColors.isDark(context)
-                        ? const Color(0x9914271C)
-                        : const Color(0xB8EEF9F2),
-                    chromaticAccent: const Color(0xFF1DB954),
-                    icon: const SpotifyLogoIcon(size: 32),
-                    title: 'Spotify',
-                    subtitle: 'Playlist tampil di Pustaka',
-                    btnLabel: settings.spotifyConnected ? 'Kelola' : 'Hubungkan',
-                    onTap: () {
-                      ref.read(settingsProvider.notifier).setSpotifyConnection(
-                            connected: !settings.spotifyConnected,
-                            displayName: !settings.spotifyConnected ? 'Playlist Spotify' : '',
-                          );
-                    },
-                  ),
-                ),
-              ],
+              ),
             ),
             const SizedBox(height: 16),
-          ],
 
-          // Card 1: Audio, Appearance, Control Center, Language, Lyrics
-          _settingsGroupCard(
-            border: border,
-            children: [
-              if (match('Suara dan pemutaran kualitas audio radio antrean'))
-                _navRow(
-                  context,
-                  icon: CupertinoIcons.play_fill,
-                  iconBg: AppColors.iosPink,
-                  title: 'Suara dan pemutaran',
-                  onTap: () => _showPlaybackSettingsSheet(context),
-                ),
-              if (match('Tampilan kaca datar tema terang gelap warna album dynamic island liquid glass'))
-                _navRow(
-                  context,
-                  icon: CupertinoIcons.sparkles,
-                  iconBg: AppColors.iosBlue,
-                  title: 'Tampilan & Dynamic Island',
-                  trailingBadge: settings.dynamicIslandEnabled ? 'Aktif' : null,
-                  onTap: () => _showAppearanceSheet(context),
-                ),
-              if (match('Pusat Kontrol Control Center volume kaca'))
-                _navRow(
-                  context,
-                  icon: CupertinoIcons.slider_horizontal_3,
-                  iconBg: AppColors.iosIndigo,
-                  title: 'Pusat Kontrol',
-                  onTap: () => showIosControlCenter(
-                    context,
-                    ref,
-                    onOpenEqualizer: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const EqualizerScreen(),
-                      ),
+            if (query.isEmpty) ...[
+              const IosSectionHeader(
+                title: 'Akun & Layanan',
+                padding: EdgeInsets.fromLTRB(6, 0, 6, 8),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: _smallAccountBanner(
+                      context,
+                      bg: AppColors.isDark(context)
+                          ? const Color(0x9928171B)
+                          : const Color(0xB8FDF1F2),
+                      chromaticAccent: const Color(0xFFFF3B30),
+                      icon: const YouTubeMusicLogoIcon(size: 32),
+                      title: 'YouTube Music',
+                      subtitle: 'Sinkronkan pustaka dan playlist',
+                      btnLabel: auth.isSignedInGoogle ? 'Tersambung' : 'Masuk',
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => auth.isSignedInGoogle
+                                ? const ProfileScreen()
+                                : const YouTubeMusicLoginScreen(),
+                          ),
+                        );
+                      },
                     ),
                   ),
-                ),
-              if (match('Bahasa dan konten indonesia inggris'))
-                _navRow(
-                  context,
-                  icon: CupertinoIcons.globe,
-                  iconBg: AppColors.iosTeal,
-                  title: 'Bahasa dan konten',
-                  onTap: () => _showLanguageSheet(context),
-                ),
-              if (match('Lirik dan terjemahan ai romanisasi interval'))
-                _navRow(
-                  context,
-                  icon: CupertinoIcons.quote_bubble_fill,
-                  iconBg: AppColors.iosOrange,
-                  title: 'Lirik dan terjemahan',
-                  onTap: () => _showLyricsSettingsSheet(context),
-                ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _smallAccountBanner(
+                      context,
+                      bg: AppColors.isDark(context)
+                          ? const Color(0x9914271C)
+                          : const Color(0xB8EEF9F2),
+                      chromaticAccent: const Color(0xFF1DB954),
+                      icon: const SpotifyLogoIcon(size: 32),
+                      title: 'Spotify',
+                      subtitle: 'Playlist tampil di Pustaka',
+                      btnLabel:
+                          settings.spotifyConnected ? 'Kelola' : 'Hubungkan',
+                      onTap: () {
+                        ref.read(settingsProvider.notifier).setSpotifyConnection(
+                              connected: !settings.spotifyConnected,
+                              displayName: !settings.spotifyConnected
+                                  ? 'Playlist Spotify'
+                                  : '',
+                            );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
             ],
-          ),
-          const SizedBox(height: 14),
 
-          // Card 2: Permissions, Privacy, Storage, Backup
-          _settingsGroupCard(
-            border: border,
-            children: [
-              if (match('Perizinan dan latar belakang notifikasi baterai bluetooth mikrofon dynamic island'))
-                _navRow(
-                  context,
-                  icon: CupertinoIcons.bell_fill,
-                  iconBg: AppColors.iosRed,
-                  title: 'Perizinan & Latar Belakang',
-                  trailingBadge: perms.backgroundReady ? 'Siap' : 'Perlu Izin',
-                  badgeColor: perms.backgroundReady
-                      ? AppColors.iosGreen
-                      : AppColors.iosOrange,
-                  onTap: () => showPermissionsAndBackgroundSheet(context, ref),
-                ),
-              if (match('Privasi dan riwayat tontonan pencarian'))
-                _navRow(
-                  context,
-                  icon: CupertinoIcons.lock_shield_fill,
-                  iconBg: AppColors.iosBlue,
-                  title: 'Privasi dan riwayat',
-                  onTap: () => _showPrivacySheet(context),
-                ),
-              if (match('Penyimpanan unduhan cache hapus'))
-                _navRow(
-                  context,
-                  icon: CupertinoIcons.folder_fill,
-                  iconBg: const Color(0xFF64748B),
-                  title: 'Penyimpanan',
-                  onTap: () => _showStorageSheet(context),
-                ),
-              if (match('Cadangan dan impor json ekspor pulihkan'))
-                _navRow(
-                  context,
-                  icon: CupertinoIcons.cloud_fill,
-                  iconBg: AppColors.iosIndigo,
-                  title: 'Cadangan dan impor',
-                  onTap: () => _showBackupImportSheet(context),
-                ),
+            if (playbackRows.isNotEmpty) ...[
+              const IosSectionHeader(
+                title: 'Pemutaran & Tampilan',
+                padding: EdgeInsets.fromLTRB(6, 0, 6, 8),
+              ),
+              IosGroupedListCard(
+                radius: 20,
+                dividerIndent: 58,
+                children: playbackRows,
+              ),
+              const SizedBox(height: 18),
             ],
-          ),
-          const SizedBox(height: 14),
 
-          // Card 3: Android Auto, Links, About (node setup disembunyikan: 7x ketuk di Tentang + passcode)
-          _settingsGroupCard(
-            border: border,
-            children: [
-              if (match('Android Auto mobil'))
-                _navRow(
-                  context,
-                  icon: CupertinoIcons.car_detailed,
-                  iconBg: AppColors.iosGreen,
-                  title: 'Android Auto',
-                  onTap: () {
-                    final next = !settings.androidAutoEnabled;
-                    ref.read(settingsProvider.notifier).setAndroidAutoEnabled(next);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          next ? 'Integrasi Android Auto diaktifkan' : 'Android Auto dinonaktifkan',
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              if (match('Tautan link youtube music'))
-                _navRow(
-                  context,
-                  icon: CupertinoIcons.link,
-                  iconBg: AppColors.iosTeal,
-                  title: 'Tautan',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Tautan archys:// & music.youtube.com aktif')),
-                    );
-                  },
-                ),
-              if (match('Tentang Archys versi pengembang'))
-                _navRow(
-                  context,
-                  icon: CupertinoIcons.info_circle_fill,
-                  iconBg: const Color(0xFF475569),
-                  title: 'Tentang ${AppConfig.appName}',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(builder: (_) => const AboutScreen()),
-                    );
-                  },
-                ),
+            if (privacyRows.isNotEmpty) ...[
+              const IosSectionHeader(
+                title: 'Privasi, Izin & Data',
+                padding: EdgeInsets.fromLTRB(6, 0, 6, 8),
+              ),
+              IosGroupedListCard(
+                radius: 20,
+                dividerIndent: 58,
+                children: privacyRows,
+              ),
+              const SizedBox(height: 18),
             ],
-          ),
-        ],
+
+            if (systemRows.isNotEmpty) ...[
+              const IosSectionHeader(
+                title: 'Sistem & Informasi',
+                padding: EdgeInsets.fromLTRB(6, 0, 6, 8),
+              ),
+              IosGroupedListCard(
+                radius: 20,
+                dividerIndent: 58,
+                children: systemRows,
+              ),
+            ],
+          ],
+        ),
       ),
-      ),
-    );
-  }
-
-  Widget _settingsGroupCard({
-    required Color border,
-    required List<Widget> children,
-  }) {
-    if (children.isEmpty) return const SizedBox.shrink();
-    final spaced = <Widget>[];
-    for (var i = 0; i < children.length; i++) {
-      spaced.add(children[i]);
-      if (i + 1 < children.length) {
-        spaced.add(Divider(height: 1, indent: 60, color: border));
-      }
-    }
-    return LiquidGlassCard(
-      radius: 22,
-      child: Column(children: spaced),
     );
   }
 
@@ -2872,6 +3267,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     required IconData icon,
     required Color iconBg,
     required String title,
+    String? trailingValue,
     String? trailingBadge,
     Color? badgeColor,
     required VoidCallback onTap,
@@ -2883,6 +3279,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       leading: IosSquircleBadge(icon: icon, color: iconBg),
       title: Text(
         title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600, color: ink),
       ),
       trailing: Row(
@@ -2905,11 +3303,98 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
             const SizedBox(width: 6),
+          ] else if (trailingValue != null) ...[
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 112),
+              child: Text(
+                trailingValue,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: sub,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
           ],
-          Icon(CupertinoIcons.chevron_forward, color: sub, size: 18),
+          Icon(
+            CupertinoIcons.chevron_forward,
+            color: sub.withAlpha(185),
+            size: 16,
+          ),
         ],
       ),
       onTap: onTap,
+    );
+  }
+
+  Widget _iosSegmentedControl<T>(
+    BuildContext context, {
+    required List<({T value, String label})> items,
+    required T selected,
+    required ValueChanged<T> onSelect,
+  }) {
+    final isDark = AppColors.isDark(context);
+    final ink = AppColors.inkOf(context);
+    final sub = AppColors.subOf(context);
+    final trackColor =
+        isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+    final thumbColor =
+        isDark ? const Color(0xFF48484A) : const Color(0xFFFFFFFF);
+
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: trackColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: items.map((item) {
+          final isSel = item.value == selected;
+          return Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                if (!isSel) {
+                  HapticFeedback.selectionClick();
+                  onSelect(item.value);
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+                decoration: BoxDecoration(
+                  color: isSel ? thumbColor : Colors.transparent,
+                  borderRadius: BorderRadius.circular(9),
+                  boxShadow: isSel
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(isDark ? 68 : 22),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Text(
+                  item.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
+                    color: isSel ? ink : sub,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -2927,21 +3412,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
     return LiquidGlassCard(
-      radius: 24,
+      radius: 22,
       tintColor: bg,
       chromaticAccent: chromaticAccent,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      padding: const EdgeInsets.fromLTRB(15, 15, 15, 15),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(width: 44, height: 44, child: FittedBox(child: icon)),
+          SizedBox(width: 42, height: 42, child: FittedBox(child: icon)),
           const SizedBox(height: 10),
           Text(
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontWeight: FontWeight.w700, color: ink, fontSize: 16),
+            style: TextStyle(fontWeight: FontWeight.w700, color: ink, fontSize: 15.5),
           ),
           const SizedBox(height: 2),
           SizedBox(
@@ -2950,26 +3435,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               subtitle,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12.5, height: 1.3, color: sub),
+              style: TextStyle(fontSize: 12, height: 1.3, color: sub),
             ),
           ),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
-            height: 44,
+            height: 40,
             child: FilledButton(
               style: FilledButton.styleFrom(
                 backgroundColor: isDark ? Colors.white : const Color(0xFF0F1115),
                 foregroundColor: isDark ? Colors.black : Colors.white,
                 padding: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
               ),
               onPressed: onTap,
               child: Text(
                 btnLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
               ),
             ),
           ),
@@ -2991,37 +3476,61 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           final isGlass = st.appearanceStyle == AppAppearanceStyle.glass;
           final pct = (st.liquidGlassOpacity * 100).round();
           final modeTag = st.liquidGlassOpacity < 0.25
-              ? 'Bening (Ultra Clear)'
-              : (st.liquidGlassOpacity > 0.72 ? 'Tinted (Kontras Tinggi)' : 'Seimbang');
+              ? 'Ultra Clear'
+              : (st.liquidGlassOpacity > 0.65 ? 'Tinted' : 'Seimbang');
+          final glassPreset = st.liquidGlassOpacity < 0.25
+              ? 0
+              : (st.liquidGlassOpacity > 0.65 ? 2 : 1);
 
           return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(18, 6, 18, 28),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Tampilan', style: Theme.of(ctx).textTheme.titleLarge),
-                const SizedBox(height: 12),
-                const Text('Gaya antarmuka', style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: AppAppearanceStyle.values.map((s) {
-                    return ChoiceChip(
-                      label: Text(s.label),
-                      selected: st.appearanceStyle == s,
-                      onSelected: (_) => n.setAppearanceStyle(s),
-                    );
-                  }).toList(),
+                Text(
+                  'Tampilan & Gaya iOS',
+                  style: Theme.of(ctx).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 14),
+                const IosSectionHeader(
+                  title: 'Gaya Permukaan',
+                  padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
+                ),
+                IosGroupedListCard(
+                  radius: 18,
+                  dividerIndent: 16,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _iosSegmentedControl<AppAppearanceStyle>(
+                            ctx,
+                            items: AppAppearanceStyle.values
+                                .map((s) => (value: s, label: s.label))
+                                .toList(),
+                            selected: st.appearanceStyle,
+                            onSelect: n.setAppearanceStyle,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            st.appearanceStyle.description,
+                            style: TextStyle(fontSize: 12, color: sub),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 if (isGlass) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(22),
                     child: SizedBox(
-                      height: 152,
+                      height: 136,
                       child: LiquidGlassView(
-                        realTimeCapture: !ui.ImageFilter.isShaderFilterSupported,
+                        realTimeCapture: false,
                         backgroundWidget: DecoratedBox(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
@@ -3060,16 +3569,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 bottom: 14,
                                 child: Icon(
                                   CupertinoIcons.music_note_2,
-                                  size: 46,
+                                  size: 42,
                                   color: Colors.white.withAlpha(88),
                                 ),
                               ),
                               Positioned(
-                                left: 26,
-                                bottom: 18,
+                                left: 24,
+                                bottom: 16,
                                 child: Container(
-                                  width: 44,
-                                  height: 44,
+                                  width: 40,
+                                  height: 40,
                                   decoration: const BoxDecoration(
                                     shape: BoxShape.circle,
                                     gradient: LinearGradient(
@@ -3086,308 +3595,623 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ),
                         child: Material(
                           type: MaterialType.transparency,
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              Center(
-                                child: LiquidGlassDraggable(
-                                  child: LiquidGlassLens(
-                                    style: LiquidGlassStyle(
-                                      shape: const LiquidGlassShape.continuousRoundedRectangle(
-                                        cornerRadius: 28,
+                          child: Center(
+                            child: LiquidGlassDraggable(
+                              child: LiquidGlassLens(
+                                style: LiquidGlassStyle(
+                                  shape: const LiquidGlassShape
+                                      .continuousRoundedRectangle(
+                                    cornerRadius: 24,
+                                  ),
+                                  specular: LiquidGlassLight.specular(
+                                    thickness: 4.0,
+                                    intensity: isDark ? 0.72 : 0.90,
+                                    oppositeIntensity: 0.38,
+                                  ),
+                                  refractionIndex: 1.06,
+                                  refractionWidth: 7,
+                                  magnification: 1.02,
+                                  dispersion: 0.08,
+                                  saturation: isDark ? 1.14 : 1.22,
+                                  blur: (1.6 + 3.2 * st.liquidGlassOpacity)
+                                      .clamp(1.4, 4.8),
+                                  color: isDark
+                                      ? const Color(0xFF141A24).withAlpha(
+                                          ui.lerpDouble(24, 148, st.liquidGlassOpacity)!
+                                              .round(),
+                                        )
+                                      : const Color(0xFFFFFFFF).withAlpha(
+                                          ui.lerpDouble(42, 176, st.liquidGlassOpacity)!
+                                              .round(),
+                                        ),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        CupertinoIcons.sparkles,
+                                        size: 17,
+                                        color: ink,
                                       ),
-                                      specular: LiquidGlassLight.specular(
-                                        thickness: 5,
-                                        intensity: isDark ? 0.8 : 0.96,
-                                        oppositeIntensity: 0.45,
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Geser Kaca • $modeTag',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: ink,
+                                        ),
                                       ),
-                                      glow: LiquidGlassLight.glow(
-                                        thickness: 10,
-                                        intensity: 0.35,
-                                        color: const Color(0xFF5FA8FF),
-                                      ),
-                                      refractionIndex: 1.16,
-                                      refractionWidth: 16,
-                                      magnification: 1.06,
-                                      dispersion: 0.25,
-                                      saturation: isDark ? 1.28 : 1.48,
-                                      blur: (4 + 12 * st.liquidGlassOpacity).clamp(3.0, 18.0),
-                                      color: isDark
-                                          ? const Color(0xFF141A24).withAlpha(
-                                              ui.lerpDouble(42, 208, st.liquidGlassOpacity)!.round(),
-                                            )
-                                          : const Color(0xFFFFFFFF).withAlpha(
-                                              ui.lerpDouble(66, 224, st.liquidGlassOpacity)!.round(),
-                                            ),
-                                    ),
-                                    touch: const LiquidGlassTouch.flexing(
-                                      LiquidGlassFlex.subtle(),
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 18,
-                                        vertical: 13,
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.auto_awesome_rounded,
-                                            size: 18,
-                                            color: ink,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Geser Kaca • $modeTag',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w700,
-                                              color: ink,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
+                                    ],
                                   ),
                                 ),
                               ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  Row(
+                  const SizedBox(height: 12),
+                  IosGroupedListCard(
+                    radius: 18,
+                    dividerIndent: 16,
                     children: [
-                      const Expanded(
-                        child: Text(
-                          'Tingkat Transparansi',
-                          style: TextStyle(fontWeight: FontWeight.w700),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'Intensitas Kaca',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 15,
+                                      color: ink,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '$pct%',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: sub,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            LiquidGlassRangeSlider(
+                              value: st.liquidGlassOpacity,
+                              min: 0.0,
+                              max: 1.0,
+                              activeColor: AppColors.iosIndigo,
+                              onChanged: n.setLiquidGlassOpacity,
+                            ),
+                            const SizedBox(height: 4),
+                            _iosSegmentedControl<int>(
+                              ctx,
+                              items: const [
+                                (value: 0, label: 'Ultra Clear'),
+                                (value: 1, label: 'Seimbang'),
+                                (value: 2, label: 'Tinted'),
+                              ],
+                              selected: glassPreset,
+                              onSelect: (preset) {
+                                final target = switch (preset) {
+                                  0 => 0.14,
+                                  2 => 0.72,
+                                  _ => 0.34,
+                                };
+                                n.setLiquidGlassOpacity(target);
+                              },
+                            ),
+                          ],
                         ),
                       ),
-                      Text(
-                        '$pct%',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
+                    ],
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+                const IosSectionHeader(
+                  title: 'Tema & Warna',
+                  padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
+                ),
+                IosGroupedListCard(
+                  radius: 18,
+                  dividerIndent: 16,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: _iosSegmentedControl<AppThemePreference>(
+                        ctx,
+                        items: AppThemePreference.values
+                            .map((t) => (value: t, label: t.label))
+                            .toList(),
+                        selected: st.themePreference,
+                        onSelect: n.setThemePreference,
+                      ),
+                    ),
+                    LiquidGlassSwitchTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      title: const Text('Warna adaptif sampul album'),
+                      value: st.dynamicAlbumColors,
+                      onChanged: n.setDynamicColors,
+                    ),
+                    LiquidGlassSwitchTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      title: const Text('Umpan balik haptik iOS'),
+                      value: st.hapticsEnabled,
+                      onChanged: n.setHapticsEnabled,
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+                const IosSectionHeader(
+                  title: 'Ikon Aplikasi',
+                  padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
+                ),
+                IosGroupedListCard(
+                  radius: 18,
+                  dividerIndent: 16,
+                  children: [
+                    ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      leading: ArchysAppIconTile(
+                        style: AppIconStyle.byKey(st.appIconKey),
+                        size: 46,
+                      ),
+                      title: Text(
+                        'Gaya ikon aplikasi',
+                        style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w600,
+                          color: ink,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${AppIconStyle.byKey(st.appIconKey).label} · 20 gaya tersedia',
+                        style: TextStyle(fontSize: 12.5, color: sub),
+                      ),
+                      trailing: Icon(
+                        CupertinoIcons.chevron_forward,
+                        size: 16,
+                        color: sub,
+                      ),
+                      onTap: () => _showAppIconPickerSheet(ctx),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+                const IosSectionHeader(
+                  title: 'Dynamic Island & Lock Screen',
+                  padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
+                ),
+                IosGroupedListCard(
+                  radius: 18,
+                  dividerIndent: 16,
+                  children: [
+                    LiquidGlassSwitchTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      title: const Text('Dynamic Island (Live Activity)'),
+                      subtitle: const Text(
+                        'Pil iOS interaktif di bagian atas layar',
+                      ),
+                      value: st.dynamicIslandEnabled,
+                      onChanged: (v) async {
+                        await n.setDynamicIslandEnabled(v);
+                        if (v) {
+                          final ok = await modalRef
+                              .read(devicePermissionsProvider.notifier)
+                              .requestNotifications();
+                          if (ok) {
+                            modalRef
+                                .read(dynamicIslandEventProvider.notifier)
+                                .show(
+                                  const DynamicIslandEvent(
+                                    icon: CupertinoIcons.music_note_2,
+                                    title: 'Dynamic Island Aktif',
+                                    subtitle:
+                                        'Ketuk untuk buka, tahan untuk Pusat Kontrol',
+                                    accent: AppColors.iosBlue,
+                                  ),
+                                );
+                          }
+                        }
+                      },
+                    ),
+                    if (st.dynamicIslandEnabled)
+                      LiquidGlassSwitchTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 6,
+                        ),
+                        title: const Text('Tampilkan saat jeda'),
+                        subtitle: const Text(
+                          'Tetap tampilkan kapsul status saat tidak memutar lagu',
+                        ),
+                        value: st.dynamicIslandAlwaysVisible,
+                        onChanged: n.setDynamicIslandAlwaysVisible,
+                      ),
+                    if (st.dynamicIslandEnabled)
+                      LiquidGlassSwitchTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 6,
+                        ),
+                        title: const Text('Tampilkan di luar aplikasi'),
+                        subtitle: Text(
+                          modalRef.watch(devicePermissionsProvider).overlayGranted
+                              ? 'Tetap muncul mengambang saat keluar dari Archys'
+                              : 'Butuh izin Tampil di Atas Aplikasi',
+                        ),
+                        value: st.dynamicIslandSystemOverlay,
+                        onChanged: (v) async {
+                          await n.setDynamicIslandSystemOverlay(v);
+                          if (v) {
+                            final perms =
+                                modalRef.read(devicePermissionsProvider);
+                            if (!perms.overlayGranted) {
+                              await modalRef
+                                  .read(devicePermissionsProvider.notifier)
+                                  .requestOverlayPermission();
+                            }
+                          }
+                        },
+                      ),
+                    if (st.dynamicIslandEnabled) ...[
+                      Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Posisi Kapsul',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: ink,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _iosSegmentedControl<String>(
+                              ctx,
+                              items: const [
+                                (value: 'below', label: 'Di Bawah Status'),
+                                (value: 'notch', label: 'Menyatu Status'),
+                              ],
+                              selected: st.dynamicIslandPosition == 'notch'
+                                  ? 'notch'
+                                  : 'below',
+                              onSelect: n.setDynamicIslandPosition,
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              'Preset Tampilan',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: ink,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              height: 38,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: DynamicIslandPreset.values.length,
+                                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                                itemBuilder: (_, i) {
+                                  final preset = DynamicIslandPreset.values[i];
+                                  final sel = st.dynamicIslandPreset == preset;
+                                  return GestureDetector(
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      n.setDynamicIslandPreset(preset);
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 7,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: sel
+                                            ? AppColors.iosBlue
+                                            : AppColors.pillOf(ctx),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          preset.label,
+                                          style: TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: sel ? Colors.white : ink,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              'Warna Aksen Island',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: ink,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                for (final val in [
+                                  0,
+                                  0xFF0A84FF,
+                                  0xFF5E5CE6,
+                                  0xFFFF2D55,
+                                  0xFFFF9F0A,
+                                  0xFF30D158,
+                                  0xFF32ADE6,
+                                ])
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 10),
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        HapticFeedback.selectionClick();
+                                        n.setDynamicIslandAccentValue(val);
+                                      },
+                                      child: Container(
+                                        width: 28,
+                                        height: 28,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: val == 0
+                                              ? AppColors.pillOf(ctx)
+                                              : Color(val),
+                                          border: st.dynamicIslandAccentValue == val
+                                              ? Border.all(color: ink, width: 2.2)
+                                              : null,
+                                        ),
+                                        child: val == 0
+                                            ? Icon(
+                                                CupertinoIcons.sparkles,
+                                                size: 13,
+                                                color: ink,
+                                              )
+                                            : null,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'Ukuran Kapsul',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: ink,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '${(st.dynamicIslandScale * 100).round()}%',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 12,
+                                    color: sub,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            LiquidGlassRangeSlider(
+                              value: st.dynamicIslandScale,
+                              min: 0.80,
+                              max: 1.25,
+                              activeColor: AppColors.iosBlue,
+                              onChanged: n.setDynamicIslandScale,
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'Posisi Vertikal',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: ink,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '${st.dynamicIslandYOffset.round()} px',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 12,
+                                    color: sub,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            LiquidGlassRangeSlider(
+                              value: st.dynamicIslandYOffset,
+                              min: -12.0,
+                              max: 36.0,
+                              activeColor: AppColors.iosBlue,
+                              onChanged: n.setDynamicIslandYOffset,
+                            ),
+                          ],
+                        ),
+                      ),
+                      LiquidGlassSwitchTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 6,
+                        ),
+                        title: const Text('Lirik di Dynamic Island'),
+                        subtitle: const Text(
+                          'Tampilkan baris lirik tersinkronisasi di dalam kapsul',
+                        ),
+                        value: st.dynamicIslandShowLyrics,
+                        onChanged: n.setDynamicIslandShowLyrics,
+                      ),
+                    ],
+                    LiquidGlassSwitchTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      title: const Text('Musik & Lirik di Lock Screen'),
+                      subtitle: const Text(
+                        'Notifikasi lirik layar kunci dengan panel pratinjau cepat',
+                      ),
+                      value: st.lockScreenLyricsEnabled,
+                      onChanged: (v) async {
+                        await n.setLockScreenLyricsEnabled(v);
+                        if (v) {
+                          final perms = modalRef.read(devicePermissionsProvider);
+                          if (!perms.notificationsGranted) {
+                            await modalRef
+                                .read(devicePermissionsProvider.notifier)
+                                .requestNotifications();
+                          }
+                        }
+                      },
+                    ),
+                    if (st.lockScreenLyricsEnabled)
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 2,
+                        ),
+                        leading: const IosSquircleBadge(
+                          icon: CupertinoIcons.lock_fill,
+                          color: AppColors.iosIndigo,
+                        ),
+                        title: Text(
+                          'Pratinjau Lirik Lock Screen',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: ink,
+                          ),
+                        ),
+                        trailing: Icon(
+                          CupertinoIcons.chevron_forward,
+                          size: 16,
                           color: sub,
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  LiquidGlassRangeSlider(
-                    value: st.liquidGlassOpacity,
-                    min: 0.0,
-                    max: 1.0,
-                    onChanged: n.setLiquidGlassOpacity,
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Bening', style: TextStyle(fontSize: 11.5, color: sub)),
-                      Text('Seimbang', style: TextStyle(fontSize: 11.5, color: sub)),
-                      Text('Tinted', style: TextStyle(fontSize: 11.5, color: sub)),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      ChoiceChip(
-                        label: const Text('Bening'),
-                        selected: st.liquidGlassOpacity < 0.25,
-                        onSelected: (_) => n.setLiquidGlassOpacity(0.12),
-                      ),
-                      ChoiceChip(
-                        label: const Text('Seimbang'),
-                        selected:
-                            st.liquidGlassOpacity >= 0.25 && st.liquidGlassOpacity <= 0.72,
-                        onSelected: (_) => n.setLiquidGlassOpacity(0.48),
-                      ),
-                      ChoiceChip(
-                        label: const Text('Tinted'),
-                        selected: st.liquidGlassOpacity > 0.72,
-                        onSelected: (_) => n.setLiquidGlassOpacity(0.86),
-                      ),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 16),
-                const Text('Tema warna', style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: AppThemePreference.values.map((t) {
-                    return ChoiceChip(
-                      label: Text(t.label),
-                      selected: st.themePreference == t,
-                      onSelected: (_) => n.setThemePreference(t),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 12),
-                LiquidGlassSwitchTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Dynamic Island (Live Activity)'),
-                  subtitle: const Text('Pil iOS interaktif di bagian atas layar'),
-                  value: st.dynamicIslandEnabled,
-                  onChanged: (v) async {
-                    await n.setDynamicIslandEnabled(v);
-                    if (v) {
-                      final ok = await modalRef
-                          .read(devicePermissionsProvider.notifier)
-                          .requestNotifications();
-                      if (ok) {
-                        modalRef.read(dynamicIslandEventProvider.notifier).show(
-                              const DynamicIslandEvent(
-                                icon: Icons.album_rounded,
-                                title: 'Dynamic Island Aktif',
-                                subtitle: 'Ketuk untuk buka, tahan untuk Pusat Kontrol',
-                                accent: Color(0xFF3B82F6),
-                              ),
-                            );
-                      }
-                    }
-                  },
-                ),
-                if (st.dynamicIslandEnabled)
-                  LiquidGlassSwitchTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Tampilkan Dynamic Island saat jeda'),
-                    subtitle: const Text(
-                      'Tetap tampilkan kapsul status saat tidak memutar lagu',
-                    ),
-                    value: st.dynamicIslandAlwaysVisible,
-                    onChanged: n.setDynamicIslandAlwaysVisible,
-                  ),
-                if (st.dynamicIslandEnabled)
-                  LiquidGlassSwitchTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Tampilkan di luar aplikasi'),
-                    subtitle: Text(
-                      modalRef.watch(devicePermissionsProvider).overlayGranted
-                          ? 'Tetap muncul mengambang saat keluar dari Archys'
-                          : 'Butuh izin Tampil di Atas Aplikasi agar tetap muncul',
-                    ),
-                    value: st.dynamicIslandSystemOverlay,
-                    onChanged: (v) async {
-                      await n.setDynamicIslandSystemOverlay(v);
-                      if (v) {
-                        final perms = modalRef.read(devicePermissionsProvider);
-                        if (!perms.overlayGranted) {
-                          await modalRef
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          modalRef
                               .read(devicePermissionsProvider.notifier)
-                              .requestOverlayPermission();
-                        }
-                      }
-                    },
-                  ),
-                if (st.dynamicIslandEnabled) ...[
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Posisi Dynamic Island',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    st.dynamicIslandPosition == 'notch'
-                        ? 'Kapsul mikro sejajar bilah status'
-                        : 'Di bawah bilah status agar pas di semua perangkat tanpa menimpa jam/ikon',
-                    style: TextStyle(fontSize: 12, color: sub),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      ChoiceChip(
-                        label: const Text('Di Bawah Status Bar'),
-                        selected: st.dynamicIslandPosition != 'notch',
-                        onSelected: (_) => n.setDynamicIslandPosition('below'),
+                              .openLockScreenPreview();
+                        },
                       ),
-                      ChoiceChip(
-                        label: const Text('Menyatu Status Bar'),
-                        selected: st.dynamicIslandPosition == 'notch',
-                        onSelected: (_) => n.setDynamicIslandPosition('notch'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                ],
-                LiquidGlassSwitchTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Musik & Lirik di Lock Screen'),
-                  subtitle: const Text(
-                    'Tampilkan notifikasi lirik di layar kunci dengan tombol buka & tutup panel lirik',
-                  ),
-                  value: st.lockScreenLyricsEnabled,
-                  onChanged: (v) async {
-                    await n.setLockScreenLyricsEnabled(v);
-                    if (v) {
-                      final perms = modalRef.read(devicePermissionsProvider);
-                      if (!perms.notificationsGranted) {
-                        await modalRef
-                            .read(devicePermissionsProvider.notifier)
-                            .requestNotifications();
-                      }
-                    }
-                  },
+                  ],
                 ),
-                if (st.lockScreenLyricsEnabled)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        modalRef
-                            .read(devicePermissionsProvider.notifier)
-                            .openLockScreenPreview();
-                      },
-                      icon: const Icon(CupertinoIcons.lock_fill, size: 17),
-                      label: const Text('Pratinjau Lirik Lock Screen'),
+
+                const SizedBox(height: 16),
+                const IosSectionHeader(
+                  title: 'Latar Pemutar & Mini Player',
+                  padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
+                ),
+                IosGroupedListCard(
+                  radius: 18,
+                  dividerIndent: 16,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Pemutar Penuh',
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: ink,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _iosSegmentedControl<PlayerBackgroundStyle>(
+                            ctx,
+                            items: PlayerBackgroundStyle.values
+                                .map(
+                                  (p) => (
+                                    value: p,
+                                    label: p == PlayerBackgroundStyle.glowAnimated
+                                        ? 'Glow'
+                                        : (p == PlayerBackgroundStyle.liveMesh
+                                            ? 'Mesh'
+                                            : p.label),
+                                  ),
+                                )
+                                .toList(),
+                            selected: st.playerBackgroundStyle,
+                            onSelect: n.setPlayerBackgroundStyle,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Mini Player',
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: ink,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _iosSegmentedControl<MiniPlayerBackgroundStyle>(
+                            ctx,
+                            items: MiniPlayerBackgroundStyle.values
+                                .map(
+                                  (m) => (
+                                    value: m,
+                                    label: switch (m) {
+                                      MiniPlayerBackgroundStyle.blur => 'Buram',
+                                      MiniPlayerBackgroundStyle.dynamic => 'Dinamis',
+                                      MiniPlayerBackgroundStyle.glowAnimated => 'Glow',
+                                      MiniPlayerBackgroundStyle.liveMesh => 'Mesh',
+                                    },
+                                  ),
+                                )
+                                .toList(),
+                            selected: st.miniPlayerBackgroundStyle,
+                            onSelect: n.setMiniPlayerBackgroundStyle,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                LiquidGlassSwitchTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Umpan balik haptik iOS'),
-                  value: st.hapticsEnabled,
-                  onChanged: n.setHapticsEnabled,
-                ),
-                LiquidGlassSwitchTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Warna adaptif sampul album'),
-                  value: st.dynamicAlbumColors,
-                  onChanged: n.setDynamicColors,
-                ),
-                const SizedBox(height: 8),
-                const Text('Gaya latar pemutar', style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: PlayerBackgroundStyle.values.map((p) {
-                    return ChoiceChip(
-                      label: Text(p.label),
-                      selected: st.playerBackgroundStyle == p,
-                      onSelected: (_) => n.setPlayerBackgroundStyle(p),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 14),
-                const Text('Gaya latar Mini Player', style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: MiniPlayerBackgroundStyle.values.map((m) {
-                    return ChoiceChip(
-                      label: Text(m.label),
-                      selected: st.miniPlayerBackgroundStyle == m,
-                      onSelected: (_) => n.setMiniPlayerBackgroundStyle(m),
-                    );
-                  }).toList(),
+                  ],
                 ),
               ],
             ),
@@ -3405,43 +4229,75 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           final st = modalRef.watch(settingsProvider);
           final n = modalRef.read(settingsProvider.notifier);
           return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(18, 6, 18, 24),
+            padding: const EdgeInsets.fromLTRB(18, 6, 18, 28),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Suara dan pemutaran', style: Theme.of(ctx).textTheme.titleLarge),
-                const SizedBox(height: 12),
-                const Text('Kualitas streaming', style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: AudioQuality.values.map((q) {
-                    return ChoiceChip(
-                      label: Text(q.label),
-                      selected: st.audioQuality == q,
-                      onSelected: (_) => n.setAudioQuality(q),
-                    );
-                  }).toList(),
+                Text(
+                  'Suara dan pemutaran',
+                  style: Theme.of(ctx).textTheme.titleLarge,
                 ),
-                const SizedBox(height: 12),
-                LiquidGlassSwitchTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Radio otomatis saat antrean habis'),
-                  value: st.autoRadio,
-                  onChanged: n.setAutoRadio,
+                const SizedBox(height: 14),
+                const IosSectionHeader(
+                  title: 'Kualitas Streaming',
+                  padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
                 ),
-                LiquidGlassSwitchTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Lewati otomatis jika lagu gagal dimuat'),
-                  value: st.autoSkipOnError,
-                  onChanged: n.setAutoSkipOnError,
+                IosGroupedListCard(
+                  radius: 18,
+                  dividerIndent: 16,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: _iosSegmentedControl<AudioQuality>(
+                        ctx,
+                        items: const [
+                          (value: AudioQuality.high, label: 'Tinggi'),
+                          (value: AudioQuality.medium, label: 'Sedang'),
+                          (value: AudioQuality.low, label: 'Hemat'),
+                        ],
+                        selected: st.audioQuality,
+                        onSelect: n.setAudioQuality,
+                      ),
+                    ),
+                  ],
                 ),
-                LiquidGlassSwitchTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Simpan antrean terakhir'),
-                  value: st.persistentQueue,
-                  onChanged: n.setPersistentQueue,
+                const SizedBox(height: 16),
+                const IosSectionHeader(
+                  title: 'Otomasi Antrean',
+                  padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
+                ),
+                IosGroupedListCard(
+                  radius: 18,
+                  dividerIndent: 16,
+                  children: [
+                    LiquidGlassSwitchTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      title: const Text('Radio otomatis saat antrean habis'),
+                      value: st.autoRadio,
+                      onChanged: n.setAutoRadio,
+                    ),
+                    LiquidGlassSwitchTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      title: const Text('Lewati otomatis jika lagu gagal dimuat'),
+                      value: st.autoSkipOnError,
+                      onChanged: n.setAutoSkipOnError,
+                    ),
+                    LiquidGlassSwitchTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      title: const Text('Simpan antrean terakhir'),
+                      value: st.persistentQueue,
+                      onChanged: n.setPersistentQueue,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -3457,23 +4313,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder: (ctx) => Consumer(
         builder: (ctx, modalRef, _) {
           final current = modalRef.watch(settingsProvider.select((s) => s.appLanguage));
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: AppLanguageOption.values
-                .map(
-                  (lang) => ListTile(
-                    title: Text(lang.label, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text(lang.subtitle),
-                    trailing: current == lang
-                        ? const Icon(Icons.check_rounded, color: AppColors.horizonBlue)
-                        : null,
-                    onTap: () {
-                      modalRef.read(settingsProvider.notifier).setAppLanguage(lang);
-                      Navigator.pop(ctx);
-                    },
-                  ),
-                )
-                .toList(),
+          final isDark = AppColors.isDark(ctx);
+          final checkColor = isDark ? const Color(0xFF0A84FF) : AppColors.iosBlue;
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(18, 6, 18, 26),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Bahasa dan konten',
+                  style: Theme.of(ctx).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 12),
+                IosGroupedListCard(
+                  radius: 18,
+                  dividerIndent: 16,
+                  children: AppLanguageOption.values
+                      .map(
+                        (lang) => ListTile(
+                          title: Text(
+                            lang.label,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(lang.subtitle),
+                          trailing: current == lang
+                              ? Icon(CupertinoIcons.checkmark_alt, color: checkColor)
+                              : null,
+                          onTap: () {
+                            modalRef
+                                .read(settingsProvider.notifier)
+                                .setAppLanguage(lang);
+                            Navigator.pop(ctx);
+                          },
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -3487,25 +4365,159 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         builder: (ctx, modalRef, _) {
           final st = modalRef.watch(settingsProvider);
           final n = modalRef.read(settingsProvider.notifier);
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              LiquidGlassSwitchTile(
-                title: const Text('Terjemahan lirik AI'),
-                value: st.aiTranslateLyrics,
-                onChanged: n.setAiTranslateLyrics,
-              ),
-              LiquidGlassSwitchTile(
-                title: const Text('Romanisasi lirik'),
-                value: st.romanizeLyrics,
-                onChanged: n.setRomanizeLyrics,
-              ),
-              LiquidGlassSwitchTile(
-                title: const Text('Indikator interval musik'),
-                value: st.showIntervalIndicator,
-                onChanged: n.setShowIntervalIndicator,
-              ),
-            ],
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(18, 6, 18, 26),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Lirik dan terjemahan',
+                  style: Theme.of(ctx).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 12),
+                IosGroupedListCard(
+                  radius: 18,
+                  dividerIndent: 16,
+                  children: [
+                    LiquidGlassSwitchTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      title: const Text('Terjemahan lirik AI'),
+                      value: st.aiTranslateLyrics,
+                      onChanged: n.setAiTranslateLyrics,
+                    ),
+                    LiquidGlassSwitchTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      title: const Text('Romanisasi lirik'),
+                      value: st.romanizeLyrics,
+                      onChanged: n.setRomanizeLyrics,
+                    ),
+                    LiquidGlassSwitchTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      title: const Text('Indikator interval musik'),
+                      value: st.showIntervalIndicator,
+                      onChanged: n.setShowIntervalIndicator,
+                    ),
+                    ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      title: const Text(
+                        'Sumber lirik utama',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(st.lyricsSourceName),
+                      trailing: const Icon(CupertinoIcons.chevron_forward, size: 16),
+                      onTap: () {
+                        final idx = kLyricsSources.indexOf(st.lyricsSourceName);
+                        final next =
+                            kLyricsSources[(idx + 1) % kLyricsSources.length];
+                        n.setLyricsSourceName(next);
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showAppIconPickerSheet(BuildContext context) {
+    showLiquidGlassSheet<void>(
+      context: context,
+      builder: (ctx) => Consumer(
+        builder: (ctx, modalRef, _) {
+          final currentKey =
+              modalRef.watch(settingsProvider.select((s) => s.appIconKey));
+          final ink = AppColors.inkOf(ctx);
+          final sub = AppColors.subOf(ctx);
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(18, 6, 18, 22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Gaya ikon aplikasi',
+                  style: Theme.of(ctx).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Pilih dari 20 ikon Archys untuk layar utama',
+                  style: TextStyle(fontSize: 13, color: sub),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  height: 360,
+                  child: GridView.builder(
+                    itemCount: AppIconStyle.presets.length,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 4,
+                      mainAxisSpacing: 14,
+                      crossAxisSpacing: 12,
+                      childAspectRatio: 0.78,
+                    ),
+                    itemBuilder: (_, i) {
+                      final style = AppIconStyle.presets[i];
+                      final selected = currentKey == style.key;
+                      return GestureDetector(
+                        onTap: () async {
+                          HapticFeedback.selectionClick();
+                          await modalRef
+                              .read(settingsProvider.notifier)
+                              .setAppIconKey(style.key);
+                          await modalRef
+                              .read(devicePermissionsProvider.notifier)
+                              .setAppIcon(style.key);
+                        },
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ArchysAppIconTile(
+                              style: style,
+                              size: 58,
+                              selected: selected,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              style.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: selected
+                                    ? FontWeight.w800
+                                    : FontWeight.w600,
+                                color: selected ? AppColors.iosBlue : ink,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Launcher mungkin perlu beberapa detik untuk menampilkan ikon baru.',
+                  style: TextStyle(fontSize: 12, color: sub),
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -3520,37 +4532,84 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           final st = modalRef.watch(settingsProvider);
           final n = modalRef.read(settingsProvider.notifier);
           return Padding(
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 22),
+            padding: const EdgeInsets.fromLTRB(18, 6, 18, 26),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                LiquidGlassSwitchTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Jeda riwayat pemutaran'),
-                  value: st.pauseWatchHistory,
-                  onChanged: n.setPauseWatchHistory,
+                Text(
+                  'Privasi dan riwayat',
+                  style: Theme.of(ctx).textTheme.titleLarge,
                 ),
-                LiquidGlassSwitchTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Jeda riwayat pencarian'),
-                  value: st.pauseSearchHistory,
-                  onChanged: n.setPauseSearchHistory,
+                const SizedBox(height: 12),
+                IosGroupedListCard(
+                  radius: 18,
+                  dividerIndent: 16,
+                  children: [
+                    LiquidGlassSwitchTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      title: const Text('Jeda riwayat pemutaran'),
+                      value: st.pauseWatchHistory,
+                      onChanged: n.setPauseWatchHistory,
+                    ),
+                    LiquidGlassSwitchTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      title: const Text('Jeda riwayat pencarian'),
+                      value: st.pauseSearchHistory,
+                      onChanged: n.setPauseSearchHistory,
+                    ),
+                  ],
                 ),
-                ListTile(
-                  leading: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
-                  title: const Text('Hapus riwayat pemutaran'),
-                  onTap: () {
-                    modalRef.read(libraryProvider.notifier).clearHistory();
-                    Navigator.pop(ctx);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.cleaning_services_outlined, color: AppColors.error),
-                  title: const Text('Hapus riwayat pencarian'),
-                  onTap: () {
-                    modalRef.read(libraryProvider.notifier).clearSearchHistory();
-                    Navigator.pop(ctx);
-                  },
+                const SizedBox(height: 14),
+                IosGroupedListCard(
+                  radius: 18,
+                  dividerIndent: 52,
+                  children: [
+                    ListTile(
+                      leading: const Icon(
+                        CupertinoIcons.trash,
+                        color: AppColors.iosRed,
+                        size: 20,
+                      ),
+                      title: const Text(
+                        'Hapus riwayat pemutaran',
+                        style: TextStyle(
+                          color: AppColors.iosRed,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      onTap: () {
+                        modalRef.read(libraryProvider.notifier).clearHistory();
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(
+                        CupertinoIcons.clear_circled,
+                        color: AppColors.iosRed,
+                        size: 20,
+                      ),
+                      title: const Text(
+                        'Hapus riwayat pencarian',
+                        style: TextStyle(
+                          color: AppColors.iosRed,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      onTap: () {
+                        modalRef
+                            .read(libraryProvider.notifier)
+                            .clearSearchHistory();
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -3565,28 +4624,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     showLiquidGlassSheet<void>(
       context: context,
       builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        padding: const EdgeInsets.fromLTRB(18, 6, 18, 26),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Penyimpanan', style: Theme.of(ctx).textTheme.titleLarge),
             const SizedBox(height: 12),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Lagu terunduh offline'),
-              subtitle: Text('${downloads.length} lagu tersimpan di perangkat'),
-              trailing: TextButton(
-                onPressed: downloads.isEmpty
-                    ? null
-                    : () async {
-                        for (final t in downloads) {
-                          await ref.read(libraryProvider.notifier).removeDownload(t.id);
-                        }
-                        if (ctx.mounted) Navigator.pop(ctx);
-                      },
-                child: const Text('Hapus semua'),
-              ),
+            IosGroupedListCard(
+              radius: 18,
+              dividerIndent: 16,
+              children: [
+                ListTile(
+                  leading: const IosSquircleBadge(
+                    icon: CupertinoIcons.arrow_down_circle_fill,
+                    color: AppColors.iosBlue,
+                  ),
+                  title: const Text(
+                    'Lagu terunduh offline',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle:
+                      Text('${downloads.length} lagu tersimpan di perangkat'),
+                  trailing: TextButton(
+                    onPressed: downloads.isEmpty
+                        ? null
+                        : () async {
+                            for (final t in downloads) {
+                              await ref
+                                  .read(libraryProvider.notifier)
+                                  .removeDownload(t.id);
+                            }
+                            if (ctx.mounted) Navigator.pop(ctx);
+                          },
+                    child: const Text(
+                      'Hapus semua',
+                      style: TextStyle(color: AppColors.iosRed),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -3596,74 +4673,152 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   void _showBackupImportSheet(BuildContext context) {
     final importCtrl = TextEditingController();
+    var busy = false;
     showLiquidGlassSheet<void>(
       context: context,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          18,
-          8,
-          18,
-          MediaQuery.of(ctx).viewInsets.bottom + 24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Cadangan dan impor', style: Theme.of(ctx).textTheme.titleLarge),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () {
-                  final json = ref.read(libraryProvider.notifier).exportBackupJson();
-                  Clipboard.setData(ClipboardData(text: json));
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Cadangan JSON disalin ke papan klip')),
-                  );
-                },
-                icon: const Icon(Icons.copy_all_rounded),
-                label: const Text('Ekspor cadangan ke papan klip'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            18,
+            8,
+            18,
+            MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Cadangan dan impor', style: Theme.of(ctx).textTheme.titleLarge),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    final json = ref.read(libraryProvider.notifier).exportBackupJson();
+                    Clipboard.setData(ClipboardData(text: json));
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Cadangan JSON disalin ke papan klip')),
+                    );
+                  },
+                  icon: const Icon(Icons.copy_all_rounded),
+                  label: const Text('Ekspor cadangan ke papan klip'),
+                ),
               ),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: importCtrl,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                hintText: 'Tempel JSON cadangan di sini untuk memulihkan...',
+              const SizedBox(height: 14),
+              TextField(
+                controller: importCtrl,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  hintText: 'Tempel JSON cadangan, CSV (judul,artis), atau M3U di sini...',
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () async {
-                  try {
-                    final count = await ref
-                        .read(libraryProvider.notifier)
-                        .importBackupJson(importCtrl.text.trim());
-                    if (ctx.mounted) {
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Berhasil memulihkan $count item pustaka')),
-                      );
-                    }
-                  } catch (e) {
-                    if (ctx.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Gagal impor: $e')),
-                      );
-                    }
-                  }
-                },
-                child: const Text('Impor & Gabungkan'),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: busy
+                      ? null
+                      : () async {
+                          final raw = importCtrl.text.trim();
+                          if (raw.isEmpty) return;
+                          setSheetState(() => busy = true);
+                          try {
+                            if (raw.startsWith('{') || raw.startsWith('[')) {
+                              final count = await ref
+                                  .read(libraryProvider.notifier)
+                                  .importBackupJson(raw);
+                              if (ctx.mounted) {
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Berhasil memulihkan $count item pustaka'),
+                                  ),
+                                );
+                              }
+                            } else {
+                              final imported = await _importCsvOrM3u(raw);
+                              if (ctx.mounted) {
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Berhasil mengimpor $imported lagu ke playlist baru',
+                                    ),
+                                  ),
+                                );
+                              }
+                            }
+                          } catch (e) {
+                            setSheetState(() => busy = false);
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Gagal impor: $e')),
+                              );
+                            }
+                          }
+                        },
+                  child: busy
+                      ? const CupertinoActivityIndicator(radius: 9)
+                      : const Text('Impor & Gabungkan (JSON / CSV / M3U)'),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     ).whenComplete(importCtrl.dispose);
+  }
+
+  Future<int> _importCsvOrM3u(String raw) async {
+    final queries = <String>[];
+    final lines = raw.split(RegExp(r'\r?\n')).map((l) => l.trim()).where((l) => l.isNotEmpty);
+    final isM3u = raw.contains('#EXTM3U') || raw.contains('#EXTINF');
+    for (final line in lines) {
+      if (isM3u) {
+        if (line.startsWith('#EXTINF')) {
+          final commaIdx = line.indexOf(',');
+          if (commaIdx != -1 && commaIdx + 1 < line.length) {
+            final label = line.substring(commaIdx + 1).trim();
+            if (label.isNotEmpty) queries.add(label);
+          }
+        }
+      } else {
+        if (line.toLowerCase().startsWith('title,') ||
+            line.toLowerCase().startsWith('judul,')) {
+          continue;
+        }
+        final cleaned = line
+            .replaceAll('"', '')
+            .split(RegExp(r'[,;\t]'))
+            .take(2)
+            .map((p) => p.trim())
+            .where((p) => p.isNotEmpty)
+            .join(' ');
+        if (cleaned.isNotEmpty) queries.add(cleaned);
+      }
+    }
+    if (queries.isEmpty) {
+      throw const FormatException('Tidak ada baris lagu CSV/M3U yang dikenali');
+    }
+    final api = ref.read(apiClientProvider);
+    final resolved = <MusicItem>[];
+    for (final q in queries.take(30)) {
+      try {
+        final res = await api.search(q, filter: 'songs');
+        if (res.results.isNotEmpty) {
+          resolved.add(res.results.first);
+        }
+      } catch (_) {}
+    }
+    if (resolved.isEmpty) {
+      throw const FormatException('Tidak ada lagu yang cocok ditemukan');
+    }
+    await ref.read(libraryProvider.notifier).createPlaylist(
+          isM3u ? 'Impor M3U' : 'Impor CSV',
+          initialTracks: resolved,
+        );
+    return resolved.length;
   }
 
 }

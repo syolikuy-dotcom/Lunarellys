@@ -19,6 +19,7 @@ class AnimatedEqualizer extends StatefulWidget {
 class _AnimatedEqualizerState extends State<AnimatedEqualizer>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  bool _tickerActive = true;
 
   @override
   void initState() {
@@ -27,19 +28,28 @@ class _AnimatedEqualizerState extends State<AnimatedEqualizer>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    if (widget.isPlaying) {
+  }
+
+  void _syncTicker() {
+    final shouldRun = widget.isPlaying && _tickerActive;
+    if (shouldRun && !_controller.isAnimating) {
       _controller.repeat();
+    } else if (!shouldRun && _controller.isAnimating) {
+      _controller.stop();
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _tickerActive = TickerMode.valuesOf(context).enabled;
+    _syncTicker();
   }
 
   @override
   void didUpdateWidget(covariant AnimatedEqualizer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.isPlaying && !_controller.isAnimating) {
-      _controller.repeat();
-    } else if (!widget.isPlaying && _controller.isAnimating) {
-      _controller.stop();
-    }
+    _syncTicker();
   }
 
   @override
@@ -58,22 +68,24 @@ class _AnimatedEqualizerState extends State<AnimatedEqualizer>
   @override
   Widget build(BuildContext context) {
     final barWidth = widget.size * 0.2;
-    return SizedBox(
-      width: widget.size,
-      height: widget.size,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (_, __) {
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              _bar(barWidth, _barFactor(0.0)),
-              _bar(barWidth, _barFactor(0.35)),
-              _bar(barWidth, _barFactor(0.7)),
-            ],
-          );
-        },
+    return RepaintBoundary(
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (_, __) {
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _bar(barWidth, _barFactor(0.0)),
+                _bar(barWidth, _barFactor(0.35)),
+                _bar(barWidth, _barFactor(0.7)),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

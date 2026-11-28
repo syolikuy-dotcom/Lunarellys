@@ -19,6 +19,7 @@ import '../widgets/permissions_sheet.dart';
 import '../widgets/subscreen_mini_player.dart';
 import '../widgets/track_tile.dart';
 import 'detail_screens.dart';
+import 'poster_editor_screen.dart';
 import 'ytm_login_screen.dart';
 
 class YouScreen extends ConsumerStatefulWidget {
@@ -75,7 +76,6 @@ class _YouScreenState extends ConsumerState<YouScreen> {
     final T = AppStrings.of(appLanguage);
     final isDark = AppColors.isDark(context);
     final ink = AppColors.inkOf(context);
-    final sub = AppColors.subOf(context);
     final border = AppColors.borderOf(context);
     final topPad = MediaQuery.of(context).padding.top;
 
@@ -208,20 +208,25 @@ class _YouScreenState extends ConsumerState<YouScreen> {
                         MaterialPageRoute<void>(builder: (_) => const EqualizerScreen()),
                       ),
                     ),
+                    Divider(height: 1, indent: 60, color: border),
+                    _menuRow(
+                      context,
+                      icon: CupertinoIcons.photo_on_rectangle,
+                      iconBg: AppColors.iosTeal,
+                      title: 'Poster lagu',
+                      trailingBadge: 'Baru',
+                      badgeColor: AppColors.iosBlue,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(builder: (_) => const PosterEditorScreen()),
+                      ),
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(height: 22),
-              Padding(
-                padding: const EdgeInsets.only(left: 4, bottom: 10),
-                child: Text(
-                  'Akun',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: sub,
-                  ),
-                ),
+              const SizedBox(height: 20),
+              const IosSectionHeader(
+                title: 'Akun & Integrasi',
+                padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
               ),
               Row(
                 children: [
@@ -276,7 +281,11 @@ class _YouScreenState extends ConsumerState<YouScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
+              const IosSectionHeader(
+                title: 'Preferensi & Perangkat',
+                padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
+              ),
               LiquidGlassCard(
                 radius: 22,
                 child: Column(
@@ -347,8 +356,8 @@ class _YouScreenState extends ConsumerState<YouScreen> {
                 ? ClipRect(
                     child: BackdropFilter(
                       filter: ImageFilter.blur(
-                        sigmaX: 24,
-                        sigmaY: 24,
+                        sigmaX: 6,
+                        sigmaY: 6,
                         tileMode: TileMode.clamp,
                       ),
                       child: Container(
@@ -361,11 +370,11 @@ class _YouScreenState extends ConsumerState<YouScreen> {
                         decoration: BoxDecoration(
                           color: (isDark
                                   ? const Color(0xFF0E1218)
-                                  : const Color(0xFFF6F7F9))
-                              .withAlpha(isDark ? 190 : 210),
+                                  : const Color(0xFFF6F7FB))
+                              .withAlpha(isDark ? 152 : 176),
                           border: Border(
                             bottom: BorderSide(
-                              color: border.withAlpha(130),
+                              color: border.withAlpha(110),
                               width: 0.6,
                             ),
                           ),
@@ -677,6 +686,24 @@ class SpotifyConnectScreen extends ConsumerWidget {
               ),
             ),
           ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+              onPressed: () => showSpotifyAppleLinkImportDialog(context, ref),
+              icon: const Icon(CupertinoIcons.link, size: 18),
+              label: const Text(
+                'Impor dari Tautan Spotify / Apple Music',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
           if (settings.spotifyConnected) ...[
             const SizedBox(height: 10),
             TextButton(
@@ -852,6 +879,149 @@ void _showSpotifyConnectSheet(BuildContext context, WidgetRef ref) {
   ).whenComplete(() {
     nameCtrl.dispose();
     queryCtrl.dispose();
+  });
+}
+
+void showSpotifyAppleLinkImportDialog(BuildContext context, WidgetRef ref) {
+  final linkCtrl = TextEditingController();
+  final ink = AppColors.inkOf(context);
+  final sub = AppColors.subOf(context);
+  final status = ValueNotifier<({bool loading, String? error})>(
+    (loading: false, error: null),
+  );
+
+  showArchysGlassDialog<void>(
+    context: context,
+    title: const Text('Impor dari Spotify / Apple Music'),
+    content: ValueListenableBuilder<({bool loading, String? error})>(
+      valueListenable: status,
+      builder: (ctx, st, _) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Tempel tautan playlist atau album',
+            style: TextStyle(fontSize: 13.5, color: sub),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: linkCtrl,
+            autofocus: true,
+            enabled: !st.loading,
+            decoration: InputDecoration(
+              hintText: 'https://open.spotify.com/playlist/...',
+              suffixIcon: TextButton(
+                onPressed: st.loading
+                    ? null
+                    : () async {
+                        final clip = await Clipboard.getData('text/plain');
+                        if (clip?.text != null) {
+                          linkCtrl.text = clip!.text!.trim();
+                        }
+                      },
+                child: const Text('Tempel'),
+              ),
+            ),
+          ),
+          if (st.error != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              st.error!,
+              style: const TextStyle(fontSize: 12, color: AppColors.iosRed),
+            ),
+          ],
+          if (st.loading) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const CupertinoActivityIndicator(radius: 9),
+                const SizedBox(width: 8),
+                Text(
+                  'Mengambil daftar lagu...',
+                  style: TextStyle(fontSize: 12.5, color: ink),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    ),
+    actionsBuilder: (ctx) => [
+      TextButton(
+        onPressed: () => Navigator.pop(ctx),
+        child: const Text('Batal'),
+      ),
+      ValueListenableBuilder<({bool loading, String? error})>(
+        valueListenable: status,
+        builder: (_, st, __) => FilledButton(
+          onPressed: st.loading
+              ? null
+              : () async {
+                  final url = linkCtrl.text.trim();
+                  if (url.isEmpty) {
+                    status.value = (
+                      loading: false,
+                      error: 'Tempel tautan playlist atau album terlebih dahulu.',
+                    );
+                    return;
+                  }
+                  status.value = (loading: true, error: null);
+                  try {
+                    final api = ref.read(apiClientProvider);
+                    final data = await api.importExternalPlaylist(url);
+                    final title = (data['title'] ?? 'Playlist Impor').toString();
+                    final rawTracks = (data['tracks'] as List?) ?? const [];
+                    final resolved = <MusicItem>[];
+                    for (final item in rawTracks.take(25)) {
+                      final q = item is Map
+                          ? '${item['title'] ?? ''} ${item['artist'] ?? ''}'.trim()
+                          : item.toString();
+                      if (q.isEmpty) continue;
+                      try {
+                        final res = await api.search(q, filter: 'songs');
+                        if (res.results.isNotEmpty) {
+                          resolved.add(res.results.first);
+                        }
+                      } catch (_) {}
+                    }
+                    if (resolved.isEmpty && title.isNotEmpty) {
+                      final fallback = await api.search(title, filter: 'songs');
+                      resolved.addAll(fallback.results.take(10));
+                    }
+                    if (resolved.isNotEmpty) {
+                      await ref.read(libraryProvider.notifier).createPlaylist(
+                            title,
+                            initialTracks: resolved,
+                          );
+                    }
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            resolved.isNotEmpty
+                                ? 'Berhasil mengimpor "$title" (${resolved.length} lagu)'
+                                : 'Tidak ada lagu yang cocok dari tautan tersebut',
+                          ),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    status.value = (
+                      loading: false,
+                      error: 'Gagal mengimpor tautan: $e',
+                    );
+                  }
+                },
+          child: st.loading
+              ? const CupertinoActivityIndicator(radius: 8, color: Colors.white)
+              : const Text('Impor'),
+        ),
+      ),
+    ],
+  ).whenComplete(() {
+    linkCtrl.dispose();
+    status.dispose();
   });
 }
 

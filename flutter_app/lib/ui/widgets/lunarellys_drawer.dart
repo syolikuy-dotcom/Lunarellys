@@ -330,8 +330,8 @@ class LunarellysDrawer extends ConsumerWidget {
         child: isGlass
             ? BackdropFilter(
                 filter: ImageFilter.blur(
-                  sigmaX: (14 + 12 * glassOpacity),
-                  sigmaY: (14 + 12 * glassOpacity),
+                  sigmaX: (10 + 8 * glassOpacity),
+                  sigmaY: (10 + 8 * glassOpacity),
                   tileMode: TileMode.clamp,
                 ),
                 child: drawerBody,

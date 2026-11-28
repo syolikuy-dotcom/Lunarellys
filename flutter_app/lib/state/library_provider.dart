@@ -704,3 +704,6 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
 final libraryProvider = StateNotifierProvider<LibraryNotifier, LibraryState>((ref) {
   return LibraryNotifier(ref.watch(sharedPreferencesProvider), ref);
 });
+
+final homePlayablePoolProvider = StateProvider<List<MusicItem>>((ref) => const []);
+

@@ -863,4 +863,150 @@ router.post('/listen-together/sync', (req, res) => {
   });
 });
 
+function decodeHtmlEntities(str) {
+  return String(str || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .trim();
+}
+
+async function resolveExternalPlaylistMetadata(rawUrl) {
+  let parsed;
+  try {
+    parsed = new URL(String(rawUrl || '').trim());
+  } catch {
+    throw new HttpError('Tautan playlist tidak valid', 400);
+  }
+  const host = parsed.hostname.toLowerCase();
+  const isSpotify = host.includes('spotify.com');
+  const isApple = host.includes('music.apple.com');
+  if (!isSpotify && !isApple) {
+    throw new HttpError('Gunakan tautan playlist/album Spotify atau Apple Music yang valid', 400);
+  }
+
+  const resp = await fetch(parsed.toString(), {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+      'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7'
+    },
+    redirect: 'follow',
+    signal: AbortSignal.timeout(12000)
+  });
+
+  if (!resp.ok) {
+    throw new HttpError(`Gagal membuka tautan (${resp.status})`, 400);
+  }
+  const html = await resp.text();
+
+  const ogTitleMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
+    || html.match(/<title>([^<]+)<\/title>/i);
+  const title = decodeHtmlEntities(ogTitleMatch ? ogTitleMatch[1] : '')
+    .replace(/\s*\|\s*Spotify.*$/i, '')
+    .replace(/\s*on Apple Music.*$/i, '')
+    || (isSpotify ? 'Playlist Spotify' : 'Playlist Apple Music');
+
+  const tracks = [];
+  const seen = new Set();
+  const pushTrack = (songTitle, artistName) => {
+    const cleanTitle = decodeHtmlEntities(songTitle).slice(0, 140);
+    const cleanArtist = decodeHtmlEntities(artistName).slice(0, 120);
+    if (!cleanTitle) return;
+    const key = `${cleanTitle.toLowerCase()}||${cleanArtist.toLowerCase()}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      tracks.push({ title: cleanTitle, artist: cleanArtist });
+    }
+  };
+
+  if (isSpotify) {
+    // Spotify embed page exposes clean track list JSON reliably without auth
+    try {
+      const m = parsed.pathname.match(/\/(playlist|album|track)\/([A-Za-z0-9]+)/);
+      if (m) {
+        const embedUrl = `https://open.spotify.com/embed/${m[1]}/${m[2]}`;
+        const eresp = await fetch(embedUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
+          },
+          signal: AbortSignal.timeout(12000)
+        });
+        if (eresp.ok) {
+          const ehtml = await eresp.text();
+          const nextDataMatch = ehtml.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
+          if (nextDataMatch) {
+            const data = JSON.parse(nextDataMatch[1]);
+            const entity = data?.props?.pageProps?.state?.data?.entity;
+            const list = entity?.trackList || entity?.tracks?.items || [];
+            for (const row of list) {
+              const tTitle = row?.title || row?.track?.name || row?.name;
+              const tSub = row?.subtitle
+                || (Array.isArray(row?.artists) ? row.artists.map((a) => a.name).join(', ') : '')
+                || (Array.isArray(row?.track?.artists) ? row.track.artists.map((a) => a.name).join(', ') : '');
+              pushTrack(tTitle, tSub);
+            }
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  // Fallback JSON-LD MusicRecording / meta music:song tags (Spotify & Apple Music)
+  if (tracks.length === 0) {
+    const ldMatches = html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+    for (const lm of ldMatches) {
+      try {
+        const parsedJson = JSON.parse(lm[1]);
+        const list = Array.isArray(parsedJson?.track)
+          ? parsedJson.track
+          : (Array.isArray(parsedJson?.tracks) ? parsedJson.tracks : []);
+        for (const item of list) {
+          const artistObj = item?.byArtist;
+          const artistStr = Array.isArray(artistObj)
+            ? artistObj.map((a) => a?.name || '').filter(Boolean).join(', ')
+            : (artistObj?.name || item?.artist || '');
+          pushTrack(item?.name, artistStr);
+        }
+      } catch (_) {}
+    }
+  }
+
+  // Apple Music serialized-server-data fallback
+  if (isApple && tracks.length === 0) {
+    const songMatches = html.matchAll(/"songName":"([^"]{2,120})","artistName":"([^"]{1,100})"/g);
+    for (const sm of songMatches) {
+      pushTrack(sm[1], sm[2]);
+    }
+    if (tracks.length === 0) {
+      const altMatches = html.matchAll(/"name":"([^"]{2,120})","artistName":"([^"]{1,100})"/g);
+      for (const am of altMatches) {
+        pushTrack(am[1], am[2]);
+      }
+    }
+  }
+
+  return {
+    success: true,
+    platform: isSpotify ? 'spotify' : 'apple_music',
+    title,
+    url: parsed.toString(),
+    total: tracks.length,
+    tracks: tracks.slice(0, 60)
+  };
+}
+
+router.get('/music/import-link', asyncHandler(async (req, res) => {
+  const url = requireQuery(req.query.url, 'url');
+  const data = await resolveExternalPlaylistMetadata(url);
+  res.json(data);
+}));
+
+router.post('/music/import-link', asyncHandler(async (req, res) => {
+  const url = requireQuery(req.body?.url || req.query.url, 'url');
+  const data = await resolveExternalPlaylistMetadata(url);
+  res.json(data);
+}));
+
 export default router;

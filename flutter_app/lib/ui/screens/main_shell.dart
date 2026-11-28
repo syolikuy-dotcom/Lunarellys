@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -8,8 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
+import '../../models/music_models.dart';
 import '../../services/device_permissions_service.dart';
 import '../../state/dynamic_island_provider.dart';
+import '../../state/library_provider.dart';
 import '../../state/player_provider.dart';
 import '../../state/settings_provider.dart';
 import '../widgets/dynamic_island.dart';
@@ -116,8 +117,11 @@ class _MainShellState extends ConsumerState<MainShell>
     final settings = ref.read(settingsProvider);
     final track = player.currentTrack;
     final trackId = track?.id ?? '';
-    final accent = (settings.dynamicAlbumColors ? player.dynamicColor : null) ??
-        const Color(0xFF5DA7E8);
+    final customAccentVal = settings.dynamicIslandAccentValue;
+    final accent = customAccentVal != 0
+        ? Color(customAccentVal)
+        : ((settings.dynamicAlbumColors ? player.dynamicColor : null) ??
+            const Color(0xFF5DA7E8));
 
     List<Map<String, dynamic>>? serializedLyrics;
     final lyricsObj = player.lyrics;
@@ -159,6 +163,10 @@ class _MainShellState extends ConsumerState<MainShell>
             systemOverlayEnabled: settings.dynamicIslandSystemOverlay,
             positionMode: settings.dynamicIslandPosition,
             lockScreenLyricsEnabled: settings.lockScreenLyricsEnabled,
+            presetKey: settings.dynamicIslandPreset.key,
+            islandScale: settings.dynamicIslandScale,
+            islandYOffset: settings.dynamicIslandYOffset,
+            showLyrics: settings.dynamicIslandShowLyrics,
             hasTrack: track != null,
             trackId: trackId,
             title: track?.title ?? AppConfig.appName,
@@ -202,6 +210,32 @@ class _MainShellState extends ConsumerState<MainShell>
   }
 
   void _openNowPlaying() => openNowPlayingSheet(context);
+
+  void _shuffleFromHome(AppStrings T) {
+    final library = ref.read(libraryProvider);
+    final homePool = ref.read(homePlayablePoolProvider);
+    final seen = <String>{};
+    final pool = <MusicItem>[];
+    for (final item in [
+      ...homePool,
+      ...library.recentlyPlayed,
+      ...library.likedSongs,
+      ...library.top50Tracks,
+    ]) {
+      if (item.isPlayable && item.id.isNotEmpty && seen.add(item.id)) {
+        pool.add(item);
+      }
+    }
+    if (pool.isNotEmpty) {
+      if (ref.read(settingsProvider).hapticsEnabled) {
+        HapticFeedback.selectionClick();
+      }
+      ref.read(playerProvider.notifier).playShuffled(
+            pool,
+            contextName: T.navHome,
+          );
+    }
+  }
 
   void _setCollapsed(bool collapsed) {
     if (_navCollapsed == collapsed) return;
@@ -322,7 +356,6 @@ class _MainShellState extends ConsumerState<MainShell>
     );
     final T = AppStrings.of(appLanguage);
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    final screenW = MediaQuery.sizeOf(context).width;
     final isDark = AppColors.isDark(context);
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
@@ -330,22 +363,100 @@ class _MainShellState extends ConsumerState<MainShell>
     final accent = dynamicAlbumColors ? dynamicColor : null;
     final glassAccent = accent ?? AppColors.horizonBlue;
     final showCompactInline = _navCollapsed;
-    final barWidth = math.max(260.0, math.min(540.0, screenW - 28.0));
+    final showHomeFabs = _selectedIndex == 0;
+    final fabBottom = showCompactInline
+        ? bottomInset + (hasTrack ? 80.0 : 22.0)
+        : bottomInset + (hasTrack ? 162.0 : 86.0);
 
-    final pagesBody = NotificationListener<ScrollNotification>(
-      onNotification: _onScrollNotification,
-      child: IndexedStack(
-        index: _selectedIndex,
-        children: const [
-          HomeScreen(),
-          SearchScreen(),
-          LibraryScreen(),
-          YouScreen(),
-        ],
+    final pagesBody = RepaintBoundary(
+      child: NotificationListener<ScrollNotification>(
+        onNotification: _onScrollNotification,
+        child: IndexedStack(
+          index: _selectedIndex,
+          children: [
+            TickerMode(enabled: _selectedIndex == 0, child: const HomeScreen()),
+            TickerMode(enabled: _selectedIndex == 1, child: const SearchScreen()),
+            TickerMode(enabled: _selectedIndex == 2, child: const LibraryScreen()),
+            TickerMode(enabled: _selectedIndex == 3, child: const YouScreen()),
+          ],
+        ),
       ),
     );
 
     final overlayWidgets = <Widget>[
+      // Floating Mic & Shuffle action buttons above the TabBar / MiniPlayer (Beranda)
+      AnimatedPositioned(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+        right: showHomeFabs ? 16 : -72,
+        bottom: fabBottom,
+        child: IgnorePointer(
+          ignoring: !showHomeFabs,
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            opacity: showHomeFabs ? 1.0 : 0.0,
+            child: AnimatedScale(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
+              scale: showHomeFabs ? 1.0 : 0.82,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LiquidGlassTap(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const SongRecognitionScreen(),
+                        ),
+                      );
+                    },
+                    child: LiquidGlassSurface(
+                      borderRadius: BorderRadius.circular(999),
+                      blurSigma: isGlass ? 10 : 0,
+                      useBackdropBlur: isGlass,
+                      chromaticAccent: glassAccent,
+                      child: SizedBox(
+                        width: 50,
+                        height: 50,
+                        child: Center(
+                          child: Icon(
+                            CupertinoIcons.mic_fill,
+                            color: ink,
+                            size: 21,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  LiquidGlassTap(
+                    onTap: () => _shuffleFromHome(T),
+                    child: LiquidGlassSurface(
+                      borderRadius: BorderRadius.circular(999),
+                      blurSigma: isGlass ? 10 : 0,
+                      useBackdropBlur: isGlass,
+                      chromaticAccent: glassAccent,
+                      child: SizedBox(
+                        width: 50,
+                        height: 50,
+                        child: Center(
+                          child: Icon(
+                            CupertinoIcons.shuffle,
+                            color: ink,
+                            size: 21,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+
       // Smooth spring morphing MiniPlayer between floating expanded & inline compact pill
       if (hasTrack)
         AnimatedPositioned(
@@ -360,29 +471,39 @@ class _MainShellState extends ConsumerState<MainShell>
           ),
         ),
 
-      // Collapsed state: left circular active-tab Liquid Glass orb
+      // Collapsed state: left circular active-tab orb animated identically in Flat & Glass
       AnimatedPositioned(
-        duration: const Duration(milliseconds: 280),
+        duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutCubic,
-        left: 14,
-        bottom: bottomInset + (showCompactInline ? 12 : -76),
+        left: showCompactInline ? 14 : -76,
+        bottom: bottomInset + 12,
         child: IgnorePointer(
           ignoring: !showCompactInline,
-          child: LiquidGlassTap(
-            onTap: () => _setCollapsed(false),
-            child: LiquidGlassSurface(
-              borderRadius: BorderRadius.circular(999),
-              blurSigma: 28,
-              chromaticAccent: glassAccent,
-              interactiveFlex: true,
-              child: SizedBox(
-                width: 58,
-                height: 58,
-                child: Center(
-                  child: Icon(
-                    _activeIconFor(_selectedIndex),
-                    color: ink,
-                    size: 24,
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            opacity: showCompactInline ? 1.0 : 0.0,
+            child: AnimatedScale(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
+              scale: showCompactInline ? 1.0 : 0.72,
+              child: LiquidGlassTap(
+                onTap: () => _setCollapsed(false),
+                child: LiquidGlassSurface(
+                  borderRadius: BorderRadius.circular(999),
+                  blurSigma: isGlass ? 10 : 0,
+                  useBackdropBlur: isGlass,
+                  chromaticAccent: glassAccent,
+                  child: SizedBox(
+                    width: 58,
+                    height: 58,
+                    child: Center(
+                      child: Icon(
+                        _activeIconFor(_selectedIndex),
+                        color: ink,
+                        size: 24,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -391,36 +512,37 @@ class _MainShellState extends ConsumerState<MainShell>
         ),
       ),
 
-      // Expanded 4-tab Navigation Capsule (LiquidGlassTabBar in Glass mode, Flat pill in Flat mode)
-      if (isGlass)
-        _buildLiquidGlassNavLayer(
-          visible: !showCompactInline,
-          bottomInset: bottomInset,
-          barWidth: barWidth,
-          isDark: isDark,
-          ink: ink,
-          sub: sub,
-          accent: glassAccent,
-          glassOpacity: glassOpacity,
-          T: T,
-        )
-      else
-        AnimatedPositioned(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutCubic,
-          left: 14,
-          right: 14,
-          bottom: bottomInset + (showCompactInline ? -88 : 10),
-          child: IgnorePointer(
-            ignoring: showCompactInline,
-            child: _buildFlatNavCapsule(
-              T: T,
-              ink: ink,
-              sub: sub,
-              isDark: isDark,
-            ),
+      // Expanded 4-tab Navigation Capsule (identical smooth slide/fade animation in Flat & Glass)
+      AnimatedPositioned(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+        left: 14,
+        right: 14,
+        bottom: bottomInset + (showCompactInline ? -88 : 10),
+        child: IgnorePointer(
+          ignoring: showCompactInline,
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            opacity: showCompactInline ? 0.0 : 1.0,
+            child: isGlass
+                ? _buildLiquidGlassNavLayer(
+                    T: T,
+                    ink: ink,
+                    sub: sub,
+                    isDark: isDark,
+                    accent: glassAccent,
+                    glassOpacity: glassOpacity,
+                  )
+                : _buildFlatNavCapsule(
+                    T: T,
+                    ink: ink,
+                    sub: sub,
+                    isDark: isDark,
+                  ),
           ),
         ),
+      ),
 
       // Authentic iPhone top-right swipe-down gesture for Control Center
       Positioned(
@@ -502,114 +624,136 @@ class _MainShellState extends ConsumerState<MainShell>
   }
 
   Widget _buildLiquidGlassNavLayer({
-    required bool visible,
-    required double bottomInset,
-    required double barWidth,
-    required bool isDark,
+    required AppStrings T,
     required Color ink,
     required Color sub,
+    required bool isDark,
     required Color accent,
     required double glassOpacity,
-    required AppStrings T,
   }) {
-    final barAlpha = ui.lerpDouble(isDark ? 95 : 138, isDark ? 205 : 225, glassOpacity)!.round();
-    final barColor = isDark
-        ? Color.fromARGB(barAlpha, 24, 28, 36)
-        : Color.fromARGB(barAlpha, 255, 255, 255);
+    final alignX = -1.0 + (_selectedIndex * (2.0 / 3.0));
+    final pillFill = isDark
+        ? Colors.white.withAlpha(ui.lerpDouble(30, 48, glassOpacity)!.round())
+        : Colors.white.withAlpha(ui.lerpDouble(195, 232, glassOpacity)!.round());
 
-    LiquidGlassTabBarItem buildTab(IconData icon, IconData activeIcon, String label) {
-      return LiquidGlassTabBarItem(
-        label: label,
-        iconBuilder: (context, g) => Icon(
-          g.selected ? activeIcon : icon,
-          size: g.size,
-          color: g.color,
-          shadows: g.selected
-              ? [Shadow(color: g.color.withAlpha(110), blurRadius: 12)]
-              : null,
+    return LiquidGlassSurface(
+      borderRadius: BorderRadius.circular(999),
+      blurSigma: 12,
+      useBackdropBlur: true,
+      chromaticAccent: accent,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+      child: SizedBox(
+        height: 54,
+        child: Stack(
+          children: [
+            // Smoothly sliding Liquid Glass selection indicator (matches reference screenshots)
+            Positioned.fill(
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment(alignX, 0),
+                child: FractionallySizedBox(
+                  widthFactor: 0.25,
+                  heightFactor: 1.0,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: pillFill,
+                        borderRadius: BorderRadius.circular(999),
+                        gradient: !isDark
+                            ? const RadialGradient(
+                                center: Alignment(0, 0.25),
+                                radius: 1.05,
+                                colors: [
+                                  Color(0x46FFE999),
+                                  Color(0xDDFFFFFF),
+                                ],
+                              )
+                            : null,
+                        border: Border.all(
+                          color: isDark
+                              ? Colors.white.withAlpha(64)
+                              : Colors.black.withAlpha(16),
+                          width: 0.7,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(isDark ? 42 : 12),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                _FlatNavTabItem(
+                  selected: _selectedIndex == 0,
+                  label: T.navHome,
+                  ink: ink,
+                  sub: sub,
+                  isDark: isDark,
+                  showTileBg: false,
+                  iconBuilder: (active, color) => Icon(
+                    active ? CupertinoIcons.house_fill : CupertinoIcons.house,
+                    color: color,
+                    size: 22,
+                  ),
+                  onTap: () => _selectTab(0),
+                ),
+                _FlatNavTabItem(
+                  selected: _selectedIndex == 1,
+                  label: T.navSearch,
+                  ink: ink,
+                  sub: sub,
+                  isDark: isDark,
+                  showTileBg: false,
+                  iconBuilder: (active, color) => Icon(
+                    CupertinoIcons.search,
+                    color: color,
+                    size: 22,
+                  ),
+                  onTap: () => _selectTab(1),
+                ),
+                _FlatNavTabItem(
+                  selected: _selectedIndex == 2,
+                  label: T.navLibrary,
+                  ink: ink,
+                  sub: sub,
+                  isDark: isDark,
+                  showTileBg: false,
+                  iconBuilder: (active, color) => Icon(
+                    active
+                        ? CupertinoIcons.music_albums_fill
+                        : CupertinoIcons.music_albums,
+                    color: color,
+                    size: 22,
+                  ),
+                  onTap: () => _selectTab(2),
+                ),
+                _FlatNavTabItem(
+                  selected: _selectedIndex == 3,
+                  label: T.navYou,
+                  ink: ink,
+                  sub: sub,
+                  isDark: isDark,
+                  showTileBg: false,
+                  iconBuilder: (active, color) => Icon(
+                    active ? CupertinoIcons.person_fill : CupertinoIcons.person,
+                    color: color,
+                    size: 22,
+                  ),
+                  onTap: () => _selectTab(3),
+                ),
+              ],
+            ),
+          ],
         ),
-      );
-    }
-
-    final tabBar = LiquidGlassTabBar(
-      items: [
-        buildTab(CupertinoIcons.house, CupertinoIcons.house_fill, T.navHome),
-        buildTab(CupertinoIcons.search, CupertinoIcons.search, T.navSearch),
-        buildTab(CupertinoIcons.music_albums, CupertinoIcons.music_albums_fill, T.navLibrary),
-        buildTab(CupertinoIcons.person, CupertinoIcons.person_fill, T.navYou),
-      ],
-      selectedIndex: _selectedIndex,
-      onChanged: _selectTab,
-      visibility: visible,
-      width: barWidth,
-      height: 62,
-      itemPadding: 4,
-      margin: const EdgeInsets.only(bottom: 10),
-      alignment: Alignment.bottomCenter,
-      swell: const LiquidGlassTabBarSwell(scale: 0.032, grip: 0.78),
-      style: LiquidGlassStyle(
-        shape: const LiquidGlassShape.continuousRoundedRectangle(cornerRadius: 32),
-        specular: LiquidGlassLight.specular(
-          thickness: 4.5,
-          intensity: isDark ? 0.68 : 0.95,
-          oppositeIntensity: 0.45,
-        ),
-        glow: LiquidGlassLight.glow(
-          thickness: 8,
-          intensity: 0.24,
-          oppositeIntensity: 0.14,
-          color: accent,
-        ),
-        color: barColor,
-        blur: (3.0 + glassOpacity * 4.5).clamp(2.5, 9.0),
-        saturation: isDark ? 1.25 : 1.7,
-        refractionIndex: 1.18,
-        refractionWidth: 16,
-        shadow: LiquidGlassShadow(
-          blur: 20,
-          opacity: isDark ? 0.28 : 0.12,
-        ),
-      ),
-      itemStyle: LiquidGlassTabItemStyle(
-        selectedColor: accent,
-        unselectedColor: sub.withAlpha(isDark ? 215 : 225),
-        iconSize: 22,
-        underGlassIconSize: 25,
-        labelFontSize: 10.5,
-        underGlassLabelFontSize: 11.0,
-        iconLabelGap: 2,
-        selectedFontWeight: FontWeight.w700,
-        unselectedFontWeight: FontWeight.w600,
-      ),
-      pillStyle: LiquidGlassTabPillStyle(
-        mode: LiquidGlassPillMode.both,
-        rest: LiquidGlassStyle(
-          shape: const LiquidGlassShape.continuousRoundedRectangle(cornerRadius: 28),
-          color: isDark
-              ? Colors.white.withAlpha(28)
-              : accent.withAlpha(24),
-        ),
-      ),
-    );
-
-    if (ui.ImageFilter.isShaderFilterSupported) {
-      return Positioned.fill(
-        child: IgnorePointer(
-          ignoring: !visible,
-          child: tabBar,
-        ),
-      );
-    }
-
-    return AnimatedPositioned(
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOutCubic,
-      left: 14,
-      right: 14,
-      bottom: bottomInset + (visible ? 10 : -88),
-      child: IgnorePointer(
-        ignoring: !visible,
-        child: Center(child: tabBar),
       ),
     );
   }
@@ -694,6 +838,7 @@ class _FlatNavTabItem extends StatelessWidget {
   final Color ink;
   final Color sub;
   final bool isDark;
+  final bool showTileBg;
   final Widget Function(bool active, Color color) iconBuilder;
   final VoidCallback onTap;
 
@@ -703,13 +848,15 @@ class _FlatNavTabItem extends StatelessWidget {
     required this.ink,
     required this.sub,
     required this.isDark,
+    this.showTileBg = true,
     required this.iconBuilder,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? ink : sub;
+    final activeColor = isDark ? Colors.white : AppColors.lightTextPrimary;
+    final color = selected ? activeColor : sub;
     return Expanded(
       child: LiquidGlassTap(
         onTap: onTap,
@@ -721,10 +868,10 @@ class _FlatNavTabItem extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 2),
           padding: const EdgeInsets.symmetric(vertical: 4),
           decoration: BoxDecoration(
-            color: selected
+            color: (showTileBg && selected)
                 ? (isDark
                     ? Colors.white.withAlpha(24)
-                    : Colors.black.withAlpha(14))
+                    : AppColors.lightTextPrimary.withAlpha(14))
                 : null,
             borderRadius: BorderRadius.circular(999),
           ),

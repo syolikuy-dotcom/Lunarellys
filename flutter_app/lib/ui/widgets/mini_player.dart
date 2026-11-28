@@ -51,17 +51,17 @@ class MiniPlayer extends ConsumerWidget {
     final pillTint = dynamicMix > 0 && dynamicColor != null
         ? Color.lerp(
             isDark
-                ? (isGlass ? const Color(0xA6161B24) : const Color(0xE61A1F26))
-                : (isGlass ? const Color(0xBAFFFFFF) : const Color(0xF5FFFFFF)),
+                ? (isGlass ? const Color(0x9A161920) : AppColors.darkSurface)
+                : (isGlass ? const Color(0xCCFFFFFF) : AppColors.lightSurface),
             accent,
-            dynamicMix,
+            isGlass ? dynamicMix * 0.42 : dynamicMix,
           )
         : (isDark
-            ? (isGlass ? const Color(0x9C151A23) : AppColors.darkSurface)
-            : (isGlass ? const Color(0xB4FFFFFF) : AppColors.lightSurface));
+            ? (isGlass ? const Color(0x94161920) : AppColors.darkSurface)
+            : (isGlass ? const Color(0xC8FFFFFF) : AppColors.lightSurface));
 
     final chromaticColor = miniBgStyle == MiniPlayerBackgroundStyle.blur
-        ? accent.withAlpha(isDark ? 90 : 75)
+        ? null
         : accent;
 
     if (compact) {
@@ -71,18 +71,17 @@ class MiniPlayer extends ConsumerWidget {
           pressedScale: 0.97,
           child: LiquidGlassSurface(
             borderRadius: BorderRadius.circular(999),
-            blurSigma: 28,
+            blurSigma: 14,
             tintColor: pillTint,
             chromaticAccent: chromaticColor,
-            interactiveFlex: true,
+            interactiveFlex: false,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _MiniPlayerProgressBar(color: ink.withAlpha(215)),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(7, 5, 5, 7),
+                  padding: const EdgeInsets.fromLTRB(7, 6, 5, 4),
                   child: SizedBox(
-                    height: 40,
+                    height: 38,
                     child: Row(
                       children: [
                         MiniSpinningVinyl(
@@ -161,6 +160,13 @@ class MiniPlayer extends ConsumerWidget {
                     ),
                   ),
                 ),
+                _MiniPlayerProgressBar(
+                  color: AppColors.readableAccent(
+                    accent,
+                    Theme.of(context).brightness,
+                  ),
+                ),
+                const SizedBox(height: 2),
               ],
             ),
           ),
@@ -188,16 +194,15 @@ class MiniPlayer extends ConsumerWidget {
           pressedScale: 0.98,
           child: LiquidGlassSurface(
             borderRadius: BorderRadius.circular(32),
-            blurSigma: 28,
+            blurSigma: 18,
             tintColor: pillTint,
             chromaticAccent: chromaticColor,
-            interactiveFlex: true,
+            interactiveFlex: false,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _MiniPlayerProgressBar(color: ink.withAlpha(220)),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 7, 10, 9),
+                  padding: const EdgeInsets.fromLTRB(12, 9, 10, 6),
                   child: Row(
                     children: [
                       MiniSpinningVinyl(
@@ -290,6 +295,13 @@ class MiniPlayer extends ConsumerWidget {
                     ],
                   ),
                 ),
+                _MiniPlayerProgressBar(
+                  color: AppColors.readableAccent(
+                    accent,
+                    Theme.of(context).brightness,
+                  ),
+                ),
+                const SizedBox(height: 3),
               ],
             ),
           ),

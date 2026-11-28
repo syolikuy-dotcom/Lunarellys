@@ -64,9 +64,18 @@ class DynamicIslandOverlayController(context: Context) {
     private var expandedArtView: RoundedArtworkView? = null
     private var expandedTitleView: TextView? = null
     private var expandedArtistView: TextView? = null
+    private var expandedLyricView: TextView? = null
     private var expandedEqView: NativeEqualizerView? = null
+    private var expandedOpenBtn: VectorMediaButton? = null
+    private var expandedOpenWrap: FrameLayout? = null
+    private var expandedPrevBtn: VectorMediaButton? = null
+    private var expandedPrevWrap: FrameLayout? = null
     private var expandedPlayBtn: VectorMediaButton? = null
     private var expandedPlayCircle: FrameLayout? = null
+    private var expandedNextBtn: VectorMediaButton? = null
+    private var expandedNextWrap: FrameLayout? = null
+    private var expandedCollapseBtn: VectorMediaButton? = null
+    private var expandedCollapseWrap: FrameLayout? = null
     private var expandedProgressBar: ProgressBar? = null
     private var expandedElapsedView: TextView? = null
     private var expandedRemainingView: TextView? = null
@@ -86,9 +95,9 @@ class DynamicIslandOverlayController(context: Context) {
 
     private val progressTicker = object : Runnable {
         override fun run() {
-            if (!expanded || rootView?.isAttachedToWindow != true) return
-            updateExpandedProgressOnly()
-            mainHandler.postDelayed(this, 500L)
+            if (rootView?.isAttachedToWindow != true) return
+            updateLiveLyricAndProgress()
+            mainHandler.postDelayed(this, if (expanded) 450L else 700L)
         }
     }
 
@@ -477,13 +486,14 @@ class DynamicIslandOverlayController(context: Context) {
     private fun targetTopYPx(): Int {
         val st = ArchysMediaOverlayStore.state
         val safeTop = safeTopInsetPx()
-        if (expanded || st.positionMode != "notch") {
-            // Safe below status bar + cutout on 100% of Android phones
-            return safeTop + dp(6f)
+        val extraOffset = dp(st.islandYOffset)
+        val base = if (expanded || st.positionMode != "notch") {
+            safeTop + dp(6f)
+        } else {
+            val statusH = statusBarHeightPx()
+            ((statusH - dp(26f)) / 2).coerceAtLeast(dp(3f))
         }
-        // Notch mode: compact capsule sits neatly centered inside status bar height
-        val statusH = statusBarHeightPx()
-        return ((statusH - dp(26f)) / 2).coerceAtLeast(dp(3f))
+        return (base + extraOffset).coerceIn(dp(2f), dp(260f))
     }
 
     private fun buildParams(): WindowManager.LayoutParams {
@@ -621,6 +631,9 @@ class DynamicIslandOverlayController(context: Context) {
             }
         }
 
+        val eOpenBtn = VectorMediaButton(appContext, VectorMediaButton.IconKind.OPEN, Color.WHITE).apply {
+            layoutParams = FrameLayout.LayoutParams(dp(16f), dp(16f), Gravity.CENTER)
+        }
         val openWrap = FrameLayout(appContext).apply {
             layoutParams = LinearLayout.LayoutParams(dp(30f), dp(30f))
             background = GradientDrawable().apply {
@@ -631,11 +644,7 @@ class DynamicIslandOverlayController(context: Context) {
                 expanded = false
                 ArchysMediaOverlayStore.dispatchAction("open")
             }
-            addView(
-                VectorMediaButton(appContext, VectorMediaButton.IconKind.OPEN, Color.WHITE).apply {
-                    layoutParams = FrameLayout.LayoutParams(dp(16f), dp(16f), Gravity.CENTER)
-                }
-            )
+            addView(eOpenBtn)
         }
 
         headerRow.addView(eArt)
@@ -643,11 +652,22 @@ class DynamicIslandOverlayController(context: Context) {
         headerRow.addView(eEq)
         headerRow.addView(openWrap)
 
+        // Live active lyric strip inside expanded card
+        val eLyric = TextView(appContext).apply {
+            setTextColor(0xE8FFFFFF.toInt())
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.6f)
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            maxLines = 2
+            ellipsize = TextUtils.TruncateAt.END
+            setPadding(dp(2f), dp(8f), dp(2f), dp(2f))
+            visibility = View.GONE
+        }
+
         // Progress bar row
         val progressRow = LinearLayout(appContext).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(12f), 0, dp(8f))
+            setPadding(0, dp(10f), 0, dp(8f))
         }
 
         val elapsedTv = TextView(appContext).apply {
@@ -668,7 +688,7 @@ class DynamicIslandOverlayController(context: Context) {
                 marginStart = dp(8f)
                 marginEnd = dp(8f)
             }
-            progressDrawable = buildProgressDrawable()
+            progressDrawable = buildProgressDrawable(false)
         }
 
         val remainingTv = TextView(appContext).apply {
@@ -689,14 +709,13 @@ class DynamicIslandOverlayController(context: Context) {
             setPadding(0, dp(2f), 0, 0)
         }
 
+        val ePrevBtn = VectorMediaButton(appContext, VectorMediaButton.IconKind.PREV, Color.WHITE).apply {
+            layoutParams = FrameLayout.LayoutParams(dp(20f), dp(20f), Gravity.CENTER)
+        }
         val prevBtnWrap = createGlassIconCircle(dp(40f), 0x1FFFFFFF) {
             ArchysMediaOverlayStore.dispatchAction("prev")
         }.apply {
-            addView(
-                VectorMediaButton(appContext, VectorMediaButton.IconKind.PREV, Color.WHITE).apply {
-                    layoutParams = FrameLayout.LayoutParams(dp(20f), dp(20f), Gravity.CENTER)
-                }
-            )
+            addView(ePrevBtn)
         }
 
         val ePlayBtn = VectorMediaButton(appContext, VectorMediaButton.IconKind.PLAY, Color.BLACK).apply {
@@ -708,26 +727,24 @@ class DynamicIslandOverlayController(context: Context) {
             addView(ePlayBtn)
         }
 
+        val eNextBtn = VectorMediaButton(appContext, VectorMediaButton.IconKind.NEXT, Color.WHITE).apply {
+            layoutParams = FrameLayout.LayoutParams(dp(20f), dp(20f), Gravity.CENTER)
+        }
         val nextBtnWrap = createGlassIconCircle(dp(40f), 0x1FFFFFFF) {
             ArchysMediaOverlayStore.dispatchAction("next")
         }.apply {
-            addView(
-                VectorMediaButton(appContext, VectorMediaButton.IconKind.NEXT, Color.WHITE).apply {
-                    layoutParams = FrameLayout.LayoutParams(dp(20f), dp(20f), Gravity.CENTER)
-                }
-            )
+            addView(eNextBtn)
         }
 
+        val eCollapseBtn = VectorMediaButton(appContext, VectorMediaButton.IconKind.COLLAPSE, 0xCCFFFFFF.toInt()).apply {
+            layoutParams = FrameLayout.LayoutParams(dp(18f), dp(18f), Gravity.CENTER)
+        }
         val collapseWrap = createGlassIconCircle(dp(36f), 0x1CFFFFFF) {
             expanded = false
             hasUserDragged = false
             bindViews()
         }.apply {
-            addView(
-                VectorMediaButton(appContext, VectorMediaButton.IconKind.COLLAPSE, 0xCCFFFFFF.toInt()).apply {
-                    layoutParams = FrameLayout.LayoutParams(dp(18f), dp(18f), Gravity.CENTER)
-                }
-            )
+            addView(eCollapseBtn)
         }
 
         controlsRow.addView(prevBtnWrap)
@@ -739,6 +756,7 @@ class DynamicIslandOverlayController(context: Context) {
         controlsRow.addView(collapseWrap)
 
         expandedBox.addView(headerRow)
+        expandedBox.addView(eLyric)
         expandedBox.addView(progressRow)
         expandedBox.addView(controlsRow)
 
@@ -767,22 +785,31 @@ class DynamicIslandOverlayController(context: Context) {
         expandedArtView = eArt
         expandedTitleView = eTitle
         expandedArtistView = eArtist
+        expandedLyricView = eLyric
         expandedEqView = eEq
+        expandedOpenBtn = eOpenBtn
+        expandedOpenWrap = openWrap
+        expandedPrevBtn = ePrevBtn
+        expandedPrevWrap = prevBtnWrap
         expandedPlayBtn = ePlayBtn
         expandedPlayCircle = playBtnWrap
+        expandedNextBtn = eNextBtn
+        expandedNextWrap = nextBtnWrap
+        expandedCollapseBtn = eCollapseBtn
+        expandedCollapseWrap = collapseWrap
         expandedProgressBar = progressBar
         expandedElapsedView = elapsedTv
         expandedRemainingView = remainingTv
     }
 
-    private fun buildProgressDrawable(): android.graphics.drawable.LayerDrawable {
+    private fun buildProgressDrawable(lightSurface: Boolean): android.graphics.drawable.LayerDrawable {
         val bg = GradientDrawable().apply {
             cornerRadius = dpF(99f)
-            setColor(0x3DFFFFFF)
+            setColor(if (lightSurface) 0x260F172A else 0x3DFFFFFF)
         }
         val fg = GradientDrawable().apply {
             cornerRadius = dpF(99f)
-            setColor(Color.WHITE)
+            setColor(if (lightSurface) 0xFF0F172A.toInt() else Color.WHITE)
         }
         val clip = android.graphics.drawable.ClipDrawable(fg, Gravity.START, android.graphics.drawable.ClipDrawable.HORIZONTAL)
         return android.graphics.drawable.LayerDrawable(arrayOf(bg, clip)).apply {
@@ -870,7 +897,7 @@ class DynamicIslandOverlayController(context: Context) {
         return "$m:${s.toString().padStart(2, '0')}"
     }
 
-    private fun updateExpandedProgressOnly() {
+    private fun updateLiveLyricAndProgress() {
         val st = ArchysMediaOverlayStore.state
         val pos = st.currentPositionMs()
         val dur = st.durationMs.coerceAtLeast(0L)
@@ -885,6 +912,32 @@ class DynamicIslandOverlayController(context: Context) {
             expandedElapsedView?.text = formatTime(pos)
             expandedRemainingView?.text = "--:--"
         }
+
+        val activeIdx = st.activeLyricIndex()
+        val lyricText = if (st.showLyrics && activeIdx in st.lyrics.indices) {
+            st.lyrics[activeIdx].text
+        } else {
+            ""
+        }
+
+        if (!expanded && st.positionMode != "notch") {
+            compactTitleView?.text = if (lyricText.isNotEmpty() && st.isPlaying) {
+                lyricText
+            } else if (st.hasTrack && st.title.isNotBlank()) {
+                st.title
+            } else {
+                "Archys"
+            }
+        }
+
+        if (expanded) {
+            if (lyricText.isNotEmpty()) {
+                expandedLyricView?.visibility = View.VISIBLE
+                expandedLyricView?.text = lyricText
+            } else {
+                expandedLyricView?.visibility = View.GONE
+            }
+        }
     }
 
     private fun bindViews() {
@@ -894,34 +947,36 @@ class DynamicIslandOverlayController(context: Context) {
         val accent = st.accentColor
         val screenW = screenWidthPx()
         val isNotchCompact = !expanded && st.positionMode == "notch"
+        val scale = st.islandScale.coerceIn(0.8f, 1.25f)
+        val isLightPreset = st.presetKey == "minimal_light"
+        val fgColor = if (isLightPreset) 0xFF0F172A.toInt() else Color.WHITE
+        val mutedColor = if (isLightPreset) 0x990F172A.toInt() else 0xB8FFFFFF.toInt()
+        val chipBgColor = if (isLightPreset) 0x160F172A else 0x1FFFFFFF
 
-        // Liquid Glass background drawable
         card.background = LiquidGlassCapsuleDrawable(
             cornerRadiusPx = dpF(if (expanded) 28f else 99f),
             accentColor = accent,
             borderWidthPx = dpF(1.15f),
-            expandedStyle = expanded
+            expandedStyle = expanded,
+            presetKey = st.presetKey
         )
 
-        // Sizing adapted safely to any screen width
         val compactTargetWidth = if (isNotchCompact) {
-            dp(96f).coerceAtMost((screenW * 0.28f).toInt())
+            dp(96f * scale).coerceAtMost((screenW * 0.30f).toInt())
         } else {
-            val maxSafeW = (screenW - dp(84f)).coerceAtLeast(dp(168f))
-            if (st.hasTrack) dp(212f).coerceAtMost(maxSafeW) else dp(156f)
+            val maxSafeW = (screenW - dp(60f)).coerceAtLeast(dp(168f))
+            if (st.hasTrack) dp(220f * scale).coerceAtMost(maxSafeW) else dp(156f * scale)
         }
-        val expandedTargetWidth = (screenW - dp(28f)).coerceIn(dp(280f), dp(376f))
+        val expandedTargetWidth = (screenW - dp(24f)).coerceIn(dp(280f), dp(382f))
 
         card.layoutParams = (card.layoutParams as FrameLayout.LayoutParams).apply {
             width = if (expanded) expandedTargetWidth else compactTargetWidth
         }
 
-        // Artwork bitmap
         val cachedBmp = ArchysMediaOverlayStore.getCachedBitmap(st.artUrl)
         compactArtView?.setArtworkBitmap(cachedBmp)
         expandedArtView?.setArtworkBitmap(cachedBmp)
 
-        // Compact layout adjustments for notch vs below mode
         compactContainer?.setPadding(
             dp(if (isNotchCompact) 5f else 7f),
             dp(if (isNotchCompact) 3f else 5f),
@@ -929,24 +984,41 @@ class DynamicIslandOverlayController(context: Context) {
             dp(if (isNotchCompact) 3f else 5f)
         )
         compactArtView?.layoutParams = (compactArtView?.layoutParams as LinearLayout.LayoutParams).apply {
-            val s = dp(if (isNotchCompact) 17f else 22f)
+            val s = dp(if (isNotchCompact) 17f else 22f * scale)
             width = s
             height = s
         }
+        compactTitleView?.setTextColor(fgColor)
         compactTitleView?.visibility = if (isNotchCompact) View.GONE else View.VISIBLE
-        compactTitleView?.text = if (st.hasTrack && st.title.isNotBlank()) st.title else "Archys"
 
         val eqColor = if (st.hasTrack) accent else 0xFF34C759.toInt()
         compactEqView?.update(st.isPlaying, eqColor)
         expandedEqView?.update(st.isPlaying, eqColor)
 
+        expandedTitleView?.setTextColor(fgColor)
         expandedTitleView?.text = if (st.hasTrack && st.title.isNotBlank()) st.title else "Archys Music"
+        expandedArtistView?.setTextColor(mutedColor)
         expandedArtistView?.text = if (st.hasTrack && st.artist.isNotBlank()) {
             st.artist
         } else {
             "Siap memutar musik"
         }
+        expandedLyricView?.setTextColor(if (isLightPreset) 0xFF1E293B.toInt() else 0xEBFFFFFF.toInt())
+        expandedElapsedView?.setTextColor(mutedColor)
+        expandedRemainingView?.setTextColor(mutedColor)
+        expandedProgressBar?.progressDrawable = buildProgressDrawable(isLightPreset)
+
+        (expandedOpenWrap?.background as? GradientDrawable)?.setColor(chipBgColor)
+        expandedOpenBtn?.apply { tintColor = fgColor; invalidate() }
+        (expandedPrevWrap?.background as? GradientDrawable)?.setColor(chipBgColor)
+        expandedPrevBtn?.apply { tintColor = fgColor; invalidate() }
+        (expandedNextWrap?.background as? GradientDrawable)?.setColor(chipBgColor)
+        expandedNextBtn?.apply { tintColor = fgColor; invalidate() }
+        (expandedCollapseWrap?.background as? GradientDrawable)?.setColor(chipBgColor)
+        expandedCollapseBtn?.apply { tintColor = mutedColor; invalidate() }
+        (expandedPlayCircle?.background as? GradientDrawable)?.setColor(if (isLightPreset) 0xFF0F172A.toInt() else Color.WHITE)
         expandedPlayBtn?.apply {
+            tintColor = if (isLightPreset) Color.WHITE else Color.BLACK
             iconKind = if (st.isPlaying) VectorMediaButton.IconKind.PAUSE else VectorMediaButton.IconKind.PLAY
             invalidate()
         }
@@ -954,10 +1026,10 @@ class DynamicIslandOverlayController(context: Context) {
         compactContainer?.visibility = if (expanded) View.GONE else View.VISIBLE
         expandedContainer?.visibility = if (expanded) View.VISIBLE else View.GONE
 
-        updateExpandedProgressOnly()
+        updateLiveLyricAndProgress()
         mainHandler.removeCallbacks(progressTicker)
-        if (expanded && root.isAttachedToWindow) {
-            mainHandler.postDelayed(progressTicker, 500L)
+        if (root.isAttachedToWindow) {
+            mainHandler.postDelayed(progressTicker, if (expanded) 450L else 700L)
         }
 
         if (root.isAttachedToWindow) {

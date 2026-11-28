@@ -18,8 +18,6 @@ import '../widgets/liquid_glass.dart';
 import '../widgets/media_card.dart';
 import '../widgets/track_tile.dart';
 import 'detail_screens.dart';
-import 'main_shell.dart';
-import 'you_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -45,7 +43,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     final hasCache = _restoreCachedHome();
+    if (hasCache) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _publishPlayablePool();
+      });
+    }
     unawaited(_loadData(silent: hasCache));
+  }
+
+  void _publishPlayablePool() {
+    ref.read(homePlayablePoolProvider.notifier).state = _collectAllPlayable();
   }
 
   bool _restoreCachedHome() {
@@ -136,6 +143,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         if (moods.isNotEmpty) _moods = moods;
         _loading = false;
       });
+      _publishPlayablePool();
       _saveCachedHome(secs, moods);
     } catch (err) {
       if (!mounted) return;
@@ -162,6 +170,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         if (secs.isNotEmpty) _sections = secs;
         _loadingMood = false;
       });
+      _publishPlayablePool();
     } catch (_) {
       if (mounted) {
         setState(() => _loadingMood = false);
@@ -233,16 +242,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isGlass = ref.watch(
       settingsProvider.select((s) => s.appearanceStyle == AppAppearanceStyle.glass),
     );
-    final navCollapsed = ref.watch(navCollapsedProvider);
     final T = AppStrings.of(appLanguage);
     final greeting = T.greeting(DateTime.now().hour);
-
     final isDark = AppColors.isDark(context);
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
     final pill = AppColors.pillOf(context);
     final topPad = MediaQuery.of(context).padding.top;
-    final bottomInset = MediaQuery.of(context).padding.bottom;
 
     final allTracks = _collectAllPlayable();
 
@@ -301,7 +307,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             color: ink,
             onRefresh: _loadData,
             child: ListView(
-              padding: EdgeInsets.fromLTRB(0, topPad + 14 + islandClearance, 0, 180),
+              padding: EdgeInsets.fromLTRB(
+                0,
+                topPad + 14 + islandClearance,
+                0,
+                MediaQuery.of(context).padding.bottom + 210,
+              ),
               children: [
                 // Clean full-width Greeting header + Control Center quick button
                 Padding(
@@ -332,7 +343,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           padding: const EdgeInsets.all(9),
                           child: Icon(
                             CupertinoIcons.slider_horizontal_3,
-                            size: 19,
+                            size: 18,
                             color: ink,
                           ),
                         ),
@@ -461,11 +472,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                         child: Row(
                           children: [
-                            Text(
-                              T.speedDial,
-                              style: Theme.of(context).textTheme.headlineMedium,
+                            Expanded(
+                              child: Text(
+                                T.speedDial,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.headlineMedium,
+                              ),
                             ),
-                            const Spacer(),
+                            const SizedBox(width: 8),
                             Icon(CupertinoIcons.chevron_forward, color: sub, size: 20),
                           ],
                         ),
@@ -483,11 +498,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 2, 16, 10),
                       child: Row(
                         children: [
-                          Text(
-                            T.quickPicks,
-                            style: Theme.of(context).textTheme.headlineMedium,
+                          Expanded(
+                            child: Text(
+                              T.quickPicks,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.headlineMedium,
+                            ),
                           ),
-                          const Spacer(),
+                          const SizedBox(width: 8),
                           TextButton(
                             onPressed: () {
                               ref.read(playerProvider.notifier).playTrack(
@@ -654,11 +673,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                         child: Row(
                           children: [
-                            Text(
-                              T.moodAndGenres,
-                              style: Theme.of(context).textTheme.headlineMedium,
+                            Expanded(
+                              child: Text(
+                                T.moodAndGenres,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.headlineMedium,
+                              ),
                             ),
-                            const Spacer(),
+                            const SizedBox(width: 8),
                             Icon(CupertinoIcons.chevron_forward, color: sub, size: 20),
                           ],
                         ),
@@ -734,8 +757,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ? ClipRect(
                     child: BackdropFilter(
                       filter: ImageFilter.blur(
-                        sigmaX: 24,
-                        sigmaY: 24,
+                        sigmaX: 6,
+                        sigmaY: 6,
                         tileMode: TileMode.clamp,
                       ),
                       child: Container(
@@ -748,11 +771,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         decoration: BoxDecoration(
                           color: (isDark
                                   ? const Color(0xFF0E1218)
-                                  : const Color(0xFFF6F7F9))
-                              .withAlpha(isDark ? 190 : 205),
+                                  : const Color(0xFFF6F7FB))
+                              .withAlpha(isDark ? 152 : 176),
                           border: Border(
                             bottom: BorderSide(
-                              color: AppColors.borderOf(context).withAlpha(130),
+                              color: AppColors.borderOf(context).withAlpha(110),
                               width: 0.6,
                             ),
                           ),
@@ -841,45 +864,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
           ),
         ),
-
-        // Floating Mic & Shuffle circular glass buttons synced with nav capsule collapse
-        AnimatedPositioned(
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOutCubic,
-          right: 16,
-          bottom: bottomInset +
-              (navCollapsed ? (hasTrack ? 86 : 84) : (hasTrack ? 156 : 92)),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _FloatingCircleBtn(
-                icon: CupertinoIcons.mic_fill,
-                tooltip: T.recognizeSong,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const SongRecognitionScreen(),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-              _FloatingCircleBtn(
-                icon: CupertinoIcons.shuffle,
-                tooltip: 'Putar acak',
-                onTap: () {
-                  final pool = _collectAllPlayable();
-                  if (pool.isNotEmpty) {
-                    ref.read(playerProvider.notifier).playShuffled(
-                          pool,
-                          contextName: T.navHome,
-                        );
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -888,7 +872,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final pageCount = ((items.length + 8) ~/ 9).clamp(1, 3);
     final width = MediaQuery.of(context).size.width;
     final tileW = (width - 32 - 20) / 3;
-    final gridHeight = (tileW + 34) * 3 + 28;
+    final cellH = tileW / 0.78;
+    final gridHeight = cellH * 3 + 22;
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
     final currentId = ref.watch(playerProvider.select((s) => s.currentTrack?.id));
@@ -944,9 +929,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 LayoutBuilder(
                                   builder: (ctx, c) => ArtworkImage(
                                     url: item.bestThumbUrl(size: 320),
+                                    width: c.maxWidth,
+                                    height: c.maxHeight,
                                     size: c.maxWidth,
                                     radius: 14,
                                     isCircle: item.type == 'artist',
+                                    preserveFull: item.type != 'artist',
                                   ),
                                 ),
                                 if (isCurrent)
@@ -972,7 +960,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           style: TextStyle(
                             fontSize: 12.5,
                             fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
-                            color: isCurrent ? accent : ink,
+                            color: isCurrent
+                                ? AppColors.readableAccent(
+                                    accent,
+                                    Theme.of(context).brightness,
+                                  )
+                                : ink,
                           ),
                         ),
                       ],
@@ -1073,8 +1066,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   children: [
                     ArtworkImage(
                       url: item.bestThumbUrl(size: 500),
+                      width: 184,
+                      height: 238,
                       size: 238,
                       radius: 18,
+                      preserveFull: true,
                     ),
                     Positioned(
                       top: 10,
@@ -1415,63 +1411,33 @@ class _CompactResumeTile extends StatelessWidget {
       pressedScale: 0.96,
       child: LiquidGlassCard(
         radius: 15,
-        child: Row(
-          children: [
-            ArtworkImage(
-              url: item.bestThumbUrl(size: 160),
-              size: 58,
-              radius: 0,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(right: 10),
-                child: Text(
-                  item.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    height: 1.18,
-                    color: ink,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15),
+          child: Row(
+            children: [
+              ArtworkImage(
+                url: item.bestThumbUrl(size: 160),
+                size: 58,
+                radius: 0,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: Text(
+                    item.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      height: 1.18,
+                      color: ink,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FloatingCircleBtn extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-
-  const _FloatingCircleBtn({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final ink = AppColors.inkOf(context);
-    return Tooltip(
-      message: tooltip,
-      child: LiquidGlassTap(
-        onTap: onTap,
-        pressedScale: 0.92,
-        child: LiquidGlassSurface(
-          borderRadius: BorderRadius.circular(999),
-          blurSigma: 22,
-          child: SizedBox(
-            width: 50,
-            height: 50,
-            child: Icon(icon, color: ink, size: 22),
+            ],
           ),
         ),
       ),

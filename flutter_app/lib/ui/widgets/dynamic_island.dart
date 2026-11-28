@@ -69,12 +69,34 @@ class _DynamicIslandOverlayState extends ConsumerState<DynamicIslandOverlay> {
     final positionMode = ref.watch(
       settingsProvider.select((s) => s.dynamicIslandPosition),
     );
+    final preset = ref.watch(
+      settingsProvider.select((s) => s.dynamicIslandPreset),
+    );
+    final customAccentVal = ref.watch(
+      settingsProvider.select((s) => s.dynamicIslandAccentValue),
+    );
+    final islandScale = ref.watch(
+      settingsProvider.select((s) => s.dynamicIslandScale),
+    );
+    final islandYOffset = ref.watch(
+      settingsProvider.select((s) => s.dynamicIslandYOffset),
+    );
+    final showLyrics = ref.watch(
+      settingsProvider.select((s) => s.dynamicIslandShowLyrics),
+    );
+
     final track = ref.watch(playerProvider.select((s) => s.currentTrack));
+    final isPlaying = ref.watch(playerProvider.select((s) => s.isPlaying));
     final sleepRem = ref.watch(
       playerProvider.select((s) => s.sleepTimerRemaining),
     );
     final stopAfter = ref.watch(
       playerProvider.select((s) => s.stopAfterCurrentTrack),
+    );
+    final lyricsObj = ref.watch(playerProvider.select((s) => s.lyrics));
+    final position = ref.watch(playerProvider.select((s) => s.position));
+    final lyricsOffsetMs = ref.watch(
+      settingsProvider.select((s) => s.lyricsOffsetMs),
     );
     final event = ref.watch(dynamicIslandEventProvider);
 
@@ -84,6 +106,27 @@ class _DynamicIslandOverlayState extends ConsumerState<DynamicIslandOverlay> {
       return const SizedBox.shrink();
     }
 
+    String? activeLyric;
+    if (showLyrics &&
+        lyricsObj != null &&
+        lyricsObj.lines.isNotEmpty &&
+        isPlaying) {
+      final posMs = position.inMilliseconds + lyricsOffsetMs;
+      var activeIdx = -1;
+      for (var i = 0; i < lyricsObj.lines.length; i++) {
+        final t = lyricsObj.lines[i].timeMs;
+        if (t == null) continue;
+        if (t <= posMs) {
+          activeIdx = i;
+        } else {
+          break;
+        }
+      }
+      if (activeIdx >= 0 && activeIdx < lyricsObj.lines.length) {
+        activeLyric = lyricsObj.lines[activeIdx].text.trim();
+      }
+    }
+
     final media = MediaQuery.of(context);
     final topInset = math.max(media.padding.top, media.viewPadding.top);
     final screenW = media.size.width;
@@ -91,22 +134,26 @@ class _DynamicIslandOverlayState extends ConsumerState<DynamicIslandOverlay> {
     final bool notchCompact =
         positionMode == 'notch' && !_expanded && event == null;
 
-    final double targetWidth;
+    final double baseWidth;
     if (_expanded) {
-      targetWidth = math.min(screenW - 24, 388);
+      baseWidth = math.min(screenW - 24, 388);
     } else if (event != null) {
-      targetWidth = math.min(screenW - 44, 308);
+      baseWidth = math.min(screenW - 44, 308);
     } else if (notchCompact) {
-      targetWidth = math.min(screenW * 0.30, 106);
+      baseWidth = math.min(screenW * 0.30, 106);
     } else if (track != null) {
-      targetWidth = math.min(screenW - 84, 244);
+      baseWidth = math.min(screenW - 76, 250);
     } else {
-      targetWidth = math.min(screenW - 110, 168);
+      baseWidth = math.min(screenW - 110, 168);
     }
+    final double targetWidth = _expanded
+        ? baseWidth
+        : (baseWidth * islandScale).clamp(84.0, screenW - 36);
 
-    final double topOffset = notchCompact
-        ? ((topInset - 28) * 0.5).clamp(4.0, topInset)
-        : topInset + 6.0;
+    final double topOffset = (notchCompact
+            ? ((topInset - 28) * 0.5).clamp(4.0, topInset)
+            : topInset + 6.0) +
+        islandYOffset;
 
     final dynamicColor = ref.watch(playerProvider.select((s) => s.dynamicColor));
     final dynamicAlbumColors = ref.watch(
@@ -115,12 +162,42 @@ class _DynamicIslandOverlayState extends ConsumerState<DynamicIslandOverlay> {
     final glassOpacity = ref.watch(
       settingsProvider.select((s) => s.liquidGlassOpacity),
     );
-    final accent = (dynamicAlbumColors ? dynamicColor : null) ??
-        const Color(0xFF60A5FA);
+    final rawAccent = customAccentVal != 0
+        ? Color(customAccentVal)
+        : ((dynamicAlbumColors ? dynamicColor : null) ??
+            const Color(0xFF60A5FA));
+    final isLightPreset = preset == DynamicIslandPreset.minimalLight;
+    final accent = AppColors.readableAccent(
+      rawAccent,
+      isLightPreset ? Brightness.light : Brightness.dark,
+    );
     final glowColor = event?.accent ?? accent;
     final double cornerRadius = _expanded ? 34.0 : 999.0;
     final int glassBaseAlpha =
-        lerpDouble(182, 232, glassOpacity)!.round().clamp(170, 238);
+        lerpDouble(196, 238, glassOpacity)!.round().clamp(184, 242);
+
+    final Color surfaceTint;
+    switch (preset) {
+      case DynamicIslandPreset.minimalLight:
+        surfaceTint = const Color(0xFFF4F7FC).withAlpha(242);
+        break;
+      case DynamicIslandPreset.iosBlue:
+        surfaceTint = const Color(0xFF0A2658).withAlpha(232);
+        break;
+      case DynamicIslandPreset.aurora:
+        surfaceTint = const Color(0xFF0E2936).withAlpha(228);
+        break;
+      case DynamicIslandPreset.ultraGlass:
+        surfaceTint = const Color(0xFF101826).withAlpha(156);
+        break;
+      case DynamicIslandPreset.dynamicCover:
+        surfaceTint = Color.lerp(const Color(0xFF0A0F18), rawAccent, 0.30)!
+            .withAlpha(226);
+        break;
+      case DynamicIslandPreset.classicBlack:
+        surfaceTint = const Color(0xFF040508).withAlpha(glassBaseAlpha);
+        break;
+    }
 
     return Positioned.fill(
       child: Stack(
@@ -139,7 +216,7 @@ class _DynamicIslandOverlayState extends ConsumerState<DynamicIslandOverlay> {
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOutCubic,
-            top: topOffset,
+            top: topOffset.clamp(2.0, 240.0),
             left: 0,
             right: 0,
             child: Center(
@@ -171,13 +248,18 @@ class _DynamicIslandOverlayState extends ConsumerState<DynamicIslandOverlay> {
                       borderRadius: BorderRadius.circular(cornerRadius),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withAlpha(isDark ? 175 : 88),
+                          color: Colors.black.withAlpha(
+                            isLightPreset ? 45 : (isDark ? 175 : 88),
+                          ),
                           blurRadius: _expanded ? 32 : 16,
                           spreadRadius: _expanded ? 1 : -2,
                           offset: Offset(0, _expanded ? 14 : 6),
                         ),
                         BoxShadow(
-                          color: glowColor.withAlpha(_expanded ? 62 : 34),
+                          color: (preset == DynamicIslandPreset.aurora
+                                  ? const Color(0xFF5EEAD4)
+                                  : glowColor)
+                              .withAlpha(_expanded ? 68 : 38),
                           blurRadius: _expanded ? 26 : 14,
                           spreadRadius: -3,
                         ),
@@ -185,12 +267,13 @@ class _DynamicIslandOverlayState extends ConsumerState<DynamicIslandOverlay> {
                     ),
                     child: LiquidGlassSurface(
                       borderRadius: BorderRadius.circular(cornerRadius),
-                      blurSigma: 26,
-                      tintColor: const Color(0xFF0A0F18).withAlpha(glassBaseAlpha),
-                      chromaticAccent: glowColor,
-                      refractionIndex: 1.14,
-                      refractionWidth: 11,
-                      interactiveFlex: true,
+                      blurSigma: preset == DynamicIslandPreset.ultraGlass ? 6 : 12,
+                      useBackdropBlur: false,
+                      tintColor: surfaceTint,
+                      chromaticAccent: preset == DynamicIslandPreset.aurora
+                          ? const Color(0xFFA855F7)
+                          : glowColor,
+                      interactiveFlex: false,
                       child: AnimatedSize(
                         duration: const Duration(milliseconds: 300),
                         curve: Curves.easeOutCubic,
@@ -198,6 +281,8 @@ class _DynamicIslandOverlayState extends ConsumerState<DynamicIslandOverlay> {
                         child: _expanded
                             ? _ExpandedIslandContent(
                                 accent: glowColor,
+                                lightSurface: isLightPreset,
+                                activeLyric: activeLyric,
                                 onCollapse: _collapse,
                                 onOpenNowPlaying: () {
                                   _collapse();
@@ -223,10 +308,15 @@ class _DynamicIslandOverlayState extends ConsumerState<DynamicIslandOverlay> {
                                 },
                               )
                             : (event != null
-                                ? _TransientEventPill(event: event)
+                                ? _TransientEventPill(
+                                    event: event,
+                                    lightSurface: isLightPreset,
+                                  )
                                 : _CompactIslandPill(
                                     accent: accent,
+                                    lightSurface: isLightPreset,
                                     microMode: notchCompact,
+                                    activeLyric: activeLyric,
                                   )),
                       ),
                     ),
@@ -243,8 +333,15 @@ class _DynamicIslandOverlayState extends ConsumerState<DynamicIslandOverlay> {
 
 class _CompactIslandPill extends ConsumerWidget {
   final Color accent;
+  final bool lightSurface;
   final bool microMode;
-  const _CompactIslandPill({required this.accent, this.microMode = false});
+  final String? activeLyric;
+  const _CompactIslandPill({
+    required this.accent,
+    this.lightSurface = false,
+    this.microMode = false,
+    this.activeLyric,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -259,6 +356,7 @@ class _CompactIslandPill extends ConsumerWidget {
     final permsReady = ref.watch(
       devicePermissionsProvider.select((s) => s.backgroundReady),
     );
+    final fgColor = lightSurface ? const Color(0xFF0F172A) : Colors.white;
 
     if (microMode) {
       return SizedBox(
@@ -275,9 +373,9 @@ class _CompactIslandPill extends ConsumerWidget {
                   radius: 9,
                 )
               else
-                const LunarellysHorizonLogo(
+                ArchysHorizonLogo(
                   size: 15,
-                  color: Colors.white,
+                  color: fgColor,
                 ),
               AnimatedEqualizer(
                 color: track != null ? accent : AppColors.iosGreen,
@@ -298,41 +396,21 @@ class _CompactIslandPill extends ConsumerWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const LunarellysHorizonLogo(
+              ArchysHorizonLogo(
                 size: 18,
-                color: Colors.white,
+                color: fgColor,
               ),
               const SizedBox(width: 7),
-              const Expanded(
+              Expanded(
                 child: Text(
                   AppConfig.appName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Colors.white,
+                    color: fgColor,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.2,
-                  ),
-                ),
-              ),
-              Container(
-                width: 12,
-                height: 12,
-                margin: const EdgeInsets.only(right: 6),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF101828),
-                  border: Border.all(color: Colors.white.withAlpha(24), width: 0.7),
-                ),
-                child: Center(
-                  child: Container(
-                    width: 4.5,
-                    height: 4.5,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFF2563EB),
-                    ),
                   ),
                 ),
               ),
@@ -341,9 +419,7 @@ class _CompactIslandPill extends ConsumerWidget {
                 height: 7,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: permsReady
-                      ? AppColors.iosGreen
-                      : AppColors.iosOrange,
+                  color: permsReady ? AppColors.iosGreen : AppColors.iosOrange,
                 ),
               ),
             ],
@@ -351,6 +427,11 @@ class _CompactIslandPill extends ConsumerWidget {
         ),
       );
     }
+
+    final displayLabel =
+        (activeLyric != null && activeLyric!.isNotEmpty)
+            ? activeLyric!
+            : track.title;
 
     return SizedBox(
       height: 36,
@@ -367,9 +448,9 @@ class _CompactIslandPill extends ConsumerWidget {
             const SizedBox(width: 8),
             Expanded(
               child: MarqueeText(
-                text: track.title,
-                style: const TextStyle(
-                  color: Colors.white,
+                text: displayLabel,
+                style: TextStyle(
+                  color: fgColor,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.2,
@@ -390,7 +471,9 @@ class _CompactIslandPill extends ConsumerWidget {
                   style: GoogleFonts.jetBrainsMono(
                     fontSize: 9.5,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFFFCD34D),
+                    color: lightSurface
+                        ? const Color(0xFFB45309)
+                        : const Color(0xFFFCD34D),
                   ),
                 ),
               )
@@ -402,12 +485,12 @@ class _CompactIslandPill extends ConsumerWidget {
                   color: accent.withAlpha(56),
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: const Text(
+                child: Text(
                   'A-B',
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                    color: fgColor,
                   ),
                 ),
               ),
@@ -428,11 +511,17 @@ class _CompactIslandPill extends ConsumerWidget {
 
 class _TransientEventPill extends StatelessWidget {
   final DynamicIslandEvent event;
-  const _TransientEventPill({required this.event});
+  final bool lightSurface;
+  const _TransientEventPill({
+    required this.event,
+    this.lightSurface = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final badgeColor = event.accent ?? const Color(0xFF60A5FA);
+    final fgColor = lightSurface ? const Color(0xFF0F172A) : Colors.white;
+    final subColor = lightSurface ? const Color(0xFF475569) : Colors.white60;
     return SizedBox(
       height: 40,
       child: Padding(
@@ -458,8 +547,8 @@ class _TransientEventPill extends StatelessWidget {
                     event.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: fgColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -469,8 +558,8 @@ class _TransientEventPill extends StatelessWidget {
                       event.subtitle!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white60,
+                      style: TextStyle(
+                        color: subColor,
                         fontSize: 10,
                       ),
                     ),
@@ -486,6 +575,8 @@ class _TransientEventPill extends StatelessWidget {
 
 class _ExpandedIslandContent extends ConsumerWidget {
   final Color accent;
+  final bool lightSurface;
+  final String? activeLyric;
   final VoidCallback onCollapse;
   final VoidCallback onOpenNowPlaying;
   final VoidCallback onOpenControlCenter;
@@ -494,6 +585,8 @@ class _ExpandedIslandContent extends ConsumerWidget {
 
   const _ExpandedIslandContent({
     required this.accent,
+    this.lightSurface = false,
+    this.activeLyric,
     required this.onCollapse,
     required this.onOpenNowPlaying,
     required this.onOpenControlCenter,
@@ -517,6 +610,9 @@ class _ExpandedIslandContent extends ConsumerWidget {
         ref.watch(libraryProvider.select((s) => s.isLiked(track.id)));
 
     final pNotifier = ref.read(playerProvider.notifier);
+    final fgColor = lightSurface ? const Color(0xFF0F172A) : Colors.white;
+    final subColor = lightSurface ? const Color(0xFF475569) : Colors.white70;
+    final mutedColor = lightSurface ? const Color(0xFF64748B) : Colors.white60;
 
     if (track == null) {
       return Padding(
@@ -527,23 +623,23 @@ class _ExpandedIslandContent extends ConsumerWidget {
           children: [
             Row(
               children: [
-                const LunarellysHorizonLogo(size: 32, color: Colors.white),
+                ArchysHorizonLogo(size: 32, color: fgColor),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         '${AppConfig.appName} Live Island',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: fgColor,
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                       Text(
                         'Siap memutar musik',
-                        style: TextStyle(color: Colors.white60, fontSize: 12),
+                        style: TextStyle(color: mutedColor, fontSize: 12),
                       ),
                     ],
                   ),
@@ -551,9 +647,9 @@ class _ExpandedIslandContent extends ConsumerWidget {
                 IconButton(
                   visualDensity: VisualDensity.compact,
                   onPressed: onCollapse,
-                  icon: const Icon(
+                  icon: Icon(
                     CupertinoIcons.chevron_up,
-                    color: Colors.white70,
+                    color: subColor,
                     size: 19,
                   ),
                 ),
@@ -567,6 +663,7 @@ class _ExpandedIslandContent extends ConsumerWidget {
                     icon: CupertinoIcons.slider_horizontal_3,
                     label: 'Pusat Kontrol',
                     accent: accent,
+                    fgColor: fgColor,
                     onTap: onOpenControlCenter,
                   ),
                 ),
@@ -580,6 +677,7 @@ class _ExpandedIslandContent extends ConsumerWidget {
                     accent: perms.backgroundReady
                         ? AppColors.iosGreen
                         : AppColors.iosOrange,
+                    fgColor: fgColor,
                     onTap: onOpenPermissions,
                   ),
                 ),
@@ -617,8 +715,8 @@ class _ExpandedIslandContent extends ConsumerWidget {
                     children: [
                       MarqueeText(
                         text: track.title,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: fgColor,
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.2,
@@ -629,8 +727,8 @@ class _ExpandedIslandContent extends ConsumerWidget {
                         track.artistDisplay,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white70,
+                        style: TextStyle(
+                          color: subColor,
                           fontSize: 12.5,
                         ),
                       ),
@@ -646,6 +744,29 @@ class _ExpandedIslandContent extends ConsumerWidget {
               ],
             ),
           ),
+          if (activeLyric != null && activeLyric!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: (lightSurface ? Colors.black : Colors.white).withAlpha(14),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                activeLyric!,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: fgColor,
+                  fontSize: 12.4,
+                  fontWeight: FontWeight.w600,
+                  height: 1.25,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
 
           // Live Seekable Progress Row
@@ -655,7 +776,7 @@ class _ExpandedIslandContent extends ConsumerWidget {
                 _formatCompactDuration(position),
                 style: GoogleFonts.jetBrainsMono(
                   fontSize: 10.5,
-                  color: Colors.white60,
+                  color: mutedColor,
                 ),
               ),
               Expanded(
@@ -665,7 +786,8 @@ class _ExpandedIslandContent extends ConsumerWidget {
                     value: progress,
                     compact: true,
                     activeColor: accent,
-                    inactiveColor: Colors.white.withAlpha(54),
+                    inactiveColor:
+                        (lightSurface ? Colors.black : Colors.white).withAlpha(46),
                     onChanged: (v) {
                       if (duration.inMilliseconds > 0) {
                         pNotifier.seek(
@@ -682,7 +804,7 @@ class _ExpandedIslandContent extends ConsumerWidget {
                 _formatCompactDuration(duration),
                 style: GoogleFonts.jetBrainsMono(
                   fontSize: 10.5,
-                  color: Colors.white60,
+                  color: mutedColor,
                 ),
               ),
             ],
@@ -700,7 +822,7 @@ class _ExpandedIslandContent extends ConsumerWidget {
                 },
                 icon: Icon(
                   isLiked ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
-                  color: isLiked ? AppColors.iosPink : Colors.white70,
+                  color: isLiked ? AppColors.iosPink : subColor,
                   size: 19,
                 ),
               ),
@@ -710,9 +832,9 @@ class _ExpandedIslandContent extends ConsumerWidget {
                   HapticFeedback.selectionClick();
                   pNotifier.skipPrevious();
                 },
-                icon: const Icon(
+                icon: Icon(
                   CupertinoIcons.backward_fill,
-                  color: Colors.white,
+                  color: fgColor,
                   size: 23,
                 ),
               ),
@@ -724,20 +846,20 @@ class _ExpandedIslandContent extends ConsumerWidget {
                 child: Container(
                   width: 46,
                   height: 46,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  decoration: BoxDecoration(
+                    color: fgColor,
                     shape: BoxShape.circle,
                   ),
                   child: isBuffering
-                      ? const CupertinoActivityIndicator(
+                      ? CupertinoActivityIndicator(
                           radius: 10,
-                          color: Colors.black,
+                          color: lightSurface ? Colors.white : Colors.black,
                         )
                       : Icon(
                           isPlaying
                               ? CupertinoIcons.pause_fill
                               : CupertinoIcons.play_fill,
-                          color: Colors.black,
+                          color: lightSurface ? Colors.white : Colors.black,
                           size: 22,
                         ),
                 ),
@@ -748,9 +870,9 @@ class _ExpandedIslandContent extends ConsumerWidget {
                   HapticFeedback.selectionClick();
                   pNotifier.skipNext();
                 },
-                icon: const Icon(
+                icon: Icon(
                   CupertinoIcons.forward_fill,
-                  color: Colors.white,
+                  color: fgColor,
                   size: 23,
                 ),
               ),
@@ -758,9 +880,9 @@ class _ExpandedIslandContent extends ConsumerWidget {
                 visualDensity: VisualDensity.compact,
                 tooltip: 'Pusat Kontrol',
                 onPressed: onOpenControlCenter,
-                icon: const Icon(
+                icon: Icon(
                   CupertinoIcons.slider_horizontal_3,
-                  color: Colors.white70,
+                  color: subColor,
                   size: 19,
                 ),
               ),
@@ -777,17 +899,20 @@ class _ExpandedIslandContent extends ConsumerWidget {
               _miniStatusChip(
                 icon: CupertinoIcons.music_note,
                 label: 'Pemutar Penuh',
+                color: fgColor,
                 onTap: onOpenNowPlaying,
               ),
               _miniStatusChip(
                 icon: CupertinoIcons.lock_fill,
                 label: 'Lock Screen',
+                color: fgColor,
                 onTap: onOpenLockScreenPreview,
               ),
               if (soundStyle != SoundStylePreset.normal)
                 _miniStatusChip(
                   icon: CupertinoIcons.waveform,
                   label: soundStyle.label,
+                  color: fgColor,
                   onTap: onOpenControlCenter,
                 ),
               if (sleepRem != null)
@@ -817,6 +942,7 @@ class _ExpandedIslandContent extends ConsumerWidget {
     required IconData icon,
     required String label,
     required Color accent,
+    required Color fgColor,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -831,15 +957,15 @@ class _ExpandedIslandContent extends ConsumerWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.white, size: 16),
+            Icon(icon, color: fgColor, size: 16),
             const SizedBox(width: 6),
             Flexible(
               child: Text(
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: fgColor,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),

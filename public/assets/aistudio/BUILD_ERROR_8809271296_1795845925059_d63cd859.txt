@@ -1,0 +1,312 @@
+FLUTTER BUILD ERROR REPORT
+────────────────────────────────────────────────
+Project      : flutter_app.zip
+Mode         : release
+Run ID       : 46114614745
+Failed Step  : Build APK
+Duration     : 4 Menit 39 Detik
+Generated At : 2026-11-28T06:05:25.059Z
+────────────────────────────────────────────────
+
+[1] RINGKASAN — Dart error diprioritaskan di paling atas:
+────────────────────────────────────────────────
+lib/ui/widgets/animated_eq.dart:35:7: Error: The getter '_controller' isn't defined for the type '_AnimatedEqualizerState'.
+- '_AnimatedEqualizerState' is from 'package:lunarellys_music/ui/widgets/animated_eq.dart' ('lib/ui/widgets/animated_eq.dart').
+lib/ui/widgets/animated_eq.dart:36:30: Error: The getter '_controller' isn't defined for the type '_AnimatedEqualizerState'.
+lib/ui/widgets/animated_eq.dart:37:7: Error: The getter '_controller' isn't defined for the type '_AnimatedEqualizerState'.
+lib/ui/widgets/animated_eq.dart:56:5: Error: The getter '_controller' isn't defined for the type '_AnimatedEqualizerState'.
+lib/ui/widgets/animated_eq.dart:62:16: Error: The getter '_controller' isn't defined for the type '_AnimatedEqualizerState'.
+lib/ui/widgets/animated_eq.dart:75:22: Error: The getter '_controller' isn't defined for the type '_AnimatedEqualizerState'.
+lib/ui/screens/now_playing_screen.dart:3349:30: Error: This expression has type 'void' and can't be used.
+if (shouldRun && !_controller.isAnimating) {
+^^^^^^^^^^^
+Try correcting the name to the name of an existing getter, or defining a getter or field named '_controller'.
+_controller.repeat();
+} else if (!shouldRun && _controller.isAnimating) {
+_controller.stop();
+_controller.dispose();
+final t = (_controller.value + phaseOffset) % 1.0;
+animation: _controller,
+.clearUpcomingQueue();
+^
+Target kernel_snapshot_program failed: Exception
+FAILURE: Build failed with an exception.
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildRelease'.
+> Process 'command '/opt/hostedtoolcache/flutter/stable-3.41.9-x64/flutter/bin/flutter'' finished with non-zero exit value 1
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+BUILD FAILED in 3m 32s
+Running Gradle task 'assembleRelease'...                          214.6s
+Gradle task assembleRelease failed with exit code 1
+##[error]Process completed with exit code 1.
+##[start-action display=Cache pub dependencies;id=__327e1ca2-214a-40af-8ca3-94c1f28094fd.cache-pub]
+##[end-action id=__327e1ca2-214a-40af-8ca3-94c1f28094fd.cache-pub;outcome=skipped;conclusion=skipped;duration_ms=0]
+##[start-action display=Cache Flutter;id=__327e1ca2-214a-40af-8ca3-94c1f28094fd.cache-flutter]
+##[end-action id=__327e1ca2-214a-40af-8ca3-94c1f28094fd.cache-flutter;outcome=skipped;conclusion=skipped;duration_ms=0]
+(node:4132) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Cleaning up orphan processes
+Terminate orphan process: pid (3329) (java)
+Terminate orphan process: pid (3456) (java)
+Terminate orphan process: pid (4077) (java)
+##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/setup-java@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+────────────────────────────────────────────────
+
+[2] LOG ASLI (sesuai log base dari GitHub Actions, urutan & isi apa adanya):
+────────────────────────────────────────────────
++ url_launcher_macos 3.2.6
++ url_launcher_platform_interface 2.3.2
++ url_launcher_web 2.4.3
++ url_launcher_windows 3.1.6
++ uuid 4.6.0
++ vector_math 2.2.0 (2.4.4 available)
++ vm_service 15.4.0
++ web 1.1.1 (1.1.2 available)
++ webview_flutter 4.14.1
++ webview_flutter_android 4.12.0 (4.14.1 available)
++ webview_flutter_platform_interface 2.15.1
++ webview_flutter_wkwebview 3.25.1 (3.27.2 available)
++ win32 5.15.0 (6.4.0 available)
++ xdg_directories 1.1.0
++ yaml 3.1.4
+Changed 119 dependencies!
+1 package is discontinued.
+44 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Analyzing project_raw...
+error • The getter 'soundStyle' isn't defined for the type 'AppSettingsState' • lib/ui/screens/detail_screens.dart:2663:35 • undefined_getter
+info • Use 'const' with the constructor to improve performance • lib/ui/screens/detail_screens.dart:3568:34 • prefer_const_constructors
+info • Use 'const' with the constructor to improve performance • lib/ui/screens/detail_screens.dart:3984:28 • prefer_const_constructors
+error • Undefined name 'AppAppearanceStyle' • lib/ui/screens/explore_screen.dart:85:59 • undefined_identifier
+info • 'of' is deprecated and shouldn't be used. Use TickerMode.valuesOf to get both enabled and forceFrames. This feature was deprecated after v3.35.0-0.0.pre • lib/ui/screens/now_playing_screen.dart:2170:32 • deprecated_member_use
+info • 'of' is deprecated and shouldn't be used. Use TickerMode.valuesOf to get both enabled and forceFrames. This feature was deprecated after v3.35.0-0.0.pre • lib/ui/screens/now_playing_screen.dart:2395:32 • deprecated_member_use
+info • Uses 'await' on an instance of 'void', which is not a subtype of 'Future' • lib/ui/screens/now_playing_screen.dart:3347:25 • await_only_futures
+error • This expression has a type of 'void' so its value can't be used • lib/ui/screens/now_playing_screen.dart:3349:30 • use_of_void_result
+warning • The value of the local variable 'sub' isn't used • lib/ui/screens/you_screen.dart:78:11 • unused_local_variable
+error • Undefined name '_controller' • lib/ui/widgets/animated_eq.dart:26:5 • undefined_identifier
+error • Undefined name '_controller' • lib/ui/widgets/animated_eq.dart:34:23 • undefined_identifier
+error • Undefined name '_controller' • lib/ui/widgets/animated_eq.dart:35:7 • undefined_identifier
+error • Undefined name '_controller' • lib/ui/widgets/animated_eq.dart:36:30 • undefined_identifier
+error • Undefined name '_controller' • lib/ui/widgets/animated_eq.dart:37:7 • undefined_identifier
+info • 'of' is deprecated and shouldn't be used. Use TickerMode.valuesOf to get both enabled and forceFrames. This feature was deprecated after v3.35.0-0.0.pre • lib/ui/widgets/animated_eq.dart:44:32 • deprecated_member_use
+error • Undefined name '_controller' • lib/ui/widgets/animated_eq.dart:56:5 • undefined_identifier
+error • Undefined name '_controller' • lib/ui/widgets/animated_eq.dart:62:16 • undefined_identifier
+error • Undefined name '_controller' • lib/ui/widgets/animated_eq.dart:75:22 • undefined_identifier
+error • Undefined name 'AppAppearanceStyle' • lib/ui/widgets/liquid_glass.dart:63:59 • undefined_identifier
+error • Undefined name 'AppAppearanceStyle' • lib/ui/widgets/liquid_glass.dart:338:59 • undefined_identifier
+error • Undefined name 'AppAppearanceStyle' • lib/ui/widgets/liquid_glass.dart:505:59 • undefined_identifier
+error • Undefined name 'AppAppearanceStyle' • lib/ui/widgets/liquid_glass.dart:659:59 • undefined_identifier
+info • 'of' is deprecated and shouldn't be used. Use TickerMode.valuesOf to get both enabled and forceFrames. This feature was deprecated after v3.35.0-0.0.pre • lib/ui/widgets/liquid_glass.dart:756:32 • deprecated_member_use
+info • 'of' is deprecated and shouldn't be used. Use TickerMode.valuesOf to get both enabled and forceFrames. This feature was deprecated after v3.35.0-0.0.pre • lib/ui/widgets/liquid_glass.dart:961:32 • deprecated_member_use
+info • 'of' is deprecated and shouldn't be used. Use TickerMode.valuesOf to get both enabled and forceFrames. This feature was deprecated after v3.35.0-0.0.pre • lib/ui/widgets/liquid_glass.dart:1206:32 • deprecated_member_use
+error • Undefined name 'AppAppearanceStyle' • lib/ui/widgets/liquid_glass.dart:1649:65 • undefined_identifier
+error • Undefined name 'AppAppearanceStyle' • lib/ui/widgets/liquid_glass.dart:1781:47 • undefined_identifier
+info • 'of' is deprecated and shouldn't be used. Use TickerMode.valuesOf to get both enabled and forceFrames. This feature was deprecated after v3.35.0-0.0.pre • lib/ui/widgets/marquee_text.dart:34:20 • deprecated_member_use
+info • 'of' is deprecated and shouldn't be used. Use TickerMode.valuesOf to get both enabled and forceFrames. This feature was deprecated after v3.35.0-0.0.pre • lib/ui/widgets/marquee_text.dart:54:33 • deprecated_member_use
+info • 'of' is deprecated and shouldn't be used. Use TickerMode.valuesOf to get both enabled and forceFrames. This feature was deprecated after v3.35.0-0.0.pre • lib/ui/widgets/marquee_text.dart:56:55 • deprecated_member_use
+info • Use 'const' with the constructor to improve performance • lib/ui/widgets/media_card.dart:214:38 • prefer_const_constructors
+info • Use 'const' with the constructor to improve performance • lib/ui/widgets/media_card.dart:215:40 • prefer_const_constructors
+info • Use 'const' with the constructor to improve performance • lib/ui/widgets/track_tile.dart:125:31 • prefer_const_constructors
+33 issues found. (ran in 21.9s)
+[END_RESULT_ANALYZE]
+if [ -f "pubspec.yaml" ]; then
+  timeout 120s flutter pub get || echo "⚠️ Lanjut..."
+fi
+shell: /usr/bin/bash -e {0}
+env:
+FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+PROJECT_DIR: project_raw
+JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-2/x64
+JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-2/x64
+FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.41.9-x64/flutter
+PUB_CACHE: /home/runner/.pub-cache
+Resolving dependencies...
+Downloading packages...
+app_links 6.4.1 (7.2.2 available)
+app_links_linux 1.0.3 (1.0.5 available)
+app_links_platform_interface 2.0.2 (2.0.4 available)
+app_links_web 1.0.4 (1.0.5 available)
+audio_session 0.1.25 (0.2.4 available)
+cached_network_image 3.4.1 (4.0.7 available)
+cached_network_image_platform_interface 4.1.1 (5.0.4 available)
+cached_network_image_web 1.3.1 (2.0.5 available)
+clock 1.1.2 (1.1.3 available)
+code_assets 1.2.1 (2.2.0 available)
+cross_file 0.3.5+5 (0.4.0 available)
+cupertino_icons 1.0.9 (2.0.0 available)
+flutter_lints 5.0.0 (6.0.0 available)
+flutter_riverpod 2.6.1 (3.5.0 available)
+google_fonts 6.3.3 (9.0.0 available)
+hooks 2.0.2 (2.2.0 available)
+just_audio 0.9.46 (0.10.6 available)
+lints 5.1.1 (6.1.0 available)
+matcher 0.12.19 (0.12.20 available)
+material_color_utilities 0.13.0 (0.13.1 available)
+meta 1.17.0 (1.19.0 available)
+objective_c 9.5.0 (9.6.4 available)
+palette_generator 0.3.3+7 (discontinued)
+platform 3.1.6 (3.2.0 available)
+record_use 0.6.0 (1.1.1 available)
+riverpod 2.6.1 (3.5.0 available)
+share_plus 10.1.4 (13.3.1 available)
+share_plus_platform_interface 5.0.2 (7.2.0 available)
+shared_preferences_android 2.4.23 (2.5.5 available)
+shared_preferences_foundation 2.5.7 (2.6.2 available)
+shimmer 3.0.0 (4.0.0 available)
+sqflite 2.4.2+1 (2.4.6 available)
+sqflite_android 2.4.2+3 (2.4.6 available)
+sqflite_common 2.5.8 (2.5.17 available)
+sqflite_darwin 2.4.2 (2.4.6 available)
+sqflite_platform_interface 2.4.0 (2.4.4 available)
+stack_trace 1.12.1 (1.12.2 available)
+synchronized 3.4.0+1 (3.6.1+1 available)
+test_api 0.7.10 (0.7.15 available)
+url_launcher_android 6.3.30 (6.3.35 available)
+vector_math 2.2.0 (2.4.4 available)
+web 1.1.1 (1.1.2 available)
+webview_flutter_android 4.12.0 (4.14.1 available)
+webview_flutter_wkwebview 3.25.1 (3.27.2 available)
+win32 5.15.0 (6.4.0 available)
+Got dependencies!
+1 package is discontinued.
+44 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+if [ -f "pubspec.yaml" ]; then
+  flutter build apk --release
+else
+  GRADLE_PATH=$(find . -name "gradlew" | head -n 1)
+  GRADLE_DIR=$(dirname "$GRADLE_PATH")
+  cd "$GRADLE_DIR" && chmod +x gradlew
+  if [ "release" = "debug" ]; then
+    ./gradlew assembleDebug
+  else
+    ./gradlew assembleRelease
+  fi
+fi
+shell: /usr/bin/bash -e {0}
+env:
+FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+PROJECT_DIR: project_raw
+JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-2/x64
+JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-2/x64
+FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.41.9-x64/flutter
+PUB_CACHE: /home/runner/.pub-cache
+Running Gradle task 'assembleRelease'...
+Checking the license for package NDK (Side by side) 28.2.13676358 in /usr/local/lib/android/sdk/licenses
+License for package NDK (Side by side) 28.2.13676358 accepted.
+Preparing "Install NDK (Side by side) 28.2.13676358 v.28.2.13676358".
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" ready.
+Installing NDK (Side by side) 28.2.13676358 in /usr/local/lib/android/sdk/ndk/28.2.13676358
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" complete.
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" finished.
+Checking the license for package CMake 3.22.1 in /usr/local/lib/android/sdk/licenses
+License for package CMake 3.22.1 accepted.
+Preparing "Install CMake 3.22.1 v.3.22.1".
+"Install CMake 3.22.1 v.3.22.1" ready.
+Installing CMake 3.22.1 in /usr/local/lib/android/sdk/cmake/3.22.1
+"Install CMake 3.22.1 v.3.22.1" complete.
+"Install CMake 3.22.1 v.3.22.1" finished.
+lib/ui/widgets/liquid_glass.dart:63:59: Error: The getter 'AppAppearanceStyle' isn't defined for the type 'LiquidGlassSurface'.
+- 'LiquidGlassSurface' is from 'package:lunarellys_music/ui/widgets/liquid_glass.dart' ('lib/ui/widgets/liquid_glass.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'AppAppearanceStyle'.
+settingsProvider.select((s) => s.appearanceStyle == AppAppearanceStyle.glass),
+^^^^^^^^^^^^^^^^^^
+lib/ui/widgets/liquid_glass.dart:338:59: Error: The getter 'AppAppearanceStyle' isn't defined for the type 'StickyLiquidGlassHeader'.
+- 'StickyLiquidGlassHeader' is from 'package:lunarellys_music/ui/widgets/liquid_glass.dart' ('lib/ui/widgets/liquid_glass.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'AppAppearanceStyle'.
+settingsProvider.select((s) => s.appearanceStyle == AppAppearanceStyle.glass),
+^^^^^^^^^^^^^^^^^^
+lib/ui/widgets/liquid_glass.dart:505:59: Error: The getter 'AppAppearanceStyle' isn't defined for the type 'LiquidGlassToggleSwitch'.
+- 'LiquidGlassToggleSwitch' is from 'package:lunarellys_music/ui/widgets/liquid_glass.dart' ('lib/ui/widgets/liquid_glass.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'AppAppearanceStyle'.
+settingsProvider.select((s) => s.appearanceStyle == AppAppearanceStyle.glass),
+^^^^^^^^^^^^^^^^^^
+lib/ui/widgets/liquid_glass.dart:659:59: Error: The getter 'AppAppearanceStyle' isn't defined for the type 'LiquidGlassRangeSlider'.
+- 'LiquidGlassRangeSlider' is from 'package:lunarellys_music/ui/widgets/liquid_glass.dart' ('lib/ui/widgets/liquid_glass.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'AppAppearanceStyle'.
+settingsProvider.select((s) => s.appearanceStyle == AppAppearanceStyle.glass),
+^^^^^^^^^^^^^^^^^^
+lib/ui/widgets/liquid_glass.dart:1649:65: Error: Undefined name 'AppAppearanceStyle'.
+settingsProvider.select((s) => s.appearanceStyle == AppAppearanceStyle.glass),
+^^^^^^^^^^^^^^^^^^
+lib/ui/widgets/liquid_glass.dart:1781:47: Error: Undefined name 'AppAppearanceStyle'.
+final isGlass = settings.appearanceStyle == AppAppearanceStyle.glass;
+^^^^^^^^^^^^^^^^^^
+lib/ui/screens/detail_screens.dart:2663:35: Error: The getter 'soundStyle' isn't defined for the type 'AppSettingsState'.
+- 'AppSettingsState' is from 'package:lunarellys_music/state/settings_provider.dart' ('lib/state/settings_provider.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'soundStyle'.
+trailingValue: settings.soundStyle.label,
+^^^^^^^^^^
+lib/ui/widgets/animated_eq.dart:26:5: Error: The setter '_controller' isn't defined for the type '_AnimatedEqualizerState'.
+- '_AnimatedEqualizerState' is from 'package:lunarellys_music/ui/widgets/animated_eq.dart' ('lib/ui/widgets/animated_eq.dart').
+Try correcting the name to the name of an existing setter, or defining a setter or field named '_controller'.
+_controller = AnimationController(
+^^^^^^^^^^^
+lib/ui/widgets/animated_eq.dart:34:23: Error: The getter '_controller' isn't defined for the type '_AnimatedEqualizerState'.
+- '_AnimatedEqualizerState' is from 'package:lunarellys_music/ui/widgets/animated_eq.dart' ('lib/ui/widgets/animated_eq.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named '_controller'.
+if (shouldRun && !_controller.isAnimating) {
+^^^^^^^^^^^
+lib/ui/widgets/animated_eq.dart:35:7: Error: The getter '_controller' isn't defined for the type '_AnimatedEqualizerState'.
+- '_AnimatedEqualizerState' is from 'package:lunarellys_music/ui/widgets/animated_eq.dart' ('lib/ui/widgets/animated_eq.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named '_controller'.
+_controller.repeat();
+^^^^^^^^^^^
+lib/ui/widgets/animated_eq.dart:36:30: Error: The getter '_controller' isn't defined for the type '_AnimatedEqualizerState'.
+- '_AnimatedEqualizerState' is from 'package:lunarellys_music/ui/widgets/animated_eq.dart' ('lib/ui/widgets/animated_eq.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named '_controller'.
+} else if (!shouldRun && _controller.isAnimating) {
+^^^^^^^^^^^
+lib/ui/widgets/animated_eq.dart:37:7: Error: The getter '_controller' isn't defined for the type '_AnimatedEqualizerState'.
+- '_AnimatedEqualizerState' is from 'package:lunarellys_music/ui/widgets/animated_eq.dart' ('lib/ui/widgets/animated_eq.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named '_controller'.
+_controller.stop();
+^^^^^^^^^^^
+lib/ui/widgets/animated_eq.dart:56:5: Error: The getter '_controller' isn't defined for the type '_AnimatedEqualizerState'.
+- '_AnimatedEqualizerState' is from 'package:lunarellys_music/ui/widgets/animated_eq.dart' ('lib/ui/widgets/animated_eq.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named '_controller'.
+_controller.dispose();
+^^^^^^^^^^^
+lib/ui/widgets/animated_eq.dart:62:16: Error: The getter '_controller' isn't defined for the type '_AnimatedEqualizerState'.
+- '_AnimatedEqualizerState' is from 'package:lunarellys_music/ui/widgets/animated_eq.dart' ('lib/ui/widgets/animated_eq.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named '_controller'.
+final t = (_controller.value + phaseOffset) % 1.0;
+^^^^^^^^^^^
+lib/ui/widgets/animated_eq.dart:75:22: Error: The getter '_controller' isn't defined for the type '_AnimatedEqualizerState'.
+- '_AnimatedEqualizerState' is from 'package:lunarellys_music/ui/widgets/animated_eq.dart' ('lib/ui/widgets/animated_eq.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named '_controller'.
+animation: _controller,
+^^^^^^^^^^^
+lib/ui/screens/now_playing_screen.dart:3349:30: Error: This expression has type 'void' and can't be used.
+.clearUpcomingQueue();
+^
+Target kernel_snapshot_program failed: Exception
+FAILURE: Build failed with an exception.
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildRelease'.
+> Process 'command '/opt/hostedtoolcache/flutter/stable-3.41.9-x64/flutter/bin/flutter'' finished with non-zero exit value 1
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+BUILD FAILED in 3m 32s
+Running Gradle task 'assembleRelease'...                          214.6s
+Gradle task assembleRelease failed with exit code 1
+##[error]Process completed with exit code 1.
+##[start-action display=Cache pub dependencies;id=__327e1ca2-214a-40af-8ca3-94c1f28094fd.cache-pub]
+##[end-action id=__327e1ca2-214a-40af-8ca3-94c1f28094fd.cache-pub;outcome=skipped;conclusion=skipped;duration_ms=0]
+##[start-action display=Cache Flutter;id=__327e1ca2-214a-40af-8ca3-94c1f28094fd.cache-flutter]
+##[end-action id=__327e1ca2-214a-40af-8ca3-94c1f28094fd.cache-flutter;outcome=skipped;conclusion=skipped;duration_ms=0]
+(node:4132) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Cleaning up orphan processes
+Terminate orphan process: pid (3329) (java)
+Terminate orphan process: pid (3456) (java)
+Terminate orphan process: pid (4077) (java)
+##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/setup-java@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+────────────────────────────────────────────────

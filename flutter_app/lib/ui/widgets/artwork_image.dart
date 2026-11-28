@@ -7,15 +7,23 @@ import '../../state/settings_provider.dart';
 class ArtworkImage extends ConsumerStatefulWidget {
   final String? url;
   final double size;
+  final double? width;
+  final double? height;
   final double radius;
   final bool isCircle;
+  final BoxFit fit;
+  final bool preserveFull;
 
   const ArtworkImage({
     super.key,
     required this.url,
     this.size = 56,
+    this.width,
+    this.height,
     this.radius = 8,
     this.isCircle = false,
+    this.fit = BoxFit.cover,
+    this.preserveFull = false,
   });
 
   @override
@@ -46,11 +54,14 @@ class _ArtworkImageState extends ConsumerState<ArtworkImage> {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveRadius = widget.isCircle ? widget.size / 2 : widget.radius;
+    final w = widget.width ?? widget.size;
+    final h = widget.height ?? widget.size;
+    final effectiveRadius = widget.isCircle ? (w < h ? w : h) / 2 : widget.radius;
     final rawUrl = widget.url;
     final api = ref.watch(apiClientProvider);
     final dpr = MediaQuery.devicePixelRatioOf(context);
-    final cachePx = (widget.size * dpr).round().clamp(96, 1024);
+    final cachePx = ((w > h ? w : h) * dpr).round().clamp(96, 1024);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final knownFailed = rawUrl != null && _failedDirectUrls.contains(rawUrl);
     final useProxy = _useProxyFallback || knownFailed;
@@ -66,40 +77,74 @@ class _ArtworkImageState extends ConsumerState<ArtworkImage> {
       }
     }
 
+    Widget buildNetworkImage(BoxFit activeFit) {
+      return CachedNetworkImage(
+        imageUrl: resolvedUrl!,
+        httpHeaders: headers,
+        fit: activeFit,
+        memCacheWidth: cachePx,
+        memCacheHeight: cachePx,
+        filterQuality: FilterQuality.medium,
+        fadeInDuration: const Duration(milliseconds: 120),
+        placeholder: (_, __) => _fallback(),
+        errorWidget: (_, __, ___) {
+          if (!useProxy &&
+              rawUrl != null &&
+              !rawUrl.contains('/api/music/artwork')) {
+            if (_failedDirectUrls.length > 400) {
+              _failedDirectUrls.clear();
+            }
+            _failedDirectUrls.add(rawUrl);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && !_useProxyFallback) {
+                setState(() => _useProxyFallback = true);
+              }
+            });
+          }
+          return _fallback();
+        },
+      );
+    }
+
+    Widget content;
+    if (resolvedUrl == null || resolvedUrl.isEmpty) {
+      content = _fallback();
+    } else if (widget.preserveFull) {
+      content = Stack(
+        fit: StackFit.expand,
+        children: [
+          ColoredBox(
+            color: isDark ? const Color(0xFF14171E) : const Color(0xFFE9ECF2),
+          ),
+          Opacity(
+            opacity: isDark ? 0.34 : 0.24,
+            child: buildNetworkImage(BoxFit.cover),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: isDark
+                    ? const [Color(0x52000000), Color(0x66000000)]
+                    : const [Color(0x38FFFFFF), Color(0x48FFFFFF)],
+              ),
+            ),
+          ),
+          buildNetworkImage(BoxFit.contain),
+        ],
+      );
+    } else {
+      content = buildNetworkImage(widget.fit);
+    }
+
     return RepaintBoundary(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(effectiveRadius),
         child: SizedBox(
-          width: widget.size,
-          height: widget.size,
-          child: resolvedUrl != null && resolvedUrl.isNotEmpty
-              ? CachedNetworkImage(
-                  imageUrl: resolvedUrl,
-                  httpHeaders: headers,
-                  fit: BoxFit.cover,
-                  memCacheWidth: cachePx,
-                  memCacheHeight: cachePx,
-                  filterQuality: FilterQuality.medium,
-                  fadeInDuration: const Duration(milliseconds: 120),
-                  placeholder: (_, __) => _fallback(),
-                  errorWidget: (_, __, ___) {
-                    if (!useProxy &&
-                        rawUrl != null &&
-                        !rawUrl.contains('/api/music/artwork')) {
-                      if (_failedDirectUrls.length > 400) {
-                        _failedDirectUrls.clear();
-                      }
-                      _failedDirectUrls.add(rawUrl);
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted && !_useProxyFallback) {
-                          setState(() => _useProxyFallback = true);
-                        }
-                      });
-                    }
-                    return _fallback();
-                  },
-                )
-              : _fallback(),
+          width: w,
+          height: h,
+          child: content,
         ),
       ),
     );

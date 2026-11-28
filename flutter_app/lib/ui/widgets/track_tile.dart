@@ -122,7 +122,7 @@ class TrackTile extends ConsumerWidget {
                                 isPlaying: true,
                                 accentColor: AppColors.horizonBlue,
                               )
-                            : AnimatedEqualizer(
+                            : const AnimatedEqualizer(
                                 color: Colors.white,
                                 isPlaying: false,
                                 size: 17,
@@ -146,7 +146,7 @@ class TrackTile extends ConsumerWidget {
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.2,
                       color: isPlayingThis
-                          ? (isDark ? Colors.white : AppColors.horizonBlue)
+                          ? (isDark ? const Color(0xFF0A84FF) : AppColors.iosBlue)
                           : ink,
                     ),
                   ),

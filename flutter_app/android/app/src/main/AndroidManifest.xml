@@ -33,10 +33,6 @@
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
@@ -44,6 +40,78 @@
                 <data android:scheme="lunarellys" android:host="auth" />
             </intent-filter>
         </activity>
+
+        <!-- 20 selectable launcher icon activity-aliases (default enabled: IconBawaan) -->
+        <activity-alias
+            android:name="com.lunarellys.music.IconBawaan"
+            android:targetActivity=".MainActivity"
+            android:enabled="true"
+            android:exported="true"
+            android:label="Archys"
+            android:icon="@drawable/ic_app_bawaan">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias android:name="com.lunarellys.music.IconMalam" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true" android:label="Archys" android:icon="@drawable/ic_app_malam">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name="com.lunarellys.music.IconKaca" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true" android:label="Archys" android:icon="@drawable/ic_app_kaca">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name="com.lunarellys.music.IconEmas" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true" android:label="Archys" android:icon="@drawable/ic_app_emas">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name="com.lunarellys.music.IconHutan" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true" android:label="Archys" android:icon="@drawable/ic_app_hutan">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name="com.lunarellys.music.IconSamudra" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true" android:label="Archys" android:icon="@drawable/ic_app_samudra">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name="com.lunarellys.music.IconSenja" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true" android:label="Archys" android:icon="@drawable/ic_app_senja">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name="com.lunarellys.music.IconPiringan" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true" android:label="Archys" android:icon="@drawable/ic_app_piringan">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name="com.lunarellys.music.IconNeon" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true" android:label="Archys" android:icon="@drawable/ic_app_neon">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name="com.lunarellys.music.IconGema" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true" android:label="Archys" android:icon="@drawable/ic_app_gema">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name="com.lunarellys.music.IconBintang" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true" android:label="Archys" android:icon="@drawable/ic_app_bintang">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name="com.lunarellys.music.IconAurora" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true" android:label="Archys" android:icon="@drawable/ic_app_aurora">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name="com.lunarellys.music.IconSakura" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true" android:label="Archys" android:icon="@drawable/ic_app_sakura">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name="com.lunarellys.music.IconMono" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true" android:label="Archys" android:icon="@drawable/ic_app_mono">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name="com.lunarellys.music.IconKopi" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true" android:label="Archys" android:icon="@drawable/ic_app_kopi">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name="com.lunarellys.music.IconRuby" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true" android:label="Archys" android:icon="@drawable/ic_app_ruby">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name="com.lunarellys.music.IconZamrud" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true" android:label="Archys" android:icon="@drawable/ic_app_zamrud">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name="com.lunarellys.music.IconSiber" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true" android:label="Archys" android:icon="@drawable/ic_app_siber">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name="com.lunarellys.music.IconPastel" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true" android:label="Archys" android:icon="@drawable/ic_app_pastel">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name="com.lunarellys.music.IconBaja" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true" android:label="Archys" android:icon="@drawable/ic_app_baja">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
 
         <activity
             android:name=".LockScreenPlayerActivity"

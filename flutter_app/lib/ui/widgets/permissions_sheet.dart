@@ -93,6 +93,10 @@ class _PermissionsSheetBodyState extends ConsumerState<_PermissionsSheetBody>
             ],
           ),
           const SizedBox(height: 16),
+          const IosSectionHeader(
+            title: 'Izin Sistem & Audio Latar',
+            padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
+          ),
 
           _PermissionCardTile(
             icon: CupertinoIcons.bell_fill,

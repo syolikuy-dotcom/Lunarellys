@@ -793,4 +793,12 @@ class MusicApiClient {
       },
     );
   }
+
+  Future<Map<String, dynamic>> importExternalPlaylist(String url) async {
+    return _sendJson(
+      'POST',
+      '/api/music/import-link',
+      body: {'url': url.trim()},
+    );
+  }
 }

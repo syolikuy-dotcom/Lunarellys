@@ -3,23 +3,23 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
-  // Light iOS 27 Editorial + Liquid Glass tokens
-  static const Color lightBackground = Color(0xFFF4F6FA);
+  // Crisp Light Frosted Palette (matching reference light screenshots)
+  static const Color lightBackground = Color(0xFFF5F6F8);
   static const Color lightSurface = Color(0xFFFFFFFF);
-  static const Color lightSurfaceMuted = Color(0xFFEBEFF5);
-  static const Color lightBorder = Color(0xFFE1E5EE);
-  static const Color lightTextPrimary = Color(0xFF0F1115);
-  static const Color lightTextSecondary = Color(0xFF5A616C);
-  static const Color lightTextMuted = Color(0xFF8A919E);
+  static const Color lightSurfaceMuted = Color(0xFFEBEEF3);
+  static const Color lightBorder = Color(0x17000000);
+  static const Color lightTextPrimary = Color(0xFF101216);
+  static const Color lightTextSecondary = Color(0xFF60656F);
+  static const Color lightTextMuted = Color(0xFF8A909B);
 
-  // Dark iOS 27 OLED + Liquid Glass tokens
-  static const Color darkBackground = Color(0xFF090B0F);
-  static const Color darkSurface = Color(0xFF151920);
-  static const Color darkSurfaceMuted = Color(0xFF1F2530);
-  static const Color darkBorder = Color(0x22FFFFFF);
-  static const Color darkTextPrimary = Color(0xFFF8FAFC);
-  static const Color darkTextSecondary = Color(0xFFB0B8C5);
-  static const Color darkTextMuted = Color(0xFF747D8B);
+  // Obsidian Charcoal Dark Palette (matching reference dark screenshots)
+  static const Color darkBackground = Color(0xFF0D0F12);
+  static const Color darkSurface = Color(0xFF181B20);
+  static const Color darkSurfaceMuted = Color(0xFF23272E);
+  static const Color darkBorder = Color(0x26FFFFFF);
+  static const Color darkTextPrimary = Color(0xFFFFFFFF);
+  static const Color darkTextSecondary = Color(0xFFA8ADB7);
+  static const Color darkTextMuted = Color(0xFF7D838E);
 
   // Authentic Apple iOS System Accents
   static const Color iosBlue = Color(0xFF007AFF);
@@ -80,6 +80,33 @@ class AppColors {
 
   static Color mutedOf(BuildContext context) =>
       isDark(context) ? darkTextMuted : lightTextMuted;
+
+  /// Ensures any extracted or user accent color meets readable foreground contrast
+  /// in both light (no neon lime/pastel on white) and dark modes.
+  static Color readableAccent(Color? raw, Brightness brightness) {
+    final fallback = brightness == Brightness.dark
+        ? const Color(0xFF0A84FF)
+        : iosBlue;
+    if (raw == null) return fallback;
+    final hsl = HSLColor.fromColor(raw);
+    if (brightness == Brightness.light) {
+      // Yellow/chartreuse hues (42..92 deg) look washed out on light surfaces unless deepened.
+      final isYellowGreen = hsl.hue >= 42 && hsl.hue <= 92;
+      final maxLight = isYellowGreen ? 0.34 : 0.43;
+      return hsl
+          .withSaturation(hsl.saturation.clamp(0.45, 0.80))
+          .withLightness(hsl.lightness.clamp(0.24, maxLight))
+          .toColor();
+    }
+    return hsl
+        .withSaturation(hsl.saturation.clamp(0.48, 0.84))
+        .withLightness(hsl.lightness.clamp(0.56, 0.72))
+        .toColor();
+  }
+
+  /// High-contrast foreground (white or deep ink) for colored tiles/badges.
+  static Color onColor(Color bg) =>
+      bg.computeLuminance() > 0.44 ? lightTextPrimary : Colors.white;
 }
 
 class AppTheme {
@@ -111,7 +138,7 @@ class AppTheme {
       cupertinoOverrideTheme: const CupertinoThemeData(
         brightness: Brightness.light,
         primaryColor: AppColors.iosBlue,
-        barBackgroundColor: Color(0xCCF4F6FA),
+        barBackgroundColor: Color(0xCCF2F2F7),
         scaffoldBackgroundColor: AppColors.lightBackground,
       ),
       pageTransitionsTheme: const PageTransitionsTheme(
@@ -314,7 +341,7 @@ class AppTheme {
       cupertinoOverrideTheme: const CupertinoThemeData(
         brightness: Brightness.dark,
         primaryColor: Color(0xFF0A84FF),
-        barBackgroundColor: Color(0xCC090B0F),
+        barBackgroundColor: Color(0xCC000000),
         scaffoldBackgroundColor: AppColors.darkBackground,
       ),
       pageTransitionsTheme: const PageTransitionsTheme(

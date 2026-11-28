@@ -2,17 +2,19 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
-/// Minimalist Apple Liquid Glass Archys monogram:
-/// Sleek architectural "A" arch + inner acoustic resonance pearl + horizontal bridge.
+/// Modern Archys acoustic emblem:
+/// Curved sound-wave arc halo framing 4 symmetrical rounded equalizer bars.
 class ArchysHorizonLogo extends StatelessWidget {
   final double size;
   final Color? color;
+  final Color? accentColor;
   final double animationProgress;
 
   const ArchysHorizonLogo({
     super.key,
     this.size = 76,
     this.color,
+    this.accentColor,
     this.animationProgress = 1.0,
   });
 
@@ -21,9 +23,8 @@ class ArchysHorizonLogo extends StatelessWidget {
     final isDark = AppColors.isDark(context);
     final activeColor = color ??
         (isDark ? const Color(0xFFF4F8FC) : const Color(0xFF0F172A));
-    final secondaryAccent = isDark
-        ? const Color(0xFF7EC8FF)
-        : const Color(0xFF2563EB);
+    final secondaryAccent = accentColor ??
+        (isDark ? const Color(0xFF7EC8FF) : const Color(0xFF2563EB));
 
     return CustomPaint(
       size: Size.square(size),
@@ -32,6 +33,115 @@ class ArchysHorizonLogo extends StatelessWidget {
         accentColor: secondaryAccent,
         isDark: isDark,
         progress: animationProgress.clamp(0.0, 1.0),
+      ),
+    );
+  }
+}
+
+/// Selectable 20-style rounded square launcher icon preview matching "Gaya ikon aplikasi".
+class ArchysAppIconTile extends StatelessWidget {
+  final dynamic style; // AppIconStyle
+  final double size;
+  final bool selected;
+
+  const ArchysAppIconTile({
+    super.key,
+    required this.style,
+    this.size = 64,
+    this.selected = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color bgTop = style.bgTop as Color;
+    final Color bgBottom = style.bgBottom as Color;
+    final Color primary = style.primary as Color;
+    final Color accent = style.accent as Color;
+    final bool hasInnerBox = style.hasInnerBox as bool;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: size,
+      height: size,
+      padding: EdgeInsets.all(selected ? 2.5 : 0),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(size * 0.27),
+        border: selected
+            ? Border.all(
+                color: AppColors.isDark(context)
+                    ? Colors.white
+                    : AppColors.iosBlue,
+                width: 2.2,
+              )
+            : null,
+        boxShadow: selected
+            ? [
+                BoxShadow(
+                  color: accent.withAlpha(90),
+                  blurRadius: 12,
+                  spreadRadius: -2,
+                ),
+              ]
+            : null,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size * 0.23),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [bgTop, bgBottom],
+          ),
+          border: Border.all(
+            color: Colors.white.withAlpha(36),
+            width: 0.7,
+          ),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Soft top gloss
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: size * 0.44,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(size * 0.22),
+                  ),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withAlpha(40),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (hasInnerBox)
+              Container(
+                width: size * 0.68,
+                height: size * 0.68,
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(34),
+                  borderRadius: BorderRadius.circular(size * 0.16),
+                  border: Border.all(
+                    color: Colors.white.withAlpha(95),
+                    width: 0.8,
+                  ),
+                ),
+              ),
+            ArchysHorizonLogo(
+              size: size * 0.62,
+              color: primary,
+              accentColor: accent,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -129,128 +239,106 @@ class _ArchysEmblemPainter extends CustomPainter {
     final h = size.height;
     final cx = w * 0.5;
     final cy = h * 0.5;
+    final t = Curves.easeOutCubic.transform(progress.clamp(0.0, 1.0));
 
-    // 1. Subtle sapphire glass aura behind crest
+    // 1. Soft acoustic aura glow
     final auraPaint = Paint()
       ..shader = RadialGradient(
         colors: [
-          accentColor.withAlpha(((isDark ? 64 : 42) * progress).round()),
+          accentColor.withAlpha(((isDark ? 60 : 38) * progress).round()),
           Colors.transparent,
         ],
       ).createShader(Rect.fromCircle(center: Offset(cx, cy), radius: w * 0.48));
     canvas.drawCircle(Offset(cx, cy), w * 0.48, auraPaint);
 
-    // 2. Crisp geometric precision ring rim (subtle Liquid Glass perimeter)
-    final ringPaint = Paint()
+    // 2. Clean open harmonic arch / halo cradling the sound bars
+    final archStroke = (w * 0.095).clamp(1.6, 12.0);
+    final arcRadius = w * 0.345 * (0.72 + 0.28 * t);
+    final arcRect = Rect.fromCircle(
+      center: Offset(cx, cy + h * 0.02),
+      radius: arcRadius,
+    );
+    final arcPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = (w * 0.022).clamp(0.9, 2.2)
-      ..color = accentColor.withAlpha((72 * progress).round());
-    canvas.drawCircle(Offset(cx, cy), w * 0.42 * progress, ringPaint);
-
-    // 3. Architectural "A" Arch Monogram
-    final archT = Curves.easeOutCubic.transform((progress * 1.12).clamp(0.0, 1.0));
-    final topY = h * 0.17;
-    final botY = h * 0.81;
-    final spanX = w * 0.30 * archT;
-    final legW = w * 0.095;
-
-    final archPath = Path()
-      ..moveTo(cx, topY)
-      ..cubicTo(
-        cx + w * 0.06,
-        topY,
-        cx + spanX * 0.45,
-        h * 0.34,
-        cx + spanX,
-        botY,
-      )
-      ..lineTo(cx + spanX - legW, botY)
-      ..lineTo(cx, h * 0.41)
-      ..lineTo(cx - spanX + legW, botY)
-      ..lineTo(cx - spanX, botY)
-      ..cubicTo(
-        cx - spanX * 0.45,
-        h * 0.34,
-        cx - w * 0.06,
-        topY,
-        cx,
-        topY,
-      )
-      ..close();
-
-    final archPaint = Paint()
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = archStroke
       ..shader = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
           primaryColor,
-          Color.lerp(primaryColor, accentColor, 0.28) ?? primaryColor,
+          Color.lerp(primaryColor, accentColor, 0.35) ?? primaryColor,
         ],
-      ).createShader(Rect.fromLTWH(0, topY, w, botY - topY));
-    canvas.drawPath(archPath, archPaint);
+      ).createShader(arcRect);
+    // Draws a sleek 230-degree upper acoustic arch (open at the bottom cleanly)
+    canvas.drawArc(
+      arcRect,
+      math.pi * 0.86,
+      math.pi * 1.28 * t,
+      false,
+      arcPaint,
+    );
 
-    // 4. Inner specular bevel highlight along upper-left arch slope
-    if (archT > 0.3) {
-      final bevelPath = Path()
-        ..moveTo(cx - w * 0.015, topY + h * 0.03)
-        ..quadraticBezierTo(
-          cx - spanX * 0.48,
-          h * 0.42,
-          cx - spanX * 0.82,
-          botY - h * 0.14,
-        );
-      canvas.drawPath(
-        bevelPath,
+    // Subtle specular highlight along top arc edge
+    if (t > 0.35) {
+      canvas.drawArc(
+        arcRect.deflate(archStroke * 0.16),
+        math.pi * 1.05,
+        math.pi * 0.52 * t,
+        false,
         Paint()
-          ..color = Colors.white.withAlpha(((isDark ? 120 : 140) * progress).round())
           ..style = PaintingStyle.stroke
           ..strokeCap = StrokeCap.round
-          ..strokeWidth = (w * 0.025).clamp(0.9, 2.5),
+          ..strokeWidth = (archStroke * 0.28).clamp(0.8, 2.6)
+          ..color = Colors.white.withAlpha((135 * progress).round()),
       );
     }
 
-    // 5. Harmonic acoustic bridge crossbar
-    final barT = Curves.easeOutCubic.transform(((progress - 0.15) / 0.85).clamp(0.0, 1.0));
-    if (barT > 0.02) {
-      final barHalfW = w * 0.155 * barT;
-      final barY = h * 0.635;
-      final barH = (h * 0.088).clamp(2.2, 8.5);
-      final barRRect = RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(cx, barY), width: barHalfW * 2, height: barH),
-        Radius.circular(barH * 0.5),
+    // 3. Four crisp vertical equalizer bars centered inside the arch
+    const barRatios = [0.28, 0.50, 0.41, 0.24];
+    final barW = (w * 0.088).clamp(1.5, 10.5);
+    final gap = w * 0.058;
+    final totalBarsW = (barW * 4) + (gap * 3);
+    final startX = cx - totalBarsW * 0.5;
+    final baseCenterY = cy + h * 0.075;
+
+    for (var i = 0; i < 4; i++) {
+      final localT = ((progress - i * 0.06) / 0.82).clamp(0.0, 1.0);
+      final eased = Curves.easeOutBack.transform(localT);
+      final barH = (h * barRatios[i] * eased).clamp(barW, h * 0.56);
+      final x = startX + i * (barW + gap);
+      final rect = RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset(x + barW * 0.5, baseCenterY - (i == 1 ? h * 0.02 : 0)),
+          width: barW,
+          height: barH,
+        ),
+        Radius.circular(barW * 0.5),
       );
+      final isAccentBar = i == 1 || i == 2;
       canvas.drawRRect(
-        barRRect,
+        rect,
         Paint()
           ..shader = LinearGradient(
-            colors: [
-              accentColor,
-              Color.lerp(accentColor, Colors.white, 0.22) ?? accentColor,
-            ],
-          ).createShader(barRRect.outerRect),
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: isAccentBar
+                ? [
+                    Color.lerp(accentColor, Colors.white, 0.28) ?? accentColor,
+                    accentColor,
+                  ]
+                : [primaryColor, primaryColor.withAlpha(220)],
+          ).createShader(rect.outerRect),
       );
     }
 
-    // 6. Resonance pearl orb nestled cleanly inside arch apex
-    final orbT = Curves.easeOutBack.transform(((progress - 0.2) / 0.8).clamp(0.0, 1.0));
-    if (orbT > 0.01) {
-      final orbCenter = Offset(cx, h * 0.485);
-      final orbRadius = (w * 0.058) * orbT;
-      canvas.drawCircle(
-        orbCenter,
-        orbRadius,
-        Paint()
-          ..shader = RadialGradient(
-            center: const Alignment(-0.3, -0.35),
-            colors: [
-              Colors.white.withAlpha(230),
-              accentColor,
-              Color.lerp(accentColor, primaryColor, 0.35) ?? accentColor,
-            ],
-            stops: const [0.0, 0.5, 1.0],
-          ).createShader(Rect.fromCircle(center: orbCenter, radius: orbRadius)),
-      );
-    }
+    // 4. Tiny resonance orb dot beneath center gap for visual balance
+    final dotR = (w * 0.042 * t).clamp(0.9, 5.0);
+    canvas.drawCircle(
+      Offset(cx, h * 0.81),
+      dotR,
+      Paint()..color = accentColor.withAlpha((235 * progress).round()),
+    );
   }
 
   @override

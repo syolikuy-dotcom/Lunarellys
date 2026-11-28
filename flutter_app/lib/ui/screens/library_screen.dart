@@ -13,7 +13,7 @@ import '../widgets/liquid_glass.dart';
 import '../widgets/media_card.dart';
 import '../widgets/track_tile.dart';
 import 'detail_screens.dart';
-import 'main_shell.dart';
+import 'you_screen.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
@@ -69,11 +69,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final islandShown = islandEnabled && (islandAlways || hasTrack);
     final islandClearance =
         islandShown ? (islandPosition == 'notch' ? 8.0 : 42.0) : 0.0;
-    final navCollapsed = ref.watch(navCollapsedProvider);
     final T = AppStrings.of(appLanguage);
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
     final isDark = AppColors.isDark(context);
+    final activeTint = isDark ? const Color(0xFF0A84FF) : AppColors.iosBlue;
 
     final query = _filterCtrl.text.trim().toLowerCase();
 
@@ -95,52 +95,59 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       return list;
     }
 
-    return Stack(
-      children: [
-        SafeArea(
-          bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: EdgeInsets.fromLTRB(16, 16 + islandClearance, 16, 10),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        T.yourLibrary,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.headlineLarge,
-                      ),
-                    ),
-                    if (_showInlineSearch)
-                      IconButton(
-                        icon: Icon(CupertinoIcons.xmark_circle_fill, color: sub),
-                        onPressed: () {
-                          _filterCtrl.clear();
-                          setState(() => _showInlineSearch = false);
-                        },
-                      ),
-                    LiquidGlassTap(
-                      onTap: () => showIosControlCenter(
-                        context,
-                        ref,
-                        onOpenEqualizer: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const EqualizerScreen(),
-                          ),
-                        ),
-                      ),
-                      child: LiquidGlassCapsule(
-                        blurSigma: 0,
-                        padding: const EdgeInsets.all(9),
-                        child: Icon(CupertinoIcons.slider_horizontal_3, size: 19, color: ink),
-                      ),
-                    ),
-                  ],
+    return SafeArea(
+      bottom: false,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(16, 16 + islandClearance, 16, 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    T.yourLibrary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.headlineLarge,
+                  ),
                 ),
-              ),
+                if (_showInlineSearch)
+                  IconButton(
+                    icon: Icon(CupertinoIcons.xmark_circle_fill, color: sub),
+                    onPressed: () {
+                      _filterCtrl.clear();
+                      setState(() => _showInlineSearch = false);
+                    },
+                  ),
+                LiquidGlassTap(
+                  onTap: () => _showCreatePlaylistDialog(context, ref),
+                  child: LiquidGlassCapsule(
+                    blurSigma: 0,
+                    padding: const EdgeInsets.all(9),
+                    child: Icon(CupertinoIcons.plus, size: 18, color: activeTint),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                LiquidGlassTap(
+                  onTap: () => showIosControlCenter(
+                    context,
+                    ref,
+                    onOpenEqualizer: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const EqualizerScreen(),
+                      ),
+                    ),
+                  ),
+                  child: LiquidGlassCapsule(
+                    blurSigma: 0,
+                    padding: const EdgeInsets.all(9),
+                    child: Icon(CupertinoIcons.slider_horizontal_3, size: 18, color: ink),
+                  ),
+                ),
+              ],
+            ),
+          ),
 
               if (_showInlineSearch)
                 Padding(
@@ -176,7 +183,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                              color: selected ? ink : sub,
+                              color: selected ? activeTint : sub,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -185,7 +192,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                             height: 2.5,
                             width: selected ? 26 : 0,
                             decoration: BoxDecoration(
-                              color: ink,
+                              color: activeTint,
                               borderRadius: BorderRadius.circular(99),
                             ),
                           ),
@@ -289,34 +296,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               ),
             ],
           ),
-        ),
-
-        // Floating '+' circular FAB synced with nav capsule collapse
-        AnimatedPositioned(
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOutCubic,
-          right: 16,
-          bottom: MediaQuery.of(context).padding.bottom +
-              (navCollapsed ? (hasTrack ? 84 : 82) : (hasTrack ? 156 : 92)),
-          child: LiquidGlassTap(
-            onTap: () => _showCreatePlaylistDialog(context, ref),
-            child: LiquidGlassSurface(
-              borderRadius: BorderRadius.circular(999),
-              blurSigma: 28,
-              tintColor: isDark ? Colors.white : AppColors.cardOf(context),
-              child: SizedBox(
-                width: 54,
-                height: 54,
-                child: Icon(
-                  CupertinoIcons.plus,
-                  size: 26,
-                  color: isDark ? Colors.black : ink,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 
@@ -421,11 +400,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             ),
             const SizedBox(height: 22),
 
-            Text(
-              T.collections,
-              style: Theme.of(context).textTheme.headlineMedium,
+            IosSectionHeader(
+              title: T.collections,
+              padding: const EdgeInsets.fromLTRB(4, 2, 4, 8),
             ),
-            const SizedBox(height: 10),
             LiquidGlassCard(
               radius: 22,
               child: Column(
@@ -933,6 +911,21 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               onTap: () {
                 Navigator.pop(sheetCtx);
                 _showPlainNameDialog(context, ref);
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: CircleAvatar(
+                backgroundColor: const Color(0xFF1DB954).withAlpha(28),
+                child: const Icon(CupertinoIcons.link, color: Color(0xFF1DB954)),
+              ),
+              title: Text('Impor dari Spotify / Apple Music',
+                  style: TextStyle(fontWeight: FontWeight.w700, color: ink)),
+              subtitle: Text('Tempel tautan playlist atau album',
+                  style: TextStyle(color: sub, fontSize: 12.5)),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                showSpotifyAppleLinkImportDialog(context, ref);
               },
             ),
             const Divider(height: 14),
