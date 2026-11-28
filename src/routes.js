@@ -642,6 +642,7 @@ router.get('/music/proxy-stream', asyncHandler(async (req, res) => {
   res.setHeader('Content-Type', contentType);
   res.setHeader('Accept-Ranges', 'bytes');
   res.setHeader('Cache-Control', 'public, max-age=1800');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   if (contentLength) res.setHeader('Content-Length', contentLength);
   if (contentRange) res.setHeader('Content-Range', contentRange);
 

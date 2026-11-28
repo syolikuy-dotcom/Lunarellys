@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -591,22 +592,20 @@ class LocalPlaylistScreen extends ConsumerWidget {
             icon: const Icon(Icons.edit_outlined),
             onPressed: () {
               final ctrl = TextEditingController(text: playlist.name);
-              showDialog<void>(
+              showArchysGlassDialog<void>(
                 context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Ubah nama playlist'),
-                  content: TextField(controller: ctrl, autofocus: true),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
-                    FilledButton(
-                      onPressed: () {
-                        ref.read(libraryProvider.notifier).renamePlaylist(playlist.id, ctrl.text);
-                        Navigator.pop(ctx);
-                      },
-                      child: const Text('Simpan'),
-                    ),
-                  ],
-                ),
+                title: const Text('Ubah nama playlist'),
+                content: TextField(controller: ctrl, autofocus: true),
+                actionsBuilder: (ctx) => [
+                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+                  FilledButton(
+                    onPressed: () {
+                      ref.read(libraryProvider.notifier).renamePlaylist(playlist.id, ctrl.text);
+                      Navigator.pop(ctx);
+                    },
+                    child: const Text('Simpan'),
+                  ),
+                ],
               ).whenComplete(ctrl.dispose);
             },
           ),
@@ -805,22 +804,20 @@ class HistoryScreen extends ConsumerWidget {
           if (recent.isNotEmpty)
             TextButton(
               onPressed: () {
-                showDialog<void>(
+                showArchysGlassDialog<void>(
                   context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Hapus riwayat?'),
-                    content: const Text('Semua daftar lagu baru diputar akan dibersihkan.'),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
-                      FilledButton(
-                        onPressed: () {
-                          ref.read(libraryProvider.notifier).clearHistory();
-                          Navigator.pop(ctx);
-                        },
-                        child: const Text('Hapus'),
-                      ),
-                    ],
-                  ),
+                  title: const Text('Hapus riwayat?'),
+                  content: const Text('Semua daftar lagu baru diputar akan dibersihkan.'),
+                  actionsBuilder: (ctx) => [
+                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+                    FilledButton(
+                      onPressed: () {
+                        ref.read(libraryProvider.notifier).clearHistory();
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text('Hapus'),
+                    ),
+                  ],
                 );
               },
               child: const Text('Hapus'),
@@ -1210,20 +1207,18 @@ class _StatsRecapScreenState extends ConsumerState<StatsRecapScreen> {
                           visualDensity: VisualDensity.compact,
                           icon: Icon(Icons.info_rounded, color: ink, size: 21),
                           onPressed: () {
-                            showDialog<void>(
+                            showArchysGlassDialog<void>(
                               context: context,
-                              builder: (ctx) => AlertDialog(
-                                title: const Text('Tentang Percikan'),
-                                content: const Text(
-                                  'Putar lagu setiap hari untuk mempertahankan nyala Percikan. Kamu memiliki 5 Pemulihan otomatis jika terlewat satu hari.',
-                                ),
-                                actions: [
-                                  FilledButton(
-                                    onPressed: () => Navigator.pop(ctx),
-                                    child: const Text('Mengerti'),
-                                  ),
-                                ],
+                              title: const Text('Tentang Percikan'),
+                              content: const Text(
+                                'Putar lagu setiap hari untuk mempertahankan nyala Percikan. Kamu memiliki 5 Pemulihan otomatis jika terlewat satu hari.',
                               ),
+                              actionsBuilder: (ctx) => [
+                                FilledButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: const Text('Mengerti'),
+                                ),
+                              ],
                             );
                           },
                         ),
@@ -1297,7 +1292,7 @@ class _StatsRecapScreenState extends ConsumerState<StatsRecapScreen> {
                         ),
                       ),
                     ),
-                    Switch(
+                    LiquidGlassToggleSwitch(
                       value: settings.showStreakOnHome,
                       onChanged: (v) =>
                           ref.read(settingsProvider.notifier).setShowStreakOnHome(v),
@@ -1596,30 +1591,28 @@ class _StatsRecapScreenState extends ConsumerState<StatsRecapScreen> {
   }
 
   void _showRecapSummaryDialog(BuildContext context, LibraryState library, int totalMin) {
-    showDialog<void>(
+    showArchysGlassDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Recap kamu 2026'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Total waktu dengar: $totalMin menit'),
-            const SizedBox(height: 6),
-            Text('Lagu teratas tercatat: ${library.top50Tracks.length} lagu'),
-            const SizedBox(height: 6),
-            Text('Lagu disukai: ${library.likedSongs.length} lagu'),
-            const SizedBox(height: 6),
-            Text('Percikan aktif: ${library.currentStreak} hari berturut-turut'),
-          ],
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Tutup'),
-          ),
+      title: const Text('Recap kamu 2026'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Total waktu dengar: $totalMin menit'),
+          const SizedBox(height: 6),
+          Text('Lagu teratas tercatat: ${library.top50Tracks.length} lagu'),
+          const SizedBox(height: 6),
+          Text('Lagu disukai: ${library.likedSongs.length} lagu'),
+          const SizedBox(height: 6),
+          Text('Percikan aktif: ${library.currentStreak} hari berturut-turut'),
         ],
       ),
+      actionsBuilder: (ctx) => [
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Tutup'),
+        ),
+      ],
     );
   }
 }
@@ -1871,32 +1864,30 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
 
   void _promptSaveCustomPreset(List<double> bands) {
     final nameCtrl = TextEditingController();
-    showDialog<void>(
+    showArchysGlassDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Simpan preset baru'),
-        content: TextField(
-          controller: nameCtrl,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'Contoh: Malam Tenang'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
-          FilledButton(
-            onPressed: () async {
-              final label = nameCtrl.text.trim().isEmpty ? 'Kustom' : nameCtrl.text.trim();
-              await ref.read(settingsProvider.notifier).saveCustomEqPreset(label, bands);
-              if (ctx.mounted) Navigator.pop(ctx);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Preset "$label" disimpan permanen')),
-                );
-              }
-            },
-            child: const Text('Simpan'),
-          ),
-        ],
+      title: const Text('Simpan preset baru'),
+      content: TextField(
+        controller: nameCtrl,
+        autofocus: true,
+        decoration: const InputDecoration(hintText: 'Contoh: Malam Tenang'),
       ),
+      actionsBuilder: (ctx) => [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+        FilledButton(
+          onPressed: () async {
+            final label = nameCtrl.text.trim().isEmpty ? 'Kustom' : nameCtrl.text.trim();
+            await ref.read(settingsProvider.notifier).saveCustomEqPreset(label, bands);
+            if (ctx.mounted) Navigator.pop(ctx);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Preset "$label" disimpan permanen')),
+              );
+            }
+          },
+          child: const Text('Simpan'),
+        ),
+      ],
     ).whenComplete(nameCtrl.dispose);
   }
 
@@ -1938,7 +1929,7 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
           LiquidGlassCard(
             radius: 22,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: SwitchListTile(
+            child: LiquidGlassSwitchTile(
               contentPadding: EdgeInsets.zero,
               title: Text(
                 'Pakai ekualiser',
@@ -2157,9 +2148,10 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
           child: Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: ink)),
         ),
         Expanded(
-          child: Slider(
+          child: LiquidGlassRangeSlider(
             min: -12.5,
             max: 12.5,
+            compact: true,
             value: value.clamp(-12.5, 12.5),
             onChanged: onChanged,
           ),
@@ -3025,64 +3017,143 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 if (isGlass) ...[
                   const SizedBox(height: 16),
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(22),
+                    borderRadius: BorderRadius.circular(24),
                     child: SizedBox(
-                      height: 108,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: isDark
-                                    ? const [
-                                        Color(0xFF0E2A47),
-                                        Color(0xFF281B4B),
-                                        Color(0xFF103742),
-                                      ]
-                                    : const [
-                                        Color(0xFF6BB4F5),
-                                        Color(0xFFA799FF),
-                                        Color(0xFF6ED8C8),
-                                      ],
-                              ),
+                      height: 152,
+                      child: LiquidGlassView(
+                        realTimeCapture: !ui.ImageFilter.isShaderFilterSupported,
+                        backgroundWidget: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: isDark
+                                  ? const [
+                                      Color(0xFF0E2A47),
+                                      Color(0xFF3A1C5E),
+                                      Color(0xFF10404A),
+                                    ]
+                                  : const [
+                                      Color(0xFF6BB4F5),
+                                      Color(0xFFA799FF),
+                                      Color(0xFF6ED8C8),
+                                    ],
                             ),
                           ),
-                          Center(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 18),
-                              child: LiquidGlassCapsule(
-                                blurSigma: 28,
-                                chromaticAccent: const Color(0xFF5FA8FF),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
+                          child: Stack(
+                            children: [
+                              Positioned(
+                                left: 16,
+                                top: 14,
+                                child: Text(
+                                  'ARCHYS GLASS LAB',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.4,
+                                    color: Colors.white.withAlpha(175),
+                                  ),
                                 ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.auto_awesome_rounded, size: 18, color: ink),
-                                    const SizedBox(width: 8),
-                                    Flexible(
-                                      child: Text(
-                                        'Pratinjau Tampilan • $modeTag',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                          color: ink,
-                                        ),
+                              ),
+                              Positioned(
+                                right: 20,
+                                bottom: 14,
+                                child: Icon(
+                                  CupertinoIcons.music_note_2,
+                                  size: 46,
+                                  color: Colors.white.withAlpha(88),
+                                ),
+                              ),
+                              Positioned(
+                                left: 26,
+                                bottom: 18,
+                                child: Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Color(0xFFFF7A1A),
+                                        Color(0xFFFF3B6B),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        child: Material(
+                          type: MaterialType.transparency,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Center(
+                                child: LiquidGlassDraggable(
+                                  child: LiquidGlassLens(
+                                    style: LiquidGlassStyle(
+                                      shape: const LiquidGlassShape.continuousRoundedRectangle(
+                                        cornerRadius: 28,
+                                      ),
+                                      specular: LiquidGlassLight.specular(
+                                        thickness: 5,
+                                        intensity: isDark ? 0.8 : 0.96,
+                                        oppositeIntensity: 0.45,
+                                      ),
+                                      glow: LiquidGlassLight.glow(
+                                        thickness: 10,
+                                        intensity: 0.35,
+                                        color: const Color(0xFF5FA8FF),
+                                      ),
+                                      refractionIndex: 1.16,
+                                      refractionWidth: 16,
+                                      magnification: 1.06,
+                                      dispersion: 0.25,
+                                      saturation: isDark ? 1.28 : 1.48,
+                                      blur: (4 + 12 * st.liquidGlassOpacity).clamp(3.0, 18.0),
+                                      color: isDark
+                                          ? const Color(0xFF141A24).withAlpha(
+                                              ui.lerpDouble(42, 208, st.liquidGlassOpacity)!.round(),
+                                            )
+                                          : const Color(0xFFFFFFFF).withAlpha(
+                                              ui.lerpDouble(66, 224, st.liquidGlassOpacity)!.round(),
+                                            ),
+                                    ),
+                                    touch: const LiquidGlassTouch.flexing(
+                                      LiquidGlassFlex.subtle(),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 18,
+                                        vertical: 13,
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.auto_awesome_rounded,
+                                            size: 18,
+                                            color: ink,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Geser Kaca • $modeTag',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                              color: ink,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ],
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
@@ -3105,7 +3176,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                     ],
                   ),
-                  Slider(
+                  const SizedBox(height: 4),
+                  LiquidGlassRangeSlider(
                     value: st.liquidGlassOpacity,
                     min: 0.0,
                     max: 1.0,
@@ -3156,13 +3228,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   }).toList(),
                 ),
                 const SizedBox(height: 12),
-                SwitchListTile(
+                LiquidGlassSwitchTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Dynamic Island (Live Activity)'),
-                  subtitle: Text(
-                    'Pil iOS interaktif di bagian atas layar',
-                    style: TextStyle(fontSize: 12, color: sub),
-                  ),
+                  subtitle: const Text('Pil iOS interaktif di bagian atas layar'),
                   value: st.dynamicIslandEnabled,
                   onChanged: (v) async {
                     await n.setDynamicIslandEnabled(v);
@@ -3184,25 +3253,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   },
                 ),
                 if (st.dynamicIslandEnabled)
-                  SwitchListTile(
+                  LiquidGlassSwitchTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Tampilkan Dynamic Island saat jeda'),
-                    subtitle: Text(
+                    subtitle: const Text(
                       'Tetap tampilkan kapsul status saat tidak memutar lagu',
-                      style: TextStyle(fontSize: 12, color: sub),
                     ),
                     value: st.dynamicIslandAlwaysVisible,
                     onChanged: n.setDynamicIslandAlwaysVisible,
                   ),
                 if (st.dynamicIslandEnabled)
-                  SwitchListTile(
+                  LiquidGlassSwitchTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Tampilkan di luar aplikasi'),
                     subtitle: Text(
                       modalRef.watch(devicePermissionsProvider).overlayGranted
                           ? 'Tetap muncul mengambang saat keluar dari Archys'
                           : 'Butuh izin Tampil di Atas Aplikasi agar tetap muncul',
-                      style: TextStyle(fontSize: 12, color: sub),
                     ),
                     value: st.dynamicIslandSystemOverlay,
                     onChanged: (v) async {
@@ -3249,12 +3316,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   const SizedBox(height: 10),
                 ],
-                SwitchListTile(
+                LiquidGlassSwitchTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Musik & Lirik di Lock Screen'),
-                  subtitle: Text(
+                  subtitle: const Text(
                     'Tampilkan notifikasi lirik di layar kunci dengan tombol buka & tutup panel lirik',
-                    style: TextStyle(fontSize: 12, color: sub),
                   ),
                   value: st.lockScreenLyricsEnabled,
                   onChanged: (v) async {
@@ -3283,13 +3349,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       label: const Text('Pratinjau Lirik Lock Screen'),
                     ),
                   ),
-                SwitchListTile(
+                LiquidGlassSwitchTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Umpan balik haptik iOS'),
                   value: st.hapticsEnabled,
                   onChanged: n.setHapticsEnabled,
                 ),
-                SwitchListTile(
+                LiquidGlassSwitchTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Warna adaptif sampul album'),
                   value: st.dynamicAlbumColors,
@@ -3359,17 +3425,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   }).toList(),
                 ),
                 const SizedBox(height: 12),
-                SwitchListTile(
+                LiquidGlassSwitchTile(
+                  contentPadding: EdgeInsets.zero,
                   title: const Text('Radio otomatis saat antrean habis'),
                   value: st.autoRadio,
                   onChanged: n.setAutoRadio,
                 ),
-                SwitchListTile(
+                LiquidGlassSwitchTile(
+                  contentPadding: EdgeInsets.zero,
                   title: const Text('Lewati otomatis jika lagu gagal dimuat'),
                   value: st.autoSkipOnError,
                   onChanged: n.setAutoSkipOnError,
                 ),
-                SwitchListTile(
+                LiquidGlassSwitchTile(
+                  contentPadding: EdgeInsets.zero,
                   title: const Text('Simpan antrean terakhir'),
                   value: st.persistentQueue,
                   onChanged: n.setPersistentQueue,
@@ -3421,17 +3490,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SwitchListTile(
+              LiquidGlassSwitchTile(
                 title: const Text('Terjemahan lirik AI'),
                 value: st.aiTranslateLyrics,
                 onChanged: n.setAiTranslateLyrics,
               ),
-              SwitchListTile(
+              LiquidGlassSwitchTile(
                 title: const Text('Romanisasi lirik'),
                 value: st.romanizeLyrics,
                 onChanged: n.setRomanizeLyrics,
               ),
-              SwitchListTile(
+              LiquidGlassSwitchTile(
                 title: const Text('Indikator interval musik'),
                 value: st.showIntervalIndicator,
                 onChanged: n.setShowIntervalIndicator,
@@ -3455,12 +3524,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SwitchListTile(
+                LiquidGlassSwitchTile(
+                  contentPadding: EdgeInsets.zero,
                   title: const Text('Jeda riwayat pemutaran'),
                   value: st.pauseWatchHistory,
                   onChanged: n.setPauseWatchHistory,
                 ),
-                SwitchListTile(
+                LiquidGlassSwitchTile(
+                  contentPadding: EdgeInsets.zero,
                   title: const Text('Jeda riwayat pencarian'),
                   value: st.pauseSearchHistory,
                   onChanged: n.setPauseSearchHistory,

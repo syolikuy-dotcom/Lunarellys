@@ -996,31 +996,29 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   void _showPlainNameDialog(BuildContext context, WidgetRef ref) {
     final ctrl = TextEditingController();
-    showDialog<void>(
+    showArchysGlassDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Buat playlist'),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'Masukkan nama playlist'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final name = ctrl.text.trim();
-              if (name.isEmpty) return;
-              await ref.read(libraryProvider.notifier).createPlaylist(name);
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Buat'),
-          ),
-        ],
+      title: const Text('Buat playlist'),
+      content: TextField(
+        controller: ctrl,
+        autofocus: true,
+        decoration: const InputDecoration(hintText: 'Masukkan nama playlist'),
       ),
+      actionsBuilder: (ctx) => [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          onPressed: () async {
+            final name = ctrl.text.trim();
+            if (name.isEmpty) return;
+            await ref.read(libraryProvider.notifier).createPlaylist(name);
+            if (ctx.mounted) Navigator.pop(ctx);
+          },
+          child: const Text('Buat'),
+        ),
+      ],
     ).whenComplete(ctrl.dispose);
   }
 

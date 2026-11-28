@@ -81,6 +81,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   Widget build(BuildContext context) {
     final asyncData = ref.watch(exploreProvider);
 
+    final isGlass = ref.watch(
+      settingsProvider.select((s) => s.appearanceStyle == AppAppearanceStyle.glass),
+    );
     final isDark = AppColors.isDark(context);
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
@@ -100,22 +103,40 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               toolbarHeight: 68,
               titleSpacing: 16,
               flexibleSpace: RepaintBoundary(
-                child: ClipRect(
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0x900B0F14) : const Color(0xCCF6F7F9),
-                        border: Border(
-                          bottom: BorderSide(
-                            color: AppColors.borderOf(context).withAlpha(110),
-                            width: 0.7,
+                child: isGlass
+                    ? ClipRect(
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(
+                            sigmaX: 16,
+                            sigmaY: 16,
+                            tileMode: TileMode.clamp,
+                          ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0x900B0F14)
+                                  : const Color(0xCCF6F7F9),
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: AppColors.borderOf(context).withAlpha(110),
+                                  width: 0.7,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.cardOf(context),
+                          border: Border(
+                            bottom: BorderSide(
+                              color: AppColors.borderOf(context),
+                              width: 0.7,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                ),
               ),
               title: Row(
                 children: [

@@ -197,21 +197,28 @@ class _MediaCardState extends ConsumerState<MediaCard> {
                     Positioned(
                       right: 8,
                       bottom: 8,
-                      child: Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withAlpha(190),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: AnimatedEqualizer(
-                            color: Colors.white,
-                            isPlaying: isPlaying,
-                            size: 15,
-                          ),
-                        ),
-                      ),
+                      child: isPlaying
+                          ? MiniSpinningVinyl(
+                              artworkUrl: item.bestThumbUrl(size: 140),
+                              size: 36,
+                              isPlaying: true,
+                              accentColor: AppColors.horizonBlue,
+                            )
+                          : Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withAlpha(190),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: AnimatedEqualizer(
+                                  color: Colors.white,
+                                  isPlaying: false,
+                                  size: 15,
+                                ),
+                              ),
+                            ),
                     ),
                 ],
               ),

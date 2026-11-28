@@ -6,7 +6,6 @@ import '../../core/theme/app_theme.dart';
 import '../../state/library_provider.dart';
 import '../../state/player_provider.dart';
 import '../../state/settings_provider.dart';
-import 'artwork_image.dart';
 import 'liquid_glass.dart';
 import 'marquee_text.dart';
 
@@ -72,9 +71,10 @@ class MiniPlayer extends ConsumerWidget {
           pressedScale: 0.97,
           child: LiquidGlassSurface(
             borderRadius: BorderRadius.circular(999),
-            blurSigma: 32,
+            blurSigma: 28,
             tintColor: pillTint,
             chromaticAccent: chromaticColor,
+            interactiveFlex: true,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -85,10 +85,11 @@ class MiniPlayer extends ConsumerWidget {
                     height: 40,
                     child: Row(
                       children: [
-                        ArtworkImage(
-                          url: track.bestThumbUrl(size: 160),
-                          size: 34,
-                          radius: 17,
+                        MiniSpinningVinyl(
+                          artworkUrl: track.bestThumbUrl(size: 160),
+                          size: 36,
+                          isPlaying: isPlaying,
+                          accentColor: accent,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -187,9 +188,10 @@ class MiniPlayer extends ConsumerWidget {
           pressedScale: 0.98,
           child: LiquidGlassSurface(
             borderRadius: BorderRadius.circular(32),
-            blurSigma: 32,
+            blurSigma: 28,
             tintColor: pillTint,
             chromaticAccent: chromaticColor,
+            interactiveFlex: true,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -198,10 +200,11 @@ class MiniPlayer extends ConsumerWidget {
                   padding: const EdgeInsets.fromLTRB(12, 7, 10, 9),
                   child: Row(
                     children: [
-                      ArtworkImage(
-                        url: track.bestThumbUrl(size: 180),
+                      MiniSpinningVinyl(
+                        artworkUrl: track.bestThumbUrl(size: 180),
                         size: 44,
-                        radius: 14,
+                        isPlaying: isPlaying,
+                        accentColor: accent,
                       ),
                       const SizedBox(width: 11),
                       Expanded(

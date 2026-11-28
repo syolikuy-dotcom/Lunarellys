@@ -275,7 +275,9 @@ router.get('/user/sync', (req, res) => {
       followedArtists: [],
       savedAlbums: [],
       savedPlaylists: [],
+      pinnedSpeedDial: [],
       recentlyPlayed: [],
+      streakData: null,
       updatedAt: null
     }
   });

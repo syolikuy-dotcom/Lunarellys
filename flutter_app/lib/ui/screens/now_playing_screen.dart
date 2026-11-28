@@ -85,6 +85,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   final ScrollController _lyricsScrollCtrl = ScrollController();
   int _panelMode = 0; // 0 = Player, 1 = Lyrics, 2 = Queue
   bool _lyricsFullscreen = false;
+  bool _vinylMode = false;
 
   @override
   void dispose() {
@@ -190,6 +191,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                         track,
                         ref.read(playerProvider),
                       ),
+                      onOpenAudioOutput: () => _showAudioOutputSheet(context),
                       onShareQuote: (quote) => _showShareSongCardModal(
                         context,
                         track,
@@ -203,6 +205,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                       context,
                       track: track,
                       playingContext: playingContext,
+                      baseAccent: baseAccent,
                       isLiked: isLiked,
                       isDark: isDark,
                       ink: ink,
@@ -229,34 +232,84 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     BuildContext context, {
     required MusicItem track,
     required String playingContext,
+    required Color baseAccent,
     required bool isLiked,
     required bool isDark,
     required Color ink,
     required Color sub,
   }) {
     final topPad = MediaQuery.of(context).padding.top;
+    final screenW = MediaQuery.of(context).size.width;
+    final isPlaying = ref.watch(playerProvider.select((s) => s.isPlaying));
 
     return Column(
       children: [
-        // Top blended edge-to-edge Artwork Hero wrapped in RepaintBoundary
+        // Top blended edge-to-edge Artwork Hero OR Spinning Vinyl Platter
         Expanded(
           child: RepaintBoundary(
             child: Stack(
               fit: StackFit.expand,
               children: [
-                ShaderMask(
-                  shaderCallback: (rect) => const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    stops: [0.0, 0.72, 1.0],
-                    colors: [Colors.white, Colors.white, Colors.transparent],
-                  ).createShader(rect),
-                  blendMode: BlendMode.dstIn,
-                  child: ArtworkImage(
-                    url: track.bestThumbUrl(size: 900),
-                    size: MediaQuery.of(context).size.width,
-                    radius: 0,
-                  ),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 380),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  child: _vinylMode
+                      ? Container(
+                          key: const ValueKey('vinyl_stage'),
+                          alignment: Alignment.center,
+                          padding: EdgeInsets.only(top: topPad + 44, bottom: 8),
+                          child: LayoutBuilder(
+                            builder: (ctx, c) {
+                              final maxDim = math.min(
+                                c.maxWidth * 0.72,
+                                c.maxHeight - 54,
+                              );
+                              final discSize = maxDim.clamp(140.0, 268.0);
+                              return Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SpinningVinylDisc(
+                                    artworkUrl: track.bestThumbUrl(size: 700),
+                                    size: discSize,
+                                    isPlaying: isPlaying,
+                                    accentColor: baseAccent,
+                                    showTonearm: true,
+                                    onTap: () => ref
+                                        .read(playerProvider.notifier)
+                                        .togglePlayPause(),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  HarmonicSpectrumBars(
+                                    isPlaying: isPlaying,
+                                    color: baseAccent,
+                                    barCount: 24,
+                                    height: 24,
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        )
+                      : ShaderMask(
+                          key: const ValueKey('cover_stage'),
+                          shaderCallback: (rect) => const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            stops: [0.0, 0.72, 1.0],
+                            colors: [
+                              Colors.white,
+                              Colors.white,
+                              Colors.transparent,
+                            ],
+                          ).createShader(rect),
+                          blendMode: BlendMode.dstIn,
+                          child: ArtworkImage(
+                            url: track.bestThumbUrl(size: 900),
+                            size: screenW,
+                            radius: 0,
+                          ),
+                        ),
                 ),
                 Positioned(
                   top: 0,
@@ -373,6 +426,48 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+                // Interactive Sampul / Piringan Vinyl switcher pill
+                Positioned(
+                  right: 16,
+                  bottom: 14,
+                  child: LiquidGlassTap(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _vinylMode = !_vinylMode);
+                    },
+                    child: LiquidGlassCapsule(
+                      blurSigma: 20,
+                      tintColor: Colors.black.withAlpha(isDark ? 115 : 140),
+                      chromaticAccent: baseAccent,
+                      interactiveFlex: true,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 7,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _vinylMode
+                                ? CupertinoIcons.photo_fill
+                                : CupertinoIcons.circle_grid_hex_fill,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _vinylMode ? 'Sampul' : 'Piringan',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -680,6 +775,28 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                 );
               },
             ),
+            const Divider(height: 16),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(CupertinoIcons.slider_horizontal_3, color: ink),
+              title: Text(
+                'Ekualiser & DSP 5-Band',
+                style: TextStyle(fontWeight: FontWeight.w700, color: ink),
+              ),
+              subtitle: Text(
+                'Atur preset frekuensi & bass boost',
+                style: TextStyle(color: sub),
+              ),
+              trailing: Icon(CupertinoIcons.chevron_forward, size: 16, color: sub),
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const EqualizerScreen(),
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -735,28 +852,13 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          trackHeight: 8,
-                          activeTrackColor: ink,
-                          inactiveTrackColor: ink.withAlpha(30),
-                          thumbColor: Colors.white,
-                          thumbShape: const RoundSliderThumbShape(
-                            enabledThumbRadius: 12,
-                            elevation: 3,
-                          ),
-                          overlayShape: const RoundSliderOverlayShape(
-                            overlayRadius: 20,
-                          ),
-                        ),
-                        child: Slider(
-                          min: 5,
-                          max: 120,
-                          divisions: 23,
-                          value: minutes.toDouble(),
-                          onChanged: (v) =>
-                              setModalState(() => minutes = v.round()),
-                        ),
+                      LiquidGlassRangeSlider(
+                        min: 5,
+                        max: 120,
+                        value: minutes.toDouble(),
+                        activeColor: const Color(0xFFF59E0B),
+                        onChanged: (v) =>
+                            setModalState(() => minutes = v.round()),
                       ),
                       const SizedBox(height: 16),
                       SizedBox(
@@ -1001,15 +1103,9 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                     );
                   },
                 ),
-                SwitchListTile(
-                  title: Text(
-                    'Terjemahan lirik AI',
-                    style: TextStyle(color: ink, fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    'Tampilkan terjemahan bahasa pilihan',
-                    style: TextStyle(color: sub, fontSize: 12),
-                  ),
+                LiquidGlassSwitchTile(
+                  title: const Text('Terjemahan lirik AI'),
+                  subtitle: const Text('Tampilkan terjemahan bahasa pilihan'),
                   value: st.aiTranslateLyrics,
                   onChanged: (v) async {
                     await modalRef
@@ -1020,21 +1116,15 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                     }
                   },
                 ),
-                SwitchListTile(
-                  title: Text(
-                    'Ikuti posisi agen',
-                    style: TextStyle(color: ink, fontWeight: FontWeight.w600),
-                  ),
+                LiquidGlassSwitchTile(
+                  title: const Text('Ikuti posisi agen'),
                   value: st.agentPositionSync,
                   onChanged: (v) => modalRef
                       .read(settingsProvider.notifier)
                       .setAgentPositionSync(v),
                 ),
-                SwitchListTile(
-                  title: Text(
-                    'Tampilkan indikator interval',
-                    style: TextStyle(color: ink, fontWeight: FontWeight.w600),
-                  ),
+                LiquidGlassSwitchTile(
+                  title: const Text('Tampilkan indikator interval'),
                   value: st.showIntervalIndicator,
                   onChanged: (v) => modalRef
                       .read(settingsProvider.notifier)
@@ -1086,11 +1176,8 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                     ],
                   ),
                 ),
-                SwitchListTile(
-                  title: Text(
-                    'Romanisasi lirik',
-                    style: TextStyle(color: ink, fontWeight: FontWeight.w600),
-                  ),
+                LiquidGlassSwitchTile(
+                  title: const Text('Romanisasi lirik'),
                   value: st.romanizeLyrics,
                   onChanged: (v) async {
                     await modalRef
@@ -1101,14 +1188,10 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                     }
                   },
                 ),
-                SwitchListTile(
-                  title: Text(
-                    'Tampilkan di Lock Screen',
-                    style: TextStyle(color: ink, fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
+                LiquidGlassSwitchTile(
+                  title: const Text('Tampilkan di Lock Screen'),
+                  subtitle: const Text(
                     'Buka panel lirik langsung dari notifikasi layar kunci',
-                    style: TextStyle(color: sub, fontSize: 12),
                   ),
                   value: st.lockScreenLyricsEnabled,
                   onChanged: (v) async {
@@ -1247,15 +1330,18 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                 Row(
                   children: [
                     Icon(Icons.volume_down_rounded, size: 20, color: sub),
+                    const SizedBox(width: 8),
                     Expanded(
-                      child: Slider(
+                      child: LiquidGlassRangeSlider(
                         min: 0.0,
                         max: 1.0,
+                        compact: true,
                         value: volume,
                         onChanged: (v) =>
                             modalRef.read(playerProvider.notifier).setVolume(v),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Icon(Icons.volume_up_rounded, size: 20, color: sub),
                   ],
                 ),
@@ -1767,28 +1853,29 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                   'Tempo (${speed.toStringAsFixed(2)}x)',
                   style: TextStyle(fontWeight: FontWeight.w700, color: ink),
                 ),
-                Slider(
+                const SizedBox(height: 6),
+                LiquidGlassRangeSlider(
                   min: 0.5,
                   max: 2.0,
-                  divisions: 30,
                   value: speed,
                   onChanged: (v) => modalRef
                       .read(playerProvider.notifier)
                       .setPlaybackSpeed(v),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Text(
                   'Nada / Pitch (${pitch.toStringAsFixed(2)}x)',
                   style: TextStyle(fontWeight: FontWeight.w700, color: ink),
                 ),
-                Slider(
+                const SizedBox(height: 6),
+                LiquidGlassRangeSlider(
                   min: 0.5,
                   max: 1.5,
-                  divisions: 20,
                   value: pitch,
                   onChanged: (v) =>
                       modalRef.read(playerProvider.notifier).setPitch(v),
                 ),
+                const SizedBox(height: 6),
                 Text(
                   'Geser ke kiri untuk lebih berat, ke kanan untuk lebih tinggi.',
                   style: TextStyle(fontSize: 12, color: sub),
@@ -1802,29 +1889,27 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   }
 
   void _showSongMetadataDialog(BuildContext context, MusicItem track) {
-    showDialog<void>(
+    showArchysGlassDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rincian lagu'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _metaRow('Judul', track.title),
-            _metaRow('Artis', track.artistDisplay),
-            if (track.album?.name.isNotEmpty == true)
-              _metaRow('Album', track.album!.name),
-            _metaRow('ID Track', track.id),
-            if (track.duration != null) _metaRow('Durasi', track.duration!),
-          ],
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Tutup'),
-          ),
+      title: const Text('Rincian lagu'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _metaRow('Judul', track.title),
+          _metaRow('Artis', track.artistDisplay),
+          if (track.album?.name.isNotEmpty == true)
+            _metaRow('Album', track.album!.name),
+          _metaRow('ID Track', track.id),
+          if (track.duration != null) _metaRow('Durasi', track.duration!),
         ],
       ),
+      actionsBuilder: (ctx) => [
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Tutup'),
+        ),
+      ],
     );
   }
 
@@ -2088,7 +2173,11 @@ class _NowPlayingBackdropState extends State<_NowPlayingBackdrop>
           if (thumb != null)
             Positioned.fill(
               child: ImageFiltered(
-                imageFilter: ImageFilter.blur(sigmaX: 46, sigmaY: 46),
+                imageFilter: ImageFilter.blur(
+                  sigmaX: 46,
+                  sigmaY: 46,
+                  tileMode: TileMode.clamp,
+                ),
                 child: Opacity(
                   opacity: widget.isDark ? 0.55 : 0.42,
                   child: ArtworkImage(
@@ -2622,25 +2711,20 @@ class _PlayerVolumeDeck extends ConsumerWidget {
     return Row(
       children: [
         Icon(CupertinoIcons.volume_down, size: 18, color: sub),
+        const SizedBox(width: 8),
         Expanded(
-          child: SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 3.5,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5.5),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-              activeTrackColor: ink,
-              inactiveTrackColor: ink.withAlpha(38),
-              thumbColor: ink,
-            ),
-            child: Slider(
-              min: 0.0,
-              max: 1.0,
-              value: volume,
-              onChanged: (v) =>
-                  ref.read(playerProvider.notifier).setVolume(v),
-            ),
+          child: LiquidGlassRangeSlider(
+            min: 0.0,
+            max: 1.0,
+            compact: true,
+            activeColor: ink,
+            inactiveColor: ink.withAlpha(38),
+            value: volume,
+            onChanged: (v) =>
+                ref.read(playerProvider.notifier).setVolume(v),
           ),
         ),
+        const SizedBox(width: 8),
         Icon(CupertinoIcons.volume_up, size: 18, color: sub),
         const SizedBox(width: 8),
         IconButton(
@@ -2722,6 +2806,7 @@ class _LyricsPanelView extends ConsumerStatefulWidget {
   final Color sub;
   final VoidCallback onToggleFullscreen;
   final VoidCallback onOpenOptions;
+  final VoidCallback onOpenAudioOutput;
   final ValueChanged<String>? onShareQuote;
 
   const _LyricsPanelView({
@@ -2733,6 +2818,7 @@ class _LyricsPanelView extends ConsumerStatefulWidget {
     required this.sub,
     required this.onToggleFullscreen,
     required this.onOpenOptions,
+    required this.onOpenAudioOutput,
     this.onShareQuote,
   });
 
@@ -2989,10 +3075,11 @@ class _LyricsPanelViewState extends ConsumerState<_LyricsPanelView> {
             children: [
               Row(
                 children: [
-                  ArtworkImage(
-                    url: widget.track.bestThumbUrl(size: 160),
+                  MiniSpinningVinyl(
+                    artworkUrl: widget.track.bestThumbUrl(size: 160),
                     size: 48,
-                    radius: 10,
+                    isPlaying: ref.watch(playerProvider.select((s) => s.isPlaying)),
+                    accentColor: AppColors.horizonBlue,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -3053,14 +3140,7 @@ class _LyricsPanelViewState extends ConsumerState<_LyricsPanelView> {
               _PlayerVolumeDeck(
                 ink: widget.ink,
                 sub: widget.sub,
-                onOpenAudioOutput: () {
-                  // Reuse modal from ancestor via GlobalKey-free context action
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const EqualizerScreen(),
-                    ),
-                  );
-                },
+                onOpenAudioOutput: widget.onOpenAudioOutput,
               ),
             ],
           ),
@@ -3185,6 +3265,44 @@ class _QueuePanelView extends ConsumerWidget {
                     onPressed: () =>
                         ref.read(playerProvider.notifier).toggleQueueLock(),
                   ),
+                  PopupMenuButton<String>(
+                    tooltip: 'Aksi antrean',
+                    padding: EdgeInsets.zero,
+                    icon: Icon(Icons.more_horiz_rounded, color: ink, size: 21),
+                    onSelected: (action) async {
+                      if (action == 'save_pl' && queue.isNotEmpty) {
+                        final title = currentTrack?.title.isNotEmpty == true
+                            ? '${currentTrack!.title} Mix'
+                            : 'Antrean ${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}';
+                        final created = await ref
+                            .read(libraryProvider.notifier)
+                            .createPlaylist(title, initialTracks: queue);
+                        if (created != null && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Antrean disimpan ke "${created.name}"',
+                              ),
+                            ),
+                          );
+                        }
+                      } else if (action == 'clear_upcoming') {
+                        await ref
+                            .read(playerProvider.notifier)
+                            .clearUpcomingQueue();
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      const PopupMenuItem<String>(
+                        value: 'save_pl',
+                        child: Text('Simpan antrean jadi playlist'),
+                      ),
+                      const PopupMenuItem<String>(
+                        value: 'clear_upcoming',
+                        child: Text('Hapus lagu berikutnya'),
+                      ),
+                    ],
+                  ),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
@@ -3263,11 +3381,19 @@ class _QueuePanelView extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      ArtworkImage(
-                        url: item.bestThumbUrl(size: 140),
-                        size: 46,
-                        radius: 8,
-                      ),
+                      if (isCurrent)
+                        MiniSpinningVinyl(
+                          artworkUrl: item.bestThumbUrl(size: 140),
+                          size: 46,
+                          isPlaying: isPlaying,
+                          accentColor: AppColors.horizonBlue,
+                        )
+                      else
+                        ArtworkImage(
+                          url: item.bestThumbUrl(size: 140),
+                          size: 46,
+                          radius: 8,
+                        ),
                     ],
                   ),
                   title: Text(
@@ -3442,16 +3568,34 @@ class _ContrastSweepText extends StatelessWidget {
   }
 }
 
-class AmbientModeScreen extends ConsumerWidget {
+class AmbientModeScreen extends ConsumerStatefulWidget {
   const AmbientModeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AmbientModeScreen> createState() => _AmbientModeScreenState();
+}
+
+class _AmbientModeScreenState extends ConsumerState<AmbientModeScreen> {
+  bool _showVinyl = true;
+
+  @override
+  Widget build(BuildContext context) {
     final track = ref.watch(playerProvider.select((s) => s.currentTrack));
     final accent =
         ref.watch(playerProvider.select((s) => s.dynamicColor)) ??
             AppColors.horizonBlue;
     final isPlaying = ref.watch(playerProvider.select((s) => s.isPlaying));
+    final lyrics = ref.watch(playerProvider.select((s) => s.lyrics));
+    final position = ref.watch(playerProvider.select((s) => s.position));
+    final lyricsOffsetMs =
+        ref.watch(settingsProvider.select((s) => s.lyricsOffsetMs));
+    final activeIdx = _findActiveLyricIndex(lyrics, position, lyricsOffsetMs);
+    final activeLine =
+        (activeIdx >= 0 && lyrics != null && activeIdx < lyrics.lines.length)
+            ? lyrics.lines[activeIdx].text
+            : null;
+    final size = MediaQuery.of(context).size;
+    final discSize = math.min(size.width * 0.64, size.height * 0.34).clamp(150.0, 276.0);
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -3461,9 +3605,9 @@ class AmbientModeScreen extends ConsumerWidget {
           decoration: BoxDecoration(
             gradient: RadialGradient(
               center: const Alignment(0, -0.2),
-              radius: 1.2,
+              radius: 1.25,
               colors: [
-                accent.withAlpha(115),
+                accent.withAlpha(118),
                 const Color(0xFF0A0D12),
                 Colors.black,
               ],
@@ -3471,26 +3615,102 @@ class AmbientModeScreen extends ConsumerWidget {
           ),
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(28),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (track != null) ...[
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(24),
-                      child: ArtworkImage(
-                        url: track.bestThumbUrl(size: 800),
-                        size: (MediaQuery.of(context).size.width * 0.72)
-                            .clamp(180.0, 300.0),
-                        radius: 24,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      LiquidGlassTap(
+                        onTap: () => setState(() => _showVinyl = !_showVinyl),
+                        child: LiquidGlassCapsule(
+                          blurSigma: 18,
+                          tintColor: Colors.white.withAlpha(24),
+                          chromaticAccent: accent,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 7,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _showVinyl
+                                    ? CupertinoIcons.photo_fill
+                                    : CupertinoIcons.circle_grid_hex_fill,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _showVinyl ? 'Sampul' : 'Piringan',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
+                      LiquidGlassTap(
+                        onTap: () => Navigator.of(context).pop(),
+                        child: LiquidGlassCapsule(
+                          blurSigma: 18,
+                          tintColor: Colors.white.withAlpha(24),
+                          padding: const EdgeInsets.all(8),
+                          child: const Icon(
+                            CupertinoIcons.xmark,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  if (track != null) ...[
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 360),
+                      child: _showVinyl
+                          ? SpinningVinylDisc(
+                              key: const ValueKey('ambient_vinyl'),
+                              artworkUrl: track.bestThumbUrl(size: 800),
+                              size: discSize,
+                              isPlaying: isPlaying,
+                              accentColor: accent,
+                              showTonearm: true,
+                              onTap: () => ref
+                                  .read(playerProvider.notifier)
+                                  .togglePlayPause(),
+                            )
+                          : ClipRRect(
+                              key: const ValueKey('ambient_cover'),
+                              borderRadius: BorderRadius.circular(24),
+                              child: ArtworkImage(
+                                url: track.bestThumbUrl(size: 800),
+                                size: discSize,
+                                radius: 24,
+                              ),
+                            ),
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 18),
+                    HarmonicSpectrumBars(
+                      isPlaying: isPlaying,
+                      color: accent,
+                      barCount: 28,
+                      height: 28,
+                    ),
+                    const SizedBox(height: 18),
                     Text(
                       track.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: const TextStyle(
-                        fontSize: 24,
+                        fontSize: 23,
                         fontWeight: FontWeight.w800,
                         color: Colors.white,
                       ),
@@ -3498,54 +3718,84 @@ class AmbientModeScreen extends ConsumerWidget {
                     const SizedBox(height: 6),
                     Text(
                       track.artistDisplay,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 15.5,
                         color: Colors.white70,
                       ),
                     ),
-                    const SizedBox(height: 28),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.skip_previous_rounded,
-                            color: Colors.white,
-                            size: 36,
+                    if (activeLine != null && activeLine.trim().isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 260),
+                        child: Text(
+                          activeLine,
+                          key: ValueKey(activeLine),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Color.lerp(Colors.white, accent, 0.35),
                           ),
-                          onPressed: () =>
-                              ref.read(playerProvider.notifier).skipPrevious(),
                         ),
-                        const SizedBox(width: 20),
-                        IconButton(
-                          icon: Icon(
-                            isPlaying
-                                ? Icons.pause_circle_filled_rounded
-                                : Icons.play_circle_filled_rounded,
-                            color: Colors.white,
-                            size: 62,
+                      ),
+                    ],
+                    const SizedBox(height: 26),
+                    LiquidGlassCapsule(
+                      blurSigma: 20,
+                      tintColor: Colors.white.withAlpha(22),
+                      chromaticAccent: accent,
+                      interactiveFlex: true,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(
+                              CupertinoIcons.backward_fill,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                            onPressed: () =>
+                                ref.read(playerProvider.notifier).skipPrevious(),
                           ),
-                          onPressed: () => ref
-                              .read(playerProvider.notifier)
-                              .togglePlayPause(),
-                        ),
-                        const SizedBox(width: 20),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.skip_next_rounded,
-                            color: Colors.white,
-                            size: 36,
+                          const SizedBox(width: 10),
+                          IconButton(
+                            icon: Icon(
+                              isPlaying
+                                  ? CupertinoIcons.pause_circle_fill
+                                  : CupertinoIcons.play_circle_fill,
+                              color: Colors.white,
+                              size: 54,
+                            ),
+                            onPressed: () => ref
+                                .read(playerProvider.notifier)
+                                .togglePlayPause(),
                           ),
-                          onPressed: () =>
-                              ref.read(playerProvider.notifier).skipNext(),
-                        ),
-                      ],
+                          const SizedBox(width: 10),
+                          IconButton(
+                            icon: const Icon(
+                              CupertinoIcons.forward_fill,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                            onPressed: () =>
+                                ref.read(playerProvider.notifier).skipNext(),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
-                  const SizedBox(height: 36),
+                  const Spacer(),
                   const Text(
-                    'Ketuk di mana saja untuk keluar dari Mode ambient',
+                    'Ketuk area kosong untuk keluar dari Mode ambient',
                     style: TextStyle(fontSize: 12.5, color: Colors.white38),
                   ),
                 ],

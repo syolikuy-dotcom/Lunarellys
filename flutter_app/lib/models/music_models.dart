@@ -778,6 +778,8 @@ class CloudLibrarySnapshot {
   final List<MusicItem> savedAlbums;
   final List<MusicItem> savedPlaylists;
   final List<MusicItem> recentlyPlayed;
+  final List<MusicItem> pinnedSpeedDial;
+  final Map<String, dynamic>? streakData;
   final String? updatedAt;
 
   const CloudLibrarySnapshot({
@@ -787,6 +789,8 @@ class CloudLibrarySnapshot {
     this.savedAlbums = const [],
     this.savedPlaylists = const [],
     this.recentlyPlayed = const [],
+    this.pinnedSpeedDial = const [],
+    this.streakData,
     this.updatedAt,
   });
 
@@ -800,6 +804,7 @@ class CloudLibrarySnapshot {
         }
       }
     }
+    final rawStreak = json['streakData'];
     return CloudLibrarySnapshot(
       likedSongs: _parseMusicItemList(json['likedSongs']),
       playlists: playlists,
@@ -807,6 +812,8 @@ class CloudLibrarySnapshot {
       savedAlbums: _parseMusicItemList(json['savedAlbums']),
       savedPlaylists: _parseMusicItemList(json['savedPlaylists']),
       recentlyPlayed: _parseMusicItemList(json['recentlyPlayed']),
+      pinnedSpeedDial: _parseMusicItemList(json['pinnedSpeedDial']),
+      streakData: rawStreak is Map ? Map<String, dynamic>.from(rawStreak) : null,
       updatedAt: json['updatedAt']?.toString(),
     );
   }

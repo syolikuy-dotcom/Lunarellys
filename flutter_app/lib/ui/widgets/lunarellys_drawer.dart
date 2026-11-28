@@ -7,6 +7,7 @@ import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../state/auth_provider.dart';
 import '../../state/library_provider.dart';
+import '../../state/settings_provider.dart';
 import '../screens/detail_screens.dart';
 import '../screens/ytm_login_screen.dart';
 import 'google_logo.dart';
@@ -29,21 +30,25 @@ class LunarellysDrawer extends ConsumerWidget {
     final sub = AppColors.subOf(context);
     final border = AppColors.borderOf(context);
 
-    return Drawer(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      width: MediaQuery.of(context).size.width.clamp(268.0, 326.0),
-      child: ClipRRect(
+    final isGlass = ref.watch(
+      settingsProvider.select((s) => s.appearanceStyle == AppAppearanceStyle.glass),
+    );
+    final glassOpacity = ref.watch(
+      settingsProvider.select((s) => s.liquidGlassOpacity),
+    );
+    final drawerAlpha = lerpDouble(196, 246, glassOpacity)!.round();
+
+    final Widget drawerBody = Container(
+      decoration: BoxDecoration(
         borderRadius: const BorderRadius.horizontal(right: Radius.circular(28)),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: const BorderRadius.horizontal(right: Radius.circular(28)),
-              color: isDark ? const Color(0xEC11151B) : const Color(0xF4FFFFFF),
-              border: Border(right: BorderSide(color: border, width: 1)),
-            ),
-            child: SafeArea(
+        color: isGlass
+            ? (isDark
+                ? const Color(0xFF11151B).withAlpha(drawerAlpha)
+                : const Color(0xFFFFFFFF).withAlpha(drawerAlpha))
+            : AppColors.cardOf(context),
+        border: Border(right: BorderSide(color: border, width: 1)),
+      ),
+      child: SafeArea(
               child: Column(
                 children: [
                   InkWell(
@@ -314,8 +319,24 @@ class LunarellysDrawer extends ConsumerWidget {
                 ],
               ),
             ),
-          ),
-        ),
+    );
+
+    return Drawer(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      width: MediaQuery.of(context).size.width.clamp(268.0, 326.0),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.horizontal(right: Radius.circular(28)),
+        child: isGlass
+            ? BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: (14 + 12 * glassOpacity),
+                  sigmaY: (14 + 12 * glassOpacity),
+                  tileMode: TileMode.clamp,
+                ),
+                child: drawerBody,
+              )
+            : drawerBody,
       ),
     );
   }
@@ -332,8 +353,18 @@ class LunarellysDrawer extends ConsumerWidget {
     final sub = AppColors.subOf(context);
     return ListTile(
       leading: IosSquircleBadge(icon: icon, color: iconBg, size: 36),
-      title: Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: ink)),
-      subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: sub)),
+      title: Text(
+        title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontWeight: FontWeight.w600, color: ink),
+      ),
+      subtitle: Text(
+        subtitle,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 12, color: sub),
+      ),
       trailing: Icon(CupertinoIcons.chevron_forward, size: 15, color: sub),
       onTap: onTap,
     );

@@ -1101,8 +1101,48 @@
     font-size: 11.5px;
     font-weight: 600;
     color: var(--fg-secondary);
+    transition: background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease;
   }
   .mini-pill-btn:hover { background: rgba(255, 255, 255, 0.16); color: var(--fg); }
+  .mini-pill-btn.active {
+    background: var(--accent-soft);
+    border-color: rgba(52, 245, 164, 0.45);
+    color: var(--accent-bright);
+  }
+  .lyric-sub-roman {
+    display: block;
+    margin-top: 3px;
+    font-family: var(--font-sans);
+    font-size: 12.5px;
+    font-style: italic;
+    font-weight: 500;
+    color: var(--fg-secondary);
+    opacity: 0.88;
+  }
+  .lyric-sub-trans {
+    display: block;
+    margin-top: 2px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent-bright);
+    opacity: 0.92;
+  }
+  .ab-loop-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 2px;
+  }
+  .ab-loop-status {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-secondary);
+    padding: 0 4px;
+  }
+  .recap-grid-4 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 
   @media (max-width: 900px) {
     .app-shell {
@@ -1421,6 +1461,12 @@
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
           </button>
           <button class="ctrl-btn" id="now-speed" title="Playback Speed" style="font-family:var(--font-mono);font-size:12px;font-weight:700;width:auto;padding:0 10px;">1.0x</button>
+        </div>
+        <div class="ab-loop-bar">
+          <button class="mini-pill-btn" id="btn-loop-a" type="button">Set A</button>
+          <button class="mini-pill-btn" id="btn-loop-b" type="button">Set B</button>
+          <span class="ab-loop-status" id="ab-loop-status">A-B Off</span>
+          <button class="mini-pill-btn" id="btn-loop-clear" type="button" style="display:none;">Clear</button>
         </div>
       </div>
     </div>
@@ -1756,8 +1802,18 @@
     liked: loadJson('lunarellys_liked', []),
     recent: loadJson('lunarellys_recent', []),
     playlists: loadJson('lunarellys_playlists', []),
+    pinnedSpeedDial: loadJson('lunarellys_pinned_speed_dial', []),
+    streakData: loadJson('lunarellys_streak_data', {
+      currentStreak: 0,
+      longestStreak: 0,
+      totalActiveDays: 0,
+      totalListeningSeconds: 0,
+      lastStreakDate: null
+    }),
     playCounts: loadJson('lunarellys_play_counts', {}),
     listeningSec: Number(localStorage.getItem('lunarellys_listening_sec') || 0) || 0,
+    abLoop: { a: null, b: null },
+    lyricsAssistLoading: false,
     userToken: localStorage.getItem('lunarellys_user_token') || '',
     userProfile: loadJson('lunarellys_user_profile', null),
     pendingPlaylistTrack: null,
@@ -1785,6 +1841,8 @@
         ? savedSettings.eqBands.map((v) => Number(v) || 0)
         : [0, 0, 0, 0, 0],
       lyricsOffsetMs: Number(savedSettings.lyricsOffsetMs || 0),
+      romanizeLyrics: Boolean(savedSettings.romanizeLyrics),
+      translateLyrics: Boolean(savedSettings.translateLyrics),
       autoRadio: savedSettings.autoRadio !== false,
       autoSkip: savedSettings.autoSkip !== false,
       nodeUrl: normalizeBaseUrl(savedSettings.nodeUrl || ''),
@@ -1867,6 +1925,8 @@
     localStorage.setItem('lunarellys_liked', JSON.stringify(state.liked));
     localStorage.setItem('lunarellys_recent', JSON.stringify(state.recent.slice(0, 40)));
     localStorage.setItem('lunarellys_playlists', JSON.stringify(state.playlists));
+    localStorage.setItem('lunarellys_pinned_speed_dial', JSON.stringify(state.pinnedSpeedDial.slice(0, 27)));
+    localStorage.setItem('lunarellys_streak_data', JSON.stringify(state.streakData));
     localStorage.setItem('lunarellys_queue', JSON.stringify(state.queue.slice(0, 60)));
     localStorage.setItem('lunarellys_play_counts', JSON.stringify(state.playCounts));
     localStorage.setItem('lunarellys_listening_sec', String(Math.floor(state.listeningSec)));
@@ -2076,6 +2136,60 @@
     return out.slice(0, limit);
   }
 
+  function isPinnedSpeedDial(id) {
+    return state.pinnedSpeedDial.some((item) => item && item.id === id);
+  }
+
+  function togglePinSpeedDial(item) {
+    if (!item || !item.id) return;
+    if (isPinnedSpeedDial(item.id)) {
+      state.pinnedSpeedDial = state.pinnedSpeedDial.filter((p) => p.id !== item.id);
+    } else {
+      state.pinnedSpeedDial = [item, ...state.pinnedSpeedDial].slice(0, 27);
+    }
+    saveStorage();
+    if (state.tab === 'home') loadHome(false);
+    if (state.nowOpen && state.nowPanel === 'track') renderNowPanel();
+  }
+
+  function mergeStreakData(local, cloud) {
+    const l = local || {};
+    const c = cloud || {};
+    const lDate = l.lastStreakDate || '';
+    const cDate = c.lastStreakDate || '';
+    const latestDate = lDate >= cDate ? (lDate || null) : (cDate || null);
+    const cur = lDate >= cDate ? (Number(l.currentStreak) || 0) : (Number(c.currentStreak) || 0);
+    return {
+      currentStreak: Math.max(0, cur),
+      longestStreak: Math.max(Number(l.longestStreak) || 0, Number(c.longestStreak) || 0, cur),
+      totalActiveDays: Math.max(Number(l.totalActiveDays) || 0, Number(c.totalActiveDays) || 0),
+      totalListeningSeconds: Math.max(Number(l.totalListeningSeconds) || 0, Number(c.totalListeningSeconds) || 0, Math.floor(state.listeningSec || 0)),
+      lastStreakDate: latestDate
+    };
+  }
+
+  function recordStreakPlay() {
+    const now = new Date();
+    const todayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+    const sd = state.streakData || { currentStreak: 0, longestStreak: 0, totalActiveDays: 0, totalListeningSeconds: 0, lastStreakDate: null };
+    if (!sd.lastStreakDate) {
+      sd.currentStreak = Math.max(1, Number(sd.currentStreak) || 1);
+      sd.longestStreak = Math.max(sd.longestStreak || 0, sd.currentStreak);
+      sd.totalActiveDays = Math.max(1, Number(sd.totalActiveDays) || 1);
+    } else if (sd.lastStreakDate !== todayStr) {
+      const prev = new Date(sd.lastStreakDate + 'T00:00:00');
+      const cur = new Date(todayStr + 'T00:00:00');
+      const diffDays = Math.round((cur - prev) / 86400000);
+      sd.totalActiveDays = (Number(sd.totalActiveDays) || 0) + 1;
+      if (diffDays === 1) sd.currentStreak = (Number(sd.currentStreak) || 0) + 1;
+      else if (diffDays > 1 || Number.isNaN(diffDays)) sd.currentStreak = 1;
+      if (sd.currentStreak > (sd.longestStreak || 0)) sd.longestStreak = sd.currentStreak;
+    }
+    sd.lastStreakDate = todayStr;
+    sd.totalListeningSeconds = Math.max(Number(sd.totalListeningSeconds) || 0, Math.floor(state.listeningSec || 0));
+    state.streakData = sd;
+  }
+
   async function syncCloudDown() {
     if (!state.userToken) return;
     try {
@@ -2083,6 +2197,11 @@
       const lib = res.library || {};
       if (Array.isArray(lib.likedSongs)) state.liked = mergeTrackLists(state.liked, lib.likedSongs, 200);
       if (Array.isArray(lib.recentlyPlayed)) state.recent = mergeTrackLists(state.recent, lib.recentlyPlayed, 40);
+      if (Array.isArray(lib.pinnedSpeedDial)) state.pinnedSpeedDial = mergeTrackLists(state.pinnedSpeedDial, lib.pinnedSpeedDial, 27);
+      if (lib.streakData && typeof lib.streakData === 'object') {
+        state.streakData = mergeStreakData(state.streakData, lib.streakData);
+        state.listeningSec = Math.max(state.listeningSec, state.streakData.totalListeningSeconds || 0);
+      }
       if (Array.isArray(lib.playlists)) {
         const byId = new Map(state.playlists.map((p) => [p.id, p]));
         for (const p of lib.playlists) {
@@ -2092,6 +2211,7 @@
       }
       saveStorage(true);
       if (state.tab === 'library') renderLibrary();
+      else if (state.tab === 'home' && state.homeData) loadHome(false);
       updateAuthSideUi();
     } catch {}
   }
@@ -2104,7 +2224,12 @@
         await apiSend('PUT', '/user/sync', {
           likedSongs: state.liked,
           playlists: state.playlists,
-          recentlyPlayed: state.recent
+          recentlyPlayed: state.recent,
+          pinnedSpeedDial: state.pinnedSpeedDial,
+          streakData: {
+            ...state.streakData,
+            totalListeningSeconds: Math.max(Number(state.streakData?.totalListeningSeconds) || 0, Math.floor(state.listeningSec || 0))
+          }
         }, { Authorization: 'Bearer ' + state.userToken });
       } catch {}
     }, 1500);
@@ -2234,8 +2359,11 @@
     }
 
     state.currentTrack = track;
+    state.abLoop = { a: null, b: null };
+    updateABLoopUi();
     state.playCounts[track.id] = (state.playCounts[track.id] || 0) + 1;
     state.recent = [track, ...state.recent.filter((t) => t.id !== track.id)].slice(0, 40);
+    recordStreakPlay();
     saveStorage();
     updatePlayerBarMeta();
     highlightPlayingRows();
@@ -2274,6 +2402,9 @@
         if (state.currentTrack?.id !== track.id) return;
         state.lyrics = res;
         if (state.nowOpen && state.nowPanel === 'lyrics') renderNowPanel();
+        if (state.settings.romanizeLyrics || state.settings.translateLyrics) {
+          fetchLyricsAssist();
+        }
       })
       .catch(() => {});
 
@@ -2381,6 +2512,53 @@
     });
   }
 
+  function updateABLoopUi() {
+    const aBtn = document.getElementById('btn-loop-a');
+    const bBtn = document.getElementById('btn-loop-b');
+    const status = document.getElementById('ab-loop-status');
+    const clrBtn = document.getElementById('btn-loop-clear');
+    if (!aBtn || !bBtn || !status || !clrBtn) return;
+    const { a, b } = state.abLoop;
+    aBtn.classList.toggle('active', a !== null);
+    bBtn.classList.toggle('active', b !== null);
+    aBtn.textContent = a !== null ? 'A ' + fmtTime(a) : 'Set A';
+    bBtn.textContent = b !== null ? 'B ' + fmtTime(b) : 'Set B';
+    clrBtn.style.display = (a !== null || b !== null) ? 'inline-block' : 'none';
+    if (a !== null && b !== null) status.textContent = 'Looping ' + fmtTime(a) + ' → ' + fmtTime(b);
+    else if (a !== null) status.textContent = 'Point A set';
+    else status.textContent = 'A-B Off';
+  }
+
+  async function fetchLyricsAssist() {
+    const lyr = state.lyrics;
+    const trackId = state.currentTrack?.id;
+    if (!lyr || !Array.isArray(lyr.lines) || !lyr.lines.length || !trackId) return;
+    if (!state.settings.romanizeLyrics && !state.settings.translateLyrics) return;
+    const needRoman = state.settings.romanizeLyrics && lyr.lines.some((l) => l.text && !l.romanized);
+    const needTrans = state.settings.translateLyrics && lyr.lines.some((l) => l.text && !l.translated);
+    if (!needRoman && !needTrans) return;
+    state.lyricsAssistLoading = true;
+    if (state.nowOpen && state.nowPanel === 'lyrics') renderNowPanel();
+    try {
+      const res = await apiSend('POST', '/music/lyrics-assist', {
+        lines: lyr.lines.map((l) => l.text || ''),
+        targetLang: resolveLang(),
+        romanize: state.settings.romanizeLyrics,
+        translate: state.settings.translateLyrics
+      });
+      if (state.currentTrack?.id === trackId && state.lyrics && Array.isArray(res.lines)) {
+        state.lyrics.lines = state.lyrics.lines.map((orig, i) => ({
+          ...orig,
+          romanized: res.lines[i]?.romanized || orig.romanized || null,
+          translated: res.lines[i]?.translated || orig.translated || null
+        }));
+      }
+    } catch {} finally {
+      state.lyricsAssistLoading = false;
+      if (state.nowOpen && state.nowPanel === 'lyrics') renderNowPanel();
+    }
+  }
+
   function renderNowPanel() {
     const body = document.getElementById('now-panel-body');
     if (state.nowPanel === 'track') {
@@ -2391,6 +2569,7 @@
       }
       const dur = Number.isFinite(audio.duration) ? fmtTime(audio.duration) : (tr.duration || fmtTime(tr.durationSeconds || 0));
       const plays = state.playCounts[tr.id] || 0;
+      const pinned = isPinnedSpeedDial(tr.id);
       body.innerHTML =
         '<div style="display:flex;flex-direction:column;gap:14px;">' +
           '<div class="recap-stat">' +
@@ -2406,11 +2585,13 @@
           (tr.album?.name ? '<div class="recap-stat"><div class="recap-lbl">Album</div><div style="font-size:14px;font-weight:600;margin-top:2px;">' + esc(tr.album.name) + '</div></div>' : '') +
           '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
             '<button class="btn-secondary" id="btn-now-add-pl" style="height:36px;">+ Add to Playlist</button>' +
+            '<button class="btn-secondary" id="btn-now-pin-sd" style="height:36px;">' + (pinned ? 'Pinned to Speed Dial' : 'Pin Speed Dial') + '</button>' +
             '<button class="btn-secondary" id="btn-now-open-eq" style="height:36px;">Equalizer</button>' +
             '<button class="btn-secondary" id="btn-now-listen" style="height:36px;">Listen Together</button>' +
           '</div>' +
         '</div>';
       document.getElementById('btn-now-add-pl')?.addEventListener('click', () => openAddToPlaylistModal(tr));
+      document.getElementById('btn-now-pin-sd')?.addEventListener('click', () => togglePinSpeedDial(tr));
       document.getElementById('btn-now-open-eq')?.addEventListener('click', openEqModal);
       document.getElementById('btn-now-listen')?.addEventListener('click', openListenModal);
       return;
@@ -2430,19 +2611,46 @@
       }
       const offMs = state.settings.lyricsOffsetMs || 0;
       const offLabel = (offMs > 0 ? '+' : '') + (offMs / 1000).toFixed(2) + 's';
+      const showRoman = state.settings.romanizeLyrics;
+      const showTrans = state.settings.translateLyrics;
       body.innerHTML =
         '<div class="lyrics-toolbar">' +
-          '<span style="font-size:12px;color:var(--fg-muted);">' + esc(state.lyrics.source || 'Lyrics') + '</span>' +
-          '<div class="offset-pills">' +
+          '<span style="font-size:12px;color:var(--fg-muted);">' + esc(state.lyrics.source || 'Lyrics') + (state.lyricsAssistLoading ? ' · AI...' : '') + '</span>' +
+          '<div class="offset-pills" style="flex-wrap:wrap;">' +
+            '<button class="mini-pill-btn ' + (showRoman ? 'active' : '') + '" id="btn-lyr-roman">Romanize</button>' +
+            '<button class="mini-pill-btn ' + (showTrans ? 'active' : '') + '" id="btn-lyr-trans">Translate</button>' +
+            '<button class="mini-pill-btn" id="btn-lyr-copy">Copy</button>' +
             '<button class="mini-pill-btn" id="btn-lyr-minus">-0.25s</button>' +
             '<span style="font-size:11.5px;color:var(--fg-secondary);padding:0 4px;">' + offLabel + '</span>' +
             '<button class="mini-pill-btn" id="btn-lyr-plus">+0.25s</button>' +
             '<button class="mini-pill-btn" id="btn-lyr-resync">Resync</button>' +
           '</div>' +
         '</div>' +
-        state.lyrics.lines.map((line, i) =>
-          '<button class="lyric-line ' + (i === state.activeLyricIdx ? 'active' : '') + '" data-lyric-ms="' + (line.timeMs ?? '') + '">' + esc(line.text) + '</button>'
-        ).join('');
+        state.lyrics.lines.map((line, i) => {
+          const romanHtml = showRoman && line.romanized ? '<span class="lyric-sub-roman">' + esc(line.romanized) + '</span>' : '';
+          const transHtml = showTrans && line.translated ? '<span class="lyric-sub-trans">' + esc(line.translated) + '</span>' : '';
+          return '<button class="lyric-line ' + (i === state.activeLyricIdx ? 'active' : '') + '" data-lyric-ms="' + (line.timeMs ?? '') + '">' + esc(line.text) + romanHtml + transHtml + '</button>';
+        }).join('');
+      document.getElementById('btn-lyr-roman')?.addEventListener('click', () => {
+        state.settings.romanizeLyrics = !state.settings.romanizeLyrics;
+        saveStorage();
+        if (state.settings.romanizeLyrics) fetchLyricsAssist();
+        renderNowPanel();
+      });
+      document.getElementById('btn-lyr-trans')?.addEventListener('click', () => {
+        state.settings.translateLyrics = !state.settings.translateLyrics;
+        saveStorage();
+        if (state.settings.translateLyrics) fetchLyricsAssist();
+        renderNowPanel();
+      });
+      document.getElementById('btn-lyr-copy')?.addEventListener('click', () => {
+        const txt = state.lyrics.lines.map((l) => l.text).join('\n');
+        if (txt && navigator.clipboard) {
+          navigator.clipboard.writeText(txt).catch(() => {});
+          const btn = document.getElementById('btn-lyr-copy');
+          if (btn) { btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = 'Copy'; }, 1400); }
+        }
+      });
       document.getElementById('btn-lyr-minus')?.addEventListener('click', () => {
         state.settings.lyricsOffsetMs = (state.settings.lyricsOffsetMs || 0) - 250;
         saveStorage();
@@ -2465,11 +2673,22 @@
         return;
       }
       body.innerHTML =
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px;">' +
           '<span style="font-size:12.5px;color:var(--fg-secondary);">' + state.queue.length + ' tracks in queue</span>' +
-          '<button class="btn-secondary" id="btn-clear-upcoming" style="height:32px;padding:0 12px;font-size:12px;">Clear Upcoming</button>' +
+          '<div style="display:flex;gap:6px;">' +
+            '<button class="btn-secondary" id="btn-save-queue-pl" style="height:32px;padding:0 12px;font-size:12px;">Save as Playlist</button>' +
+            '<button class="btn-secondary" id="btn-clear-upcoming" style="height:32px;padding:0 12px;font-size:12px;">Clear Upcoming</button>' +
+          '</div>' +
         '</div>' +
         '<div class="track-list">' + state.queue.map((t, idx) => renderTrackRowHtml(t, idx, { isQueue: true })).join('') + '</div>';
+      document.getElementById('btn-save-queue-pl')?.addEventListener('click', () => {
+        if (!state.queue.length) return;
+        const name = (state.currentTrack?.title ? state.currentTrack.title + ' Mix' : 'Queue Mix ' + (state.playlists.length + 1));
+        state.playlists.push({ id: 'pl_' + Date.now(), name, tracks: [...state.queue] });
+        saveStorage();
+        const btn = document.getElementById('btn-save-queue-pl');
+        if (btn) { btn.textContent = 'Saved!'; setTimeout(() => { btn.textContent = 'Save as Playlist'; }, 1500); }
+      });
       const clearBtn = document.getElementById('btn-clear-upcoming');
       if (clearBtn) {
         clearBtn.addEventListener('click', () => {
@@ -2513,16 +2732,24 @@
   audio.addEventListener('timeupdate', () => {
     const cur = audio.currentTime || 0;
     const dur = Number.isFinite(audio.duration) ? audio.duration : (state.currentTrack?.durationSeconds || 0);
+    if (state.abLoop.a !== null && state.abLoop.b !== null && cur >= state.abLoop.b) {
+      audio.currentTime = state.abLoop.a;
+      return;
+    }
     if (!audio.paused) {
       const now = performance.now();
       const dt = (now - lastTrackTick) / 1000;
       lastTrackTick = now;
       if (dt > 0 && dt < 3) {
         state.listeningSec += dt;
+        if (state.streakData) {
+          state.streakData.totalListeningSeconds = Math.max(Number(state.streakData.totalListeningSeconds) || 0, Math.floor(state.listeningSec));
+        }
         listenSaveCounter += dt;
         if (listenSaveCounter >= 10) {
           listenSaveCounter = 0;
           localStorage.setItem('lunarellys_listening_sec', String(Math.floor(state.listeningSec)));
+          localStorage.setItem('lunarellys_streak_data', JSON.stringify(state.streakData));
         }
       }
     }
@@ -2568,6 +2795,10 @@
   function renderTrackRowHtml(track, idx, opts = {}) {
     const liked = isLiked(track.id);
     const meta = [artistText(track), track.album?.name].filter(Boolean).join(' · ');
+    const queueMoves = opts.isQueue
+      ? (idx > 0 ? '<button class="icon-action" data-mv-q-up="' + idx + '" title="Move up">↑</button>' : '') +
+        (idx < state.queue.length - 1 ? '<button class="icon-action" data-mv-q-down="' + idx + '" title="Move down">↓</button>' : '')
+      : '';
     const extraBtn = opts.removablePlId
       ? '<button class="icon-action" data-rm-pl-idx="' + idx + '" title="Remove from playlist">' + SVG_TRASH + '</button>'
       : (opts.isQueue && idx !== state.queueIndex
@@ -2582,6 +2813,7 @@
       '</div>' +
       '<div class="track-actions">' +
         (track.duration ? '<span class="track-dur">' + esc(track.duration) + '</span>' : '') +
+        queueMoves +
         extraBtn +
         '<button class="icon-action ' + (liked ? 'liked' : '') + '" data-like-id="' + esc(track.id) + '" title="Like">' + (liked ? SVG_HEART_FILL : SVG_HEART) + '</button>' +
       '</div>' +
@@ -2651,6 +2883,30 @@
           renderNowPanel();
         });
       });
+      const swapQueue = (i, j) => {
+        if (i < 0 || j < 0 || i >= state.queue.length || j >= state.queue.length) return;
+        const tmp = state.queue[i];
+        state.queue[i] = state.queue[j];
+        state.queue[j] = tmp;
+        if (state.queueIndex === i) state.queueIndex = j;
+        else if (state.queueIndex === j) state.queueIndex = i;
+        saveStorage();
+        renderNowPanel();
+      };
+      container.querySelectorAll('[data-mv-q-up]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = Number(btn.dataset.mvQUp);
+          swapQueue(idx, idx - 1);
+        });
+      });
+      container.querySelectorAll('[data-mv-q-down]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = Number(btn.dataset.mvQDown);
+          swapQueue(idx, idx + 1);
+        });
+      });
     }
   }
 
@@ -2662,7 +2918,7 @@
         const item = allItems.find((x) => x.id === id);
         if (type === 'song' || type === 'video') {
           if (item) {
-            const playable = allItems.filter((x) => x.type === 'song' || x.type === 'video');
+            const playable = allItems.filter((x) => x.type === 'song' || x.type === 'video' || !x.type);
             playTrack(item, playable);
           }
         } else if (type === 'album' || type === 'single' || type === 'ep') {
@@ -2698,7 +2954,7 @@
     const homeSections = state.homeData.sections || [];
     const activeSections = state.selectedHomeMood ? (state.homeMoodSections || []) : homeSections;
     const quick = !state.selectedHomeMood ? (homeSections[0]?.items?.slice(0, 8) || []) : [];
-    const allItems = activeSections.flatMap((s) => s.items || []);
+    const allItems = [...state.pinnedSpeedDial, ...activeSections.flatMap((s) => s.items || [])];
 
     let html = '<div class="page-header"><div><h1 class="page-title">Listen Now</h1><p class="page-subtitle">Curated mixes, quick picks, and live YouTube Music streams</p></div></div>';
 
@@ -2708,6 +2964,17 @@
           const isSel = state.selectedHomeMood && state.selectedHomeMood.browseId === m.browseId && state.selectedHomeMood.params === m.params;
           return '<button class="filter-btn ' + (isSel ? 'active' : '') + '" data-home-mood-idx="' + idx + '">' + esc(m.name) + '</button>';
         }).join('') + '</div>';
+    }
+
+    if (state.pinnedSpeedDial.length && !state.selectedHomeMood) {
+      html += '<section class="section-block"><div class="section-title-row"><h2 class="section-title">Speed Dial</h2></div><div class="quick-picks">' +
+        state.pinnedSpeedDial.slice(0, 8).map((item) =>
+          '<button class="quick-card" data-open-type="' + esc(item.type || 'song') + '" data-open-id="' + esc(item.id) + '">' +
+            artImgHtml(thumbUrl(item, 200), item.title) +
+            '<div class="quick-meta"><div class="quick-title">' + esc(item.title) + '</div><div class="quick-sub">' + esc(artistText(item)) + '</div></div>' +
+          '</button>'
+        ).join('') +
+      '</div></section>';
     }
 
     if (quick.length) {
@@ -3162,6 +3429,28 @@
     });
   }
 
+  document.getElementById('btn-loop-a')?.addEventListener('click', () => {
+    if (!state.currentTrack) return;
+    const pos = audio.currentTime || 0;
+    state.abLoop.a = pos;
+    if (state.abLoop.b !== null && state.abLoop.b <= pos + 0.5) state.abLoop.b = null;
+    updateABLoopUi();
+  });
+  document.getElementById('btn-loop-b')?.addEventListener('click', () => {
+    if (!state.currentTrack) return;
+    const pos = audio.currentTime || 0;
+    if (state.abLoop.a === null) state.abLoop.a = 0;
+    if (pos > state.abLoop.a + 0.5) {
+      state.abLoop.b = pos;
+      audio.currentTime = state.abLoop.a;
+    }
+    updateABLoopUi();
+  });
+  document.getElementById('btn-loop-clear')?.addEventListener('click', () => {
+    state.abLoop = { a: null, b: null };
+    updateABLoopUi();
+  });
+
   document.getElementById('btn-bar-like').addEventListener('click', () => state.currentTrack && toggleLike(state.currentTrack));
   document.getElementById('btn-now-like').addEventListener('click', () => state.currentTrack && toggleLike(state.currentTrack));
 
@@ -3350,11 +3639,17 @@
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
 
+    const sd = state.streakData || {};
     body.innerHTML =
       '<div class="recap-grid">' +
         '<div class="recap-stat"><div class="recap-val">' + totalPlays + '</div><div class="recap-lbl">Total Plays</div></div>' +
         '<div class="recap-stat"><div class="recap-val">' + totalMins + 'm</div><div class="recap-lbl">Listening Time</div></div>' +
         '<div class="recap-stat"><div class="recap-val">' + state.liked.length + '</div><div class="recap-lbl">Liked Songs</div></div>' +
+      '</div>' +
+      '<div class="recap-grid">' +
+        '<div class="recap-stat"><div class="recap-val">' + (Number(sd.currentStreak) || 0) + 'd</div><div class="recap-lbl">Current Streak</div></div>' +
+        '<div class="recap-stat"><div class="recap-val">' + (Number(sd.longestStreak) || 0) + 'd</div><div class="recap-lbl">Longest Streak</div></div>' +
+        '<div class="recap-stat"><div class="recap-val">' + (Number(sd.totalActiveDays) || 0) + '</div><div class="recap-lbl">Active Days</div></div>' +
       '</div>' +
       (top50.length
         ? '<div class="recap-stat" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">' +

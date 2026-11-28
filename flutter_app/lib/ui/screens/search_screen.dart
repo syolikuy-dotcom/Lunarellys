@@ -8,7 +8,6 @@ import '../../models/music_models.dart';
 import '../../state/library_provider.dart';
 import '../../state/player_provider.dart';
 import '../../state/settings_provider.dart';
-import '../widgets/animated_eq.dart';
 import '../widgets/artwork_image.dart';
 import '../widgets/liquid_glass.dart';
 import '../widgets/lunarellys_logo.dart';
@@ -832,6 +831,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       playerProvider.select((s) => s.currentTrack?.id == item.id && s.isPlaying),
     );
 
+    final accent =
+        ref.watch(playerProvider.select((s) => s.dynamicColor)) ?? AppColors.horizonBlue;
+
     return InkWell(
       borderRadius: BorderRadius.circular(14),
       onTap: () => _openItem(item),
@@ -840,33 +842,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
         child: Row(
           children: [
-            Stack(
-              alignment: Alignment.bottomCenter,
-              children: [
-                ArtworkImage(
-                  url: item.bestThumbUrl(size: 200),
-                  size: 56,
-                  radius: 10,
-                  isCircle: item.type == 'artist',
-                ),
-                if (isCurrent)
-                  Positioned(
-                    bottom: 4,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withAlpha(235),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: AnimatedEqualizer(
-                        color: Colors.black,
-                        isPlaying: isPlayingNow,
-                        size: 13,
-                      ),
-                    ),
+            isCurrent
+                ? MiniSpinningVinyl(
+                    artworkUrl: item.bestThumbUrl(size: 200),
+                    size: 56,
+                    isPlaying: isPlayingNow,
+                    accentColor: accent,
+                  )
+                : ArtworkImage(
+                    url: item.bestThumbUrl(size: 200),
+                    size: 56,
+                    radius: 10,
+                    isCircle: item.type == 'artist',
                   ),
-              ],
-            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

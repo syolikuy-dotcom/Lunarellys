@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/config/app_config.dart';
 import 'core/theme/app_theme.dart';
@@ -11,7 +12,6 @@ import 'state/settings_provider.dart';
 import 'ui/screens/auth_screen.dart';
 import 'ui/screens/main_shell.dart';
 import 'ui/screens/splash_screen.dart';
-import 'ui/widgets/liquid_glass.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,7 +26,9 @@ Future<void> main() async {
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
   final prefs = await SharedPreferences.getInstance();
-  await LiquidGlassShaderEngine.ensureLoaded();
+  try {
+    await LiquidGlassShaders.ensureLoaded();
+  } catch (_) {}
 
   runApp(
     ProviderScope(
@@ -63,14 +65,17 @@ class ArchysApp extends ConsumerWidget {
 
     final isDarkActive = themeMode == ThemeMode.dark ||
         (themeMode == ThemeMode.system &&
-            WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark);
+            WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+                Brightness.dark);
 
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: isDarkActive ? Brightness.light : Brightness.dark,
+        statusBarIconBrightness:
+            isDarkActive ? Brightness.light : Brightness.dark,
         systemNavigationBarColor: Colors.transparent,
-        systemNavigationBarIconBrightness: isDarkActive ? Brightness.light : Brightness.dark,
+        systemNavigationBarIconBrightness:
+            isDarkActive ? Brightness.light : Brightness.dark,
       ),
     );
 
@@ -80,11 +85,13 @@ class ArchysApp extends ConsumerWidget {
       theme: AppTheme.lightTheme(dynamicSeed: accent),
       darkTheme: AppTheme.darkTheme(dynamicSeed: accent),
       themeMode: themeMode,
+      scrollBehavior: const MaterialScrollBehavior().copyWith(overscroll: false),
       builder: (context, child) {
         final mq = MediaQuery.of(context);
         return MediaQuery(
           data: mq.copyWith(
-            textScaler: mq.textScaler.clamp(minScaleFactor: 0.88, maxScaleFactor: 1.14),
+            textScaler:
+                mq.textScaler.clamp(minScaleFactor: 0.88, maxScaleFactor: 1.14),
           ),
           child: child ?? const SizedBox.shrink(),
         );

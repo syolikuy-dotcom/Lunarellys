@@ -11,7 +11,6 @@ import '../../state/library_provider.dart';
 import '../../state/player_provider.dart';
 import '../../state/settings_provider.dart';
 import 'animated_eq.dart';
-import 'artwork_image.dart';
 import 'liquid_glass.dart';
 import 'marquee_text.dart';
 import 'permissions_sheet.dart';
@@ -158,10 +157,11 @@ class _IosControlCenterSheet extends ConsumerWidget {
                           child: Row(
                             children: [
                               if (track != null)
-                                ArtworkImage(
-                                  url: track.bestThumbUrl(size: 180),
+                                MiniSpinningVinyl(
+                                  artworkUrl: track.bestThumbUrl(size: 180),
                                   size: 46,
-                                  radius: 13,
+                                  isPlaying: player.isPlaying,
+                                  accentColor: accent,
                                 )
                               else
                                 Container(
@@ -313,7 +313,7 @@ class _IosControlCenterSheet extends ConsumerWidget {
             physics: const NeverScrollableScrollPhysics(),
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
-            childAspectRatio: 1.18,
+            childAspectRatio: 1.0,
             children: [
               _CcTile(
                 icon: settings.themePreference == AppThemePreference.dark
@@ -569,7 +569,7 @@ class _IosControlCenterSheet extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Switch.adaptive(
+                    LiquidGlassToggleSwitch(
                       value: settings.lockScreenLyricsEnabled,
                       onChanged: sNotifier.setLockScreenLyricsEnabled,
                     ),
@@ -727,7 +727,7 @@ class _CcTile extends StatelessWidget {
         radius: 22,
         tintColor: active ? accent.withAlpha(isDark ? 72 : 42) : null,
         chromaticAccent: active ? accent : null,
-        padding: const EdgeInsets.all(11),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -745,30 +745,33 @@ class _CcTile extends StatelessWidget {
                 color: active ? Colors.white : ink,
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    color: ink,
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.2,
+                      fontWeight: FontWeight.w800,
+                      color: ink,
+                    ),
                   ),
-                ),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: active ? accent : sub,
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10.8,
+                      fontWeight: FontWeight.w600,
+                      color: active ? accent : sub,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),

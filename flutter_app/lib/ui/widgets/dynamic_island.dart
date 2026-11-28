@@ -15,6 +15,7 @@ import '../../state/settings_provider.dart';
 import 'animated_eq.dart';
 import 'artwork_image.dart';
 import 'ios_control_center.dart';
+import 'liquid_glass.dart';
 import 'lunarellys_logo.dart';
 import 'marquee_text.dart';
 import 'permissions_sheet.dart';
@@ -182,99 +183,51 @@ class _DynamicIslandOverlayState extends ConsumerState<DynamicIslandOverlay> {
                         ),
                       ],
                     ),
-                    child: ClipRRect(
+                    child: LiquidGlassSurface(
                       borderRadius: BorderRadius.circular(cornerRadius),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(
-                          sigmaX: 26,
-                          sigmaY: 26,
-                          tileMode: TileMode.clamp,
-                        ),
-                        child: CustomPaint(
-                          foregroundPainter: _IslandLiquidGlassRimPainter(
-                            radius: cornerRadius,
-                            accent: glowColor,
-                            expanded: _expanded,
-                          ),
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  const Color(0xFF141B27).withAlpha(glassBaseAlpha),
-                                  const Color(0xFF0A0F18).withAlpha(
-                                    (glassBaseAlpha - 12).clamp(160, 232),
-                                  ),
-                                  const Color(0xFF070A10).withAlpha(glassBaseAlpha),
-                                ],
-                                stops: const [0.0, 0.5, 1.0],
-                              ),
-                            ),
-                            child: Stack(
-                              children: [
-                                Positioned(
-                                  left: -18,
-                                  top: -16,
-                                  width: 110,
-                                  height: 76,
-                                  child: IgnorePointer(
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        gradient: RadialGradient(
-                                          center: const Alignment(-0.2, -0.1),
-                                          radius: 0.9,
-                                          colors: [
-                                            glowColor.withAlpha(_expanded ? 58 : 44),
-                                            Colors.transparent,
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                AnimatedSize(
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeOutCubic,
-                                  alignment: Alignment.topCenter,
-                                  child: _expanded
-                                      ? _ExpandedIslandContent(
-                                          accent: glowColor,
-                                          onCollapse: _collapse,
-                                          onOpenNowPlaying: () {
-                                            _collapse();
-                                            openNowPlayingSheet(context);
-                                          },
-                                          onOpenControlCenter: () {
-                                            _collapse();
-                                            showIosControlCenter(
-                                              context,
-                                              ref,
-                                              onOpenEqualizer: widget.onOpenEqualizer,
-                                            );
-                                          },
-                                          onOpenPermissions: () {
-                                            _collapse();
-                                            showPermissionsAndBackgroundSheet(context, ref);
-                                          },
-                                          onOpenLockScreenPreview: () {
-                                            _collapse();
-                                            ref
-                                                .read(devicePermissionsProvider.notifier)
-                                                .openLockScreenPreview();
-                                          },
-                                        )
-                                      : (event != null
-                                          ? _TransientEventPill(event: event)
-                                          : _CompactIslandPill(
-                                              accent: accent,
-                                              microMode: notchCompact,
-                                            )),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                      blurSigma: 26,
+                      tintColor: const Color(0xFF0A0F18).withAlpha(glassBaseAlpha),
+                      chromaticAccent: glowColor,
+                      refractionIndex: 1.14,
+                      refractionWidth: 11,
+                      interactiveFlex: true,
+                      child: AnimatedSize(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutCubic,
+                        alignment: Alignment.topCenter,
+                        child: _expanded
+                            ? _ExpandedIslandContent(
+                                accent: glowColor,
+                                onCollapse: _collapse,
+                                onOpenNowPlaying: () {
+                                  _collapse();
+                                  openNowPlayingSheet(context);
+                                },
+                                onOpenControlCenter: () {
+                                  _collapse();
+                                  showIosControlCenter(
+                                    context,
+                                    ref,
+                                    onOpenEqualizer: widget.onOpenEqualizer,
+                                  );
+                                },
+                                onOpenPermissions: () {
+                                  _collapse();
+                                  showPermissionsAndBackgroundSheet(context, ref);
+                                },
+                                onOpenLockScreenPreview: () {
+                                  _collapse();
+                                  ref
+                                      .read(devicePermissionsProvider.notifier)
+                                      .openLockScreenPreview();
+                                },
+                              )
+                            : (event != null
+                                ? _TransientEventPill(event: event)
+                                : _CompactIslandPill(
+                                    accent: accent,
+                                    microMode: notchCompact,
+                                  )),
                       ),
                     ),
                   ),
@@ -405,10 +358,11 @@ class _CompactIslandPill extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 7),
         child: Row(
           children: [
-            ArtworkImage(
-              url: track.bestThumbUrl(size: 120),
-              size: 24,
-              radius: 12,
+            MiniSpinningVinyl(
+              artworkUrl: track.bestThumbUrl(size: 120),
+              size: 25,
+              isPlaying: isPlaying,
+              accentColor: accent,
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -650,10 +604,11 @@ class _ExpandedIslandContent extends ConsumerWidget {
             onTap: onOpenNowPlaying,
             child: Row(
               children: [
-                ArtworkImage(
-                  url: track.bestThumbUrl(size: 200),
+                MiniSpinningVinyl(
+                  artworkUrl: track.bestThumbUrl(size: 200),
                   size: 52,
-                  radius: 14,
+                  isPlaying: isPlaying,
+                  accentColor: accent,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -704,19 +659,13 @@ class _ExpandedIslandContent extends ConsumerWidget {
                 ),
               ),
               Expanded(
-                child: SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: 3.5,
-                    activeTrackColor: Colors.white,
-                    inactiveTrackColor: Colors.white.withAlpha(50),
-                    thumbColor: Colors.white,
-                    thumbShape:
-                        const RoundSliderThumbShape(enabledThumbRadius: 5.5),
-                    overlayShape:
-                        const RoundSliderOverlayShape(overlayRadius: 11),
-                  ),
-                  child: Slider(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: LiquidGlassRangeSlider(
                     value: progress,
+                    compact: true,
+                    activeColor: accent,
+                    inactiveColor: Colors.white.withAlpha(54),
                     onChanged: (v) {
                       if (duration.inMilliseconds > 0) {
                         pNotifier.seek(
@@ -938,52 +887,3 @@ class _ExpandedIslandContent extends ConsumerWidget {
   }
 }
 
-class _IslandLiquidGlassRimPainter extends CustomPainter {
-  final double radius;
-  final Color accent;
-  final bool expanded;
-
-  const _IslandLiquidGlassRimPainter({
-    required this.radius,
-    required this.accent,
-    required this.expanded,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final r = Radius.circular(radius.clamp(1.0, size.shortestSide * 0.5));
-
-    // Outer darkened contrast edge
-    final outerRRect = RRect.fromRectAndRadius(rect.deflate(0.4), r);
-    final outerPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.85
-      ..color = Colors.black.withAlpha(175);
-    canvas.drawRRect(outerRRect, outerPaint);
-
-    // Brighter directional Fresnel specular bevel inside rim
-    final innerRRect = RRect.fromRectAndRadius(rect.deflate(1.15), r);
-    final innerPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.25
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Colors.white.withAlpha(expanded ? 190 : 165),
-          accent.withAlpha(expanded ? 120 : 92),
-          Colors.white.withAlpha(32),
-          Colors.white.withAlpha(expanded ? 110 : 84),
-        ],
-        stops: const [0.0, 0.34, 0.68, 1.0],
-      ).createShader(rect);
-    canvas.drawRRect(innerRRect, innerPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _IslandLiquidGlassRimPainter oldDelegate) =>
-      oldDelegate.radius != radius ||
-      oldDelegate.accent != accent ||
-      oldDelegate.expanded != expanded;
-}

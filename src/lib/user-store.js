@@ -55,7 +55,9 @@ export function upsertUserProfile(profile) {
       followedArtists: [],
       savedAlbums: [],
       savedPlaylists: [],
+      pinnedSpeedDial: [],
       recentlyPlayed: [],
+      streakData: null,
       updatedAt: null
     }
   };
@@ -86,6 +88,17 @@ function sanitizeArray(val, maxItems = 250) {
   return out;
 }
 
+function sanitizeStreakData(val) {
+  if (!val || typeof val !== 'object' || Array.isArray(val)) return null;
+  return {
+    currentStreak: Math.max(0, Math.min(36500, Math.floor(Number(val.currentStreak) || 0))),
+    longestStreak: Math.max(0, Math.min(36500, Math.floor(Number(val.longestStreak) || 0))),
+    totalActiveDays: Math.max(0, Math.min(36500, Math.floor(Number(val.totalActiveDays) || 0))),
+    totalListeningSeconds: Math.max(0, Math.min(315360000, Math.floor(Number(val.totalListeningSeconds) || 0))),
+    lastStreakDate: typeof val.lastStreakDate === 'string' ? val.lastStreakDate.slice(0, 20) : ''
+  };
+}
+
 export function updateUserLibrary(id, payload = {}) {
   const store = ensureLoaded();
   const user = store.users[String(id)];
@@ -98,7 +111,9 @@ export function updateUserLibrary(id, payload = {}) {
     followedArtists: payload.followedArtists !== undefined ? sanitizeArray(payload.followedArtists, 200) : (current.followedArtists || []),
     savedAlbums: payload.savedAlbums !== undefined ? sanitizeArray(payload.savedAlbums, 200) : (current.savedAlbums || []),
     savedPlaylists: payload.savedPlaylists !== undefined ? sanitizeArray(payload.savedPlaylists, 200) : (current.savedPlaylists || []),
+    pinnedSpeedDial: payload.pinnedSpeedDial !== undefined ? sanitizeArray(payload.pinnedSpeedDial, 30) : (current.pinnedSpeedDial || []),
     recentlyPlayed: payload.recentlyPlayed !== undefined ? sanitizeArray(payload.recentlyPlayed, 80) : (current.recentlyPlayed || []),
+    streakData: payload.streakData !== undefined ? sanitizeStreakData(payload.streakData) : (current.streakData || null),
     updatedAt: new Date().toISOString()
   };
 

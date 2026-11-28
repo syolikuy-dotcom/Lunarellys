@@ -69,6 +69,9 @@ class _YouScreenState extends ConsumerState<YouScreen> {
     final islandClearance =
         islandShown ? (islandPosition == 'notch' ? 8.0 : 42.0) : 0.0;
 
+    final isGlass = ref.watch(
+      settingsProvider.select((s) => s.appearanceStyle == AppAppearanceStyle.glass),
+    );
     final T = AppStrings.of(appLanguage);
     final isDark = AppColors.isDark(context);
     final ink = AppColors.inkOf(context);
@@ -340,56 +343,112 @@ class _YouScreenState extends ConsumerState<YouScreen> {
                 child: Opacity(opacity: stickyOpacity, child: child),
               );
             },
-            child: ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
-                child: Container(
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    topPad + (islandShown ? 44 : 10),
-                    16,
-                    12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: (isDark ? const Color(0xFF0E1218) : const Color(0xFFF6F7F9))
-                        .withAlpha(isDark ? 190 : 210),
-                    border: Border(
-                      bottom: BorderSide(
-                        color: border.withAlpha(130),
-                        width: 0.6,
+            child: isGlass
+                ? ClipRect(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(
+                        sigmaX: 24,
+                        sigmaY: 24,
+                        tileMode: TileMode.clamp,
                       ),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          T.navYou,
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
-                            color: ink,
-                          ),
+                      child: Container(
+                        padding: EdgeInsets.fromLTRB(
+                          16,
+                          topPad + (islandShown ? 44 : 10),
+                          16,
+                          12,
                         ),
-                      ),
-                      LiquidGlassTap(
-                        onTap: () => showIosControlCenter(
-                          context,
-                          ref,
-                          onOpenEqualizer: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => const EqualizerScreen(),
+                        decoration: BoxDecoration(
+                          color: (isDark
+                                  ? const Color(0xFF0E1218)
+                                  : const Color(0xFFF6F7F9))
+                              .withAlpha(isDark ? 190 : 210),
+                          border: Border(
+                            bottom: BorderSide(
+                              color: border.withAlpha(130),
+                              width: 0.6,
                             ),
                           ),
                         ),
-                        child: Icon(CupertinoIcons.slider_horizontal_3, size: 21, color: ink),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                T.navYou,
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.5,
+                                  color: ink,
+                                ),
+                              ),
+                            ),
+                            LiquidGlassTap(
+                              onTap: () => showIosControlCenter(
+                                context,
+                                ref,
+                                onOpenEqualizer: () => Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => const EqualizerScreen(),
+                                  ),
+                                ),
+                              ),
+                              child: Icon(
+                                CupertinoIcons.slider_horizontal_3,
+                                size: 21,
+                                color: ink,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
+                    ),
+                  )
+                : Container(
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      topPad + (islandShown ? 44 : 10),
+                      16,
+                      12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardOf(context),
+                      border: Border(
+                        bottom: BorderSide(color: border, width: 0.7),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            T.navYou,
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
+                              color: ink,
+                            ),
+                          ),
+                        ),
+                        LiquidGlassTap(
+                          onTap: () => showIosControlCenter(
+                            context,
+                            ref,
+                            onOpenEqualizer: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const EqualizerScreen(),
+                              ),
+                            ),
+                          ),
+                          child: Icon(
+                            CupertinoIcons.slider_horizontal_3,
+                            size: 21,
+                            color: ink,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ),
-            ),
           ),
         ),
       ],

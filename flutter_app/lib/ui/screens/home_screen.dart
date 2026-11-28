@@ -230,6 +230,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final islandShown = islandEnabled && (islandAlways || hasTrack);
     final islandClearance =
         islandShown ? (islandPosition == 'notch' ? 8.0 : 42.0) : 0.0;
+    final isGlass = ref.watch(
+      settingsProvider.select((s) => s.appearanceStyle == AppAppearanceStyle.glass),
+    );
     final navCollapsed = ref.watch(navCollapsedProvider);
     final T = AppStrings.of(appLanguage);
     final greeting = T.greeting(DateTime.now().hour);
@@ -727,60 +730,115 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               );
             },
-            child: ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
-                child: Container(
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    topPad + (islandShown ? 44 : 10),
-                    16,
-                    12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: (isDark ? const Color(0xFF0E1218) : const Color(0xFFF6F7F9))
-                        .withAlpha(isDark ? 190 : 205),
-                    border: Border(
-                      bottom: BorderSide(
-                        color: AppColors.borderOf(context).withAlpha(130),
-                        width: 0.6,
+            child: isGlass
+                ? ClipRect(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(
+                        sigmaX: 24,
+                        sigmaY: 24,
+                        tileMode: TileMode.clamp,
                       ),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          T.navHome,
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
-                            color: ink,
-                          ),
+                      child: Container(
+                        padding: EdgeInsets.fromLTRB(
+                          16,
+                          topPad + (islandShown ? 44 : 10),
+                          16,
+                          12,
                         ),
-                      ),
-                      LiquidGlassTap(
-                        onTap: () => showIosControlCenter(
-                          context,
-                          ref,
-                          onOpenEqualizer: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => const EqualizerScreen(),
+                        decoration: BoxDecoration(
+                          color: (isDark
+                                  ? const Color(0xFF0E1218)
+                                  : const Color(0xFFF6F7F9))
+                              .withAlpha(isDark ? 190 : 205),
+                          border: Border(
+                            bottom: BorderSide(
+                              color: AppColors.borderOf(context).withAlpha(130),
+                              width: 0.6,
                             ),
                           ),
                         ),
-                        child: Icon(
-                          CupertinoIcons.slider_horizontal_3,
-                          size: 21,
-                          color: ink,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                T.navHome,
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.5,
+                                  color: ink,
+                                ),
+                              ),
+                            ),
+                            LiquidGlassTap(
+                              onTap: () => showIosControlCenter(
+                                context,
+                                ref,
+                                onOpenEqualizer: () => Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => const EqualizerScreen(),
+                                  ),
+                                ),
+                              ),
+                              child: Icon(
+                                CupertinoIcons.slider_horizontal_3,
+                                size: 21,
+                                color: ink,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
+                  )
+                : Container(
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      topPad + (islandShown ? 44 : 10),
+                      16,
+                      12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardOf(context),
+                      border: Border(
+                        bottom: BorderSide(
+                          color: AppColors.borderOf(context),
+                          width: 0.7,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            T.navHome,
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
+                              color: ink,
+                            ),
+                          ),
+                        ),
+                        LiquidGlassTap(
+                          onTap: () => showIosControlCenter(
+                            context,
+                            ref,
+                            onOpenEqualizer: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const EqualizerScreen(),
+                              ),
+                            ),
+                          ),
+                          child: Icon(
+                            CupertinoIcons.slider_horizontal_3,
+                            size: 21,
+                            color: ink,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ),
-            ),
           ),
         ),
 
@@ -830,9 +888,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final pageCount = ((items.length + 8) ~/ 9).clamp(1, 3);
     final width = MediaQuery.of(context).size.width;
     final tileW = (width - 32 - 20) / 3;
-    final gridHeight = (tileW + 30) * 3 + 24;
+    final gridHeight = (tileW + 34) * 3 + 28;
     final ink = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
+    final currentId = ref.watch(playerProvider.select((s) => s.currentTrack?.id));
+    final isPlaying = ref.watch(playerProvider.select((s) => s.isPlaying));
+    final accent =
+        ref.watch(playerProvider.select((s) => s.dynamicColor)) ?? AppColors.horizonBlue;
 
     return Column(
       children: [
@@ -855,10 +917,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   crossAxisCount: 3,
                   mainAxisSpacing: 10,
                   crossAxisSpacing: 10,
-                  childAspectRatio: 0.80,
+                  childAspectRatio: 0.78,
                 ),
                 itemBuilder: (context, i) {
                   final item = pageItems[i];
+                  final isCurrent = currentId != null && item.id == currentId;
                   return LiquidGlassTap(
                     onTap: () => _openItem(item, items, 'Andalanmu'),
                     onLongPress: () {
@@ -875,13 +938,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         Expanded(
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(14),
-                            child: LayoutBuilder(
-                              builder: (ctx, c) => ArtworkImage(
-                                url: item.bestThumbUrl(size: 320),
-                                size: c.maxWidth,
-                                radius: 14,
-                                isCircle: item.type == 'artist',
-                              ),
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                LayoutBuilder(
+                                  builder: (ctx, c) => ArtworkImage(
+                                    url: item.bestThumbUrl(size: 320),
+                                    size: c.maxWidth,
+                                    radius: 14,
+                                    isCircle: item.type == 'artist',
+                                  ),
+                                ),
+                                if (isCurrent)
+                                  Positioned(
+                                    right: 6,
+                                    bottom: 6,
+                                    child: MiniSpinningVinyl(
+                                      artworkUrl: item.bestThumbUrl(size: 140),
+                                      size: 28,
+                                      isPlaying: isPlaying,
+                                      accentColor: accent,
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
                         ),
@@ -892,8 +971,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                            color: ink,
+                            fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
+                            color: isCurrent ? accent : ink,
                           ),
                         ),
                       ],

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/music_models.dart';
@@ -212,6 +213,14 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
         'savedAlbums': state.savedAlbums.map((e) => e.toJson()).toList(),
         'savedPlaylists': state.savedPlaylists.map((e) => e.toJson()).toList(),
         'recentlyPlayed': state.recentlyPlayed.map((e) => e.toJson()).toList(),
+        'pinnedSpeedDial': state.pinnedSpeedDialItems.map((e) => e.toJson()).toList(),
+        'streakData': {
+          'currentStreak': state.currentStreak,
+          'longestStreak': state.longestStreak,
+          'totalActiveDays': state.totalActiveDays,
+          'totalListeningSeconds': state.totalListeningSeconds,
+          'lastStreakDate': state.lastStreakDate,
+        },
       };
 
   List<MusicItem> _mergeItemLists(List<MusicItem> local, List<MusicItem> cloud) {
@@ -287,6 +296,28 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
       final mergedAlbums = _mergeItemLists(state.savedAlbums, cloud.savedAlbums);
       final mergedSavedPl = _mergeItemLists(state.savedPlaylists, cloud.savedPlaylists);
       final mergedRecent = _mergeItemLists(state.recentlyPlayed, cloud.recentlyPlayed).take(40).toList();
+      final mergedPinned = _mergeItemLists(state.pinnedSpeedDialItems, cloud.pinnedSpeedDial).take(27).toList();
+
+      final cloudStreak = cloud.streakData;
+      var nextCurrentStreak = state.currentStreak;
+      var nextLongestStreak = state.longestStreak;
+      var nextTotalDays = state.totalActiveDays;
+      var nextListeningSec = state.totalListeningSeconds;
+      var nextLastDate = state.lastStreakDate;
+      if (cloudStreak != null) {
+        final cCur = (cloudStreak['currentStreak'] as num?)?.toInt() ?? 0;
+        final cLong = (cloudStreak['longestStreak'] as num?)?.toInt() ?? 0;
+        final cDays = (cloudStreak['totalActiveDays'] as num?)?.toInt() ?? 0;
+        final cSec = (cloudStreak['totalListeningSeconds'] as num?)?.toInt() ?? 0;
+        final cDate = cloudStreak['lastStreakDate']?.toString();
+        if (cDate != null && cDate.isNotEmpty && (nextLastDate == null || cDate.compareTo(nextLastDate) > 0)) {
+          nextLastDate = cDate;
+          nextCurrentStreak = cCur;
+        }
+        nextLongestStreak = math.max(nextLongestStreak, math.max(cLong, nextCurrentStreak));
+        nextTotalDays = math.max(nextTotalDays, cDays);
+        nextListeningSec = math.max(nextListeningSec, cSec);
+      }
 
       state = state.copyWith(
         likedSongs: mergedLiked,
@@ -295,6 +326,12 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
         savedAlbums: mergedAlbums,
         savedPlaylists: mergedSavedPl,
         recentlyPlayed: mergedRecent,
+        pinnedSpeedDialItems: mergedPinned,
+        currentStreak: nextCurrentStreak,
+        longestStreak: nextLongestStreak,
+        totalActiveDays: nextTotalDays,
+        totalListeningSeconds: nextListeningSec,
+        lastStreakDate: nextLastDate,
       );
 
       await Future.wait([
@@ -304,6 +341,12 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
         _saveTracks('lib_albums', mergedAlbums),
         _saveTracks('lib_saved_playlists', mergedSavedPl),
         _saveTracks('lib_recent', mergedRecent),
+        _saveTracks('lib_pinned_speed_dial', mergedPinned),
+        _prefs.setInt('lib_listening_seconds', nextListeningSec),
+        _prefs.setInt('lib_streak_current', nextCurrentStreak),
+        _prefs.setInt('lib_streak_longest', nextLongestStreak),
+        _prefs.setInt('lib_streak_days', nextTotalDays),
+        if (nextLastDate != null) _prefs.setString('lib_streak_last_date', nextLastDate),
       ]);
 
       final pushed = await api.pushCloudLibrary(token, _toCloudPayload());
@@ -378,6 +421,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
         : [item, ...state.pinnedSpeedDialItems].take(27).toList();
     state = state.copyWith(pinnedSpeedDialItems: updated);
     await _saveTracks('lib_pinned_speed_dial', updated);
+    _scheduleCloudPush();
   }
 
   String _dateKey(DateTime dt) {

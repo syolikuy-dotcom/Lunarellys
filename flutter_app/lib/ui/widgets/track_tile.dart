@@ -111,15 +111,22 @@ class TrackTile extends ConsumerWidget {
                       width: compact ? 48 : 50,
                       height: compact ? 48 : 50,
                       decoration: BoxDecoration(
-                        color: Colors.black.withAlpha(150),
+                        color: Colors.black.withAlpha(148),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Center(
-                        child: AnimatedEqualizer(
-                          color: Colors.white,
-                          isPlaying: isPlayingNow,
-                          size: 17,
-                        ),
+                        child: isPlayingNow
+                            ? MiniSpinningVinyl(
+                                artworkUrl: track.bestThumbUrl(size: 120),
+                                size: compact ? 32 : 34,
+                                isPlaying: true,
+                                accentColor: AppColors.horizonBlue,
+                              )
+                            : AnimatedEqualizer(
+                                color: Colors.white,
+                                isPlaying: false,
+                                size: 17,
+                              ),
                       ),
                     ),
                 ],
@@ -460,6 +467,7 @@ Widget _quickActionBox(
               label,
               textAlign: TextAlign.center,
               maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -545,34 +553,32 @@ void showTrackPlaylistPicker(BuildContext context, WidgetRef ref, MusicItem trac
 
 void _showQuickCreatePlaylist(BuildContext context, WidgetRef ref, MusicItem track) {
   final ctrl = TextEditingController();
-  showDialog<void>(
+  showArchysGlassDialog<void>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('Playlist Baru'),
-      content: TextField(
-        controller: ctrl,
-        autofocus: true,
-        decoration: const InputDecoration(hintText: 'Beri nama playlist kamu'),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('Batal'),
-        ),
-        FilledButton(
-          onPressed: () async {
-            final name = ctrl.text.trim();
-            if (name.isEmpty) return;
-            await ref.read(libraryProvider.notifier).createPlaylist(name);
-            final updated = ref.read(libraryProvider).playlists;
-            if (updated.isNotEmpty) {
-              await ref.read(libraryProvider.notifier).addTrackToPlaylist(updated.last.id, track);
-            }
-            if (ctx.mounted) Navigator.pop(ctx);
-          },
-          child: const Text('Buat & Tambah'),
-        ),
-      ],
+    title: const Text('Playlist Baru'),
+    content: TextField(
+      controller: ctrl,
+      autofocus: true,
+      decoration: const InputDecoration(hintText: 'Beri nama playlist kamu'),
     ),
+    actionsBuilder: (ctx) => [
+      TextButton(
+        onPressed: () => Navigator.pop(ctx),
+        child: const Text('Batal'),
+      ),
+      FilledButton(
+        onPressed: () async {
+          final name = ctrl.text.trim();
+          if (name.isEmpty) return;
+          await ref.read(libraryProvider.notifier).createPlaylist(name);
+          final updated = ref.read(libraryProvider).playlists;
+          if (updated.isNotEmpty) {
+            await ref.read(libraryProvider.notifier).addTrackToPlaylist(updated.last.id, track);
+          }
+          if (ctx.mounted) Navigator.pop(ctx);
+        },
+        child: const Text('Buat & Tambah'),
+      ),
+    ],
   ).whenComplete(ctrl.dispose);
 }
