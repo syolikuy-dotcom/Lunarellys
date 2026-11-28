@@ -4,7 +4,7 @@ class AppConfig {
   static const String defaultBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue:
-        'http://nodedenisrealbaik.sinar.bonus.smasnug.web.id:4686',
+        'http://nodenayyaprivatcntkk.ryuuuprvt.my.id:3293',
   );
 
   static const String defaultApiKey = String.fromEnvironment(
@@ -17,7 +17,7 @@ class AppConfig {
   static const String appBuildTag = 'universal';
   static const String developerName = 'Ikhwan Romadon';
   static const String pterodactylExampleUrl =
-      'http://nodedenisrealbaik.sinar.bonus.smasnug.web.id:4686';
+      'http://nodenayyaprivatcntkk.ryuuuprvt.my.id:3293';
 
   static String normalizeServerUrl(String raw) {
     var trimmed = raw.trim();
@@ -45,7 +45,7 @@ enum AppAppearanceStyle {
   static AppAppearanceStyle fromString(String? raw) {
     return AppAppearanceStyle.values.firstWhere(
       (s) => s.key == raw,
-      orElse: () => AppAppearanceStyle.flat,
+      orElse: () => AppAppearanceStyle.glass,
     );
   }
 }
@@ -63,7 +63,7 @@ enum AppThemePreference {
   static AppThemePreference fromString(String? raw) {
     return AppThemePreference.values.firstWhere(
       (s) => s.key == raw,
-      orElse: () => AppThemePreference.light,
+      orElse: () => AppThemePreference.dark,
     );
   }
 }

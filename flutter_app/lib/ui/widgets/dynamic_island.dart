@@ -173,31 +173,79 @@ class _DynamicIslandOverlayState extends ConsumerState<DynamicIslandOverlay> {
     );
     final glowColor = event?.accent ?? accent;
     final double cornerRadius = _expanded ? 34.0 : 999.0;
-    final int glassBaseAlpha =
-        lerpDouble(196, 238, glassOpacity)!.round().clamp(184, 242);
 
     final Color surfaceTint;
     switch (preset) {
       case DynamicIslandPreset.minimalLight:
-        surfaceTint = const Color(0xFFF4F7FC).withAlpha(242);
+        surfaceTint = const Color(0xFFF6F8FC);
         break;
       case DynamicIslandPreset.iosBlue:
-        surfaceTint = const Color(0xFF0A2658).withAlpha(232);
+        surfaceTint = const Color(0xFF0A2452);
         break;
       case DynamicIslandPreset.aurora:
-        surfaceTint = const Color(0xFF0E2936).withAlpha(228);
+        surfaceTint = const Color(0xFF0D2330);
         break;
       case DynamicIslandPreset.ultraGlass:
-        surfaceTint = const Color(0xFF101826).withAlpha(156);
+        surfaceTint = _expanded
+            ? const Color(0xFF0C111A).withAlpha(240)
+            : const Color(0xFF101826).withAlpha(176);
         break;
       case DynamicIslandPreset.dynamicCover:
-        surfaceTint = Color.lerp(const Color(0xFF0A0F18), rawAccent, 0.30)!
-            .withAlpha(226);
+        surfaceTint = Color.lerp(const Color(0xFF090D14), rawAccent, 0.24)!;
         break;
       case DynamicIslandPreset.classicBlack:
-        surfaceTint = const Color(0xFF040508).withAlpha(glassBaseAlpha);
+        surfaceTint = const Color(0xFF000000);
         break;
     }
+
+    final bool useGlassBody =
+        preset == DynamicIslandPreset.ultraGlass && !_expanded;
+
+    final Widget islandInner = AnimatedSize(
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.topCenter,
+      child: _expanded
+          ? _ExpandedIslandContent(
+              accent: glowColor,
+              lightSurface: isLightPreset,
+              activeLyric: activeLyric,
+              onCollapse: _collapse,
+              onOpenNowPlaying: () {
+                _collapse();
+                openNowPlayingSheet(context);
+              },
+              onOpenControlCenter: () {
+                _collapse();
+                showIosControlCenter(
+                  context,
+                  ref,
+                  onOpenEqualizer: widget.onOpenEqualizer,
+                );
+              },
+              onOpenPermissions: () {
+                _collapse();
+                showPermissionsAndBackgroundSheet(context, ref);
+              },
+              onOpenLockScreenPreview: () {
+                _collapse();
+                ref
+                    .read(devicePermissionsProvider.notifier)
+                    .openLockScreenPreview();
+              },
+            )
+          : (event != null
+              ? _TransientEventPill(
+                  event: event,
+                  lightSurface: isLightPreset,
+                )
+              : _CompactIslandPill(
+                  accent: accent,
+                  lightSurface: isLightPreset,
+                  microMode: notchCompact,
+                  activeLyric: activeLyric,
+                )),
+    );
 
     return Positioned.fill(
       child: Stack(
@@ -209,7 +257,7 @@ class _DynamicIslandOverlayState extends ConsumerState<DynamicIslandOverlay> {
                 onTap: _collapse,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 220),
-                  color: Colors.black.withAlpha(isDark ? 98 : 48),
+                  color: Colors.black.withAlpha(isDark ? 128 : 72),
                 ),
               ),
             ),
@@ -241,85 +289,58 @@ class _DynamicIslandOverlayState extends ConsumerState<DynamicIslandOverlay> {
                 },
                 child: RepaintBoundary(
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 340),
-                    curve: Curves.easeOutBack,
+                    duration: const Duration(milliseconds: 320),
+                    curve: Curves.easeOutCubic,
                     width: targetWidth,
                     decoration: BoxDecoration(
+                      color: useGlassBody ? null : surfaceTint,
                       borderRadius: BorderRadius.circular(cornerRadius),
+                      border: useGlassBody
+                          ? null
+                          : Border.all(
+                              color: isLightPreset
+                                  ? Colors.black.withAlpha(22)
+                                  : Colors.white.withAlpha(_expanded ? 28 : 34),
+                              width: 0.85,
+                            ),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withAlpha(
-                            isLightPreset ? 45 : (isDark ? 175 : 88),
+                            isLightPreset ? 45 : (isDark ? 200 : 108),
                           ),
-                          blurRadius: _expanded ? 32 : 16,
-                          spreadRadius: _expanded ? 1 : -2,
+                          blurRadius: _expanded ? 34 : 16,
+                          spreadRadius: _expanded ? 2 : -2,
                           offset: Offset(0, _expanded ? 14 : 6),
                         ),
-                        BoxShadow(
-                          color: (preset == DynamicIslandPreset.aurora
-                                  ? const Color(0xFF5EEAD4)
-                                  : glowColor)
-                              .withAlpha(_expanded ? 68 : 38),
-                          blurRadius: _expanded ? 26 : 14,
-                          spreadRadius: -3,
-                        ),
+                        if (preset == DynamicIslandPreset.aurora ||
+                            preset == DynamicIslandPreset.iosBlue)
+                          BoxShadow(
+                            color: (preset == DynamicIslandPreset.aurora
+                                    ? const Color(0xFF5EEAD4)
+                                    : glowColor)
+                                .withAlpha(_expanded ? 54 : 32),
+                            blurRadius: _expanded ? 24 : 14,
+                            spreadRadius: -3,
+                          ),
                       ],
                     ),
-                    child: LiquidGlassSurface(
-                      borderRadius: BorderRadius.circular(cornerRadius),
-                      blurSigma: preset == DynamicIslandPreset.ultraGlass ? 6 : 12,
-                      useBackdropBlur: false,
-                      tintColor: surfaceTint,
-                      chromaticAccent: preset == DynamicIslandPreset.aurora
-                          ? const Color(0xFFA855F7)
-                          : glowColor,
-                      interactiveFlex: false,
-                      child: AnimatedSize(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeOutCubic,
-                        alignment: Alignment.topCenter,
-                        child: _expanded
-                            ? _ExpandedIslandContent(
-                                accent: glowColor,
-                                lightSurface: isLightPreset,
-                                activeLyric: activeLyric,
-                                onCollapse: _collapse,
-                                onOpenNowPlaying: () {
-                                  _collapse();
-                                  openNowPlayingSheet(context);
-                                },
-                                onOpenControlCenter: () {
-                                  _collapse();
-                                  showIosControlCenter(
-                                    context,
-                                    ref,
-                                    onOpenEqualizer: widget.onOpenEqualizer,
-                                  );
-                                },
-                                onOpenPermissions: () {
-                                  _collapse();
-                                  showPermissionsAndBackgroundSheet(context, ref);
-                                },
-                                onOpenLockScreenPreview: () {
-                                  _collapse();
-                                  ref
-                                      .read(devicePermissionsProvider.notifier)
-                                      .openLockScreenPreview();
-                                },
-                              )
-                            : (event != null
-                                ? _TransientEventPill(
-                                    event: event,
-                                    lightSurface: isLightPreset,
-                                  )
-                                : _CompactIslandPill(
-                                    accent: accent,
-                                    lightSurface: isLightPreset,
-                                    microMode: notchCompact,
-                                    activeLyric: activeLyric,
-                                  )),
-                      ),
-                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: useGlassBody
+                        ? LiquidGlassSurface(
+                            borderRadius: BorderRadius.circular(cornerRadius),
+                            blurSigma: 10,
+                            useBackdropBlur: true,
+                            tintColor: surfaceTint.withAlpha(
+                              lerpDouble(140, 210, glassOpacity)!.round(),
+                            ),
+                            chromaticAccent: glowColor,
+                            interactiveFlex: false,
+                            child: islandInner,
+                          )
+                        : Material(
+                            type: MaterialType.transparency,
+                            child: islandInner,
+                          ),
                   ),
                 ),
               ),
@@ -690,25 +711,32 @@ class _ExpandedIslandContent extends ConsumerWidget {
 
     final totalMs = duration.inMilliseconds.clamp(1, 1 << 30);
     final progress = (position.inMilliseconds / totalMs).clamp(0.0, 1.0);
+    final remDuration = duration > position ? (duration - position) : Duration.zero;
+    final Color eqWarmColor = lightSurface
+        ? const Color(0xFF4B5563)
+        : const Color(0xFFC5B4A3);
+    final Color sliderTrackColor = lightSurface
+        ? const Color(0xFF111827)
+        : Colors.white;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Top Track Row
+          // Top Track Row (iPhone Dynamic Island 78140 style: square-rounded cover + crisp typography + taupe eq)
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: onOpenNowPlaying,
             child: Row(
               children: [
-                MiniSpinningVinyl(
-                  artworkUrl: track.bestThumbUrl(size: 200),
-                  size: 52,
-                  isPlaying: isPlaying,
-                  accentColor: accent,
+                ArtworkImage(
+                  url: track.bestThumbUrl(size: 220),
+                  size: 50,
+                  radius: 13,
+                  fit: BoxFit.cover,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 13),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -717,9 +745,9 @@ class _ExpandedIslandContent extends ConsumerWidget {
                         text: track.title,
                         style: TextStyle(
                           color: fgColor,
-                          fontSize: 15,
+                          fontSize: 16,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: -0.2,
+                          letterSpacing: -0.3,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -729,23 +757,24 @@ class _ExpandedIslandContent extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: subColor,
-                          fontSize: 12.5,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 AnimatedEqualizer(
-                  color: accent,
+                  color: eqWarmColor,
                   isPlaying: isPlaying,
-                  size: 18,
+                  size: 20,
                 ),
               ],
             ),
           ),
           if (activeLyric != null && activeLyric!.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -759,33 +788,34 @@ class _ExpandedIslandContent extends ConsumerWidget {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: fgColor,
-                  fontSize: 12.4,
+                  color: fgColor.withAlpha(232),
+                  fontSize: 12.2,
                   fontWeight: FontWeight.w600,
                   height: 1.25,
                 ),
               ),
             ),
           ],
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
-          // Live Seekable Progress Row
+          // Live Seekable Progress Row (crisp white track matching 78140)
           Row(
             children: [
               Text(
                 _formatCompactDuration(position),
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 10.5,
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                   color: mutedColor,
                 ),
               ),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: LiquidGlassRangeSlider(
                     value: progress,
                     compact: true,
-                    activeColor: accent,
+                    activeColor: sliderTrackColor,
                     inactiveColor:
                         (lightSurface ? Colors.black : Colors.white).withAlpha(46),
                     onChanged: (v) {
@@ -801,16 +831,18 @@ class _ExpandedIslandContent extends ConsumerWidget {
                 ),
               ),
               Text(
-                _formatCompactDuration(duration),
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 10.5,
+                '-${_formatCompactDuration(remDuration)}',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                   color: mutedColor,
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 4),
 
-          // Transport & Quick Utility Row
+          // Clean Transport Row matching 78140 (Favorite / Prev / Pause / Next / Lyrics-or-Controls)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -833,36 +865,29 @@ class _ExpandedIslandContent extends ConsumerWidget {
                   pNotifier.skipPrevious();
                 },
                 icon: Icon(
-                  CupertinoIcons.backward_fill,
+                  CupertinoIcons.backward_end_fill,
                   color: fgColor,
-                  size: 23,
+                  size: 25,
                 ),
               ),
-              GestureDetector(
-                onTap: () {
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                onPressed: () {
                   HapticFeedback.mediumImpact();
                   pNotifier.togglePlayPause();
                 },
-                child: Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: fgColor,
-                    shape: BoxShape.circle,
-                  ),
-                  child: isBuffering
-                      ? CupertinoActivityIndicator(
-                          radius: 10,
-                          color: lightSurface ? Colors.white : Colors.black,
-                        )
-                      : Icon(
-                          isPlaying
-                              ? CupertinoIcons.pause_fill
-                              : CupertinoIcons.play_fill,
-                          color: lightSurface ? Colors.white : Colors.black,
-                          size: 22,
-                        ),
-                ),
+                icon: isBuffering
+                    ? CupertinoActivityIndicator(
+                        radius: 12,
+                        color: fgColor,
+                      )
+                    : Icon(
+                        isPlaying
+                            ? CupertinoIcons.pause_fill
+                            : CupertinoIcons.play_fill,
+                        color: fgColor,
+                        size: 30,
+                      ),
               ),
               IconButton(
                 visualDensity: VisualDensity.compact,
@@ -871,68 +896,62 @@ class _ExpandedIslandContent extends ConsumerWidget {
                   pNotifier.skipNext();
                 },
                 icon: Icon(
-                  CupertinoIcons.forward_fill,
+                  CupertinoIcons.forward_end_fill,
                   color: fgColor,
-                  size: 23,
+                  size: 25,
                 ),
               ),
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                tooltip: 'Pusat Kontrol',
-                onPressed: onOpenControlCenter,
-                icon: Icon(
-                  CupertinoIcons.slider_horizontal_3,
-                  color: subColor,
-                  size: 19,
+              GestureDetector(
+                onLongPress: onOpenLockScreenPreview,
+                child: IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Pemutar Penuh',
+                  onPressed: onOpenNowPlaying,
+                  icon: Icon(
+                    CupertinoIcons.quote_bubble,
+                    color: subColor,
+                    size: 20,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-
-          // Status chips + Permissions warning if missing
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            alignment: WrapAlignment.center,
-            children: [
-              _miniStatusChip(
-                icon: CupertinoIcons.music_note,
-                label: 'Pemutar Penuh',
-                color: fgColor,
-                onTap: onOpenNowPlaying,
-              ),
-              _miniStatusChip(
-                icon: CupertinoIcons.lock_fill,
-                label: 'Lock Screen',
-                color: fgColor,
-                onTap: onOpenLockScreenPreview,
-              ),
-              if (soundStyle != SoundStylePreset.normal)
-                _miniStatusChip(
-                  icon: CupertinoIcons.waveform,
-                  label: soundStyle.label,
-                  color: fgColor,
-                  onTap: onOpenControlCenter,
-                ),
-              if (sleepRem != null)
-                _miniStatusChip(
-                  icon: CupertinoIcons.moon_fill,
-                  label: '${(sleepRem.inSeconds / 60).ceil()}m',
-                  color: AppColors.iosOrange,
-                  onTap: onOpenControlCenter,
-                ),
-              if (!perms.backgroundReady || !perms.overlayGranted)
-                _miniStatusChip(
-                  icon: CupertinoIcons.layers_alt_fill,
-                  label: !perms.overlayGranted
-                      ? 'Aktifkan Island Luar App'
-                      : 'Aktifkan Izin Latar',
-                  color: AppColors.iosOrange,
-                  onTap: onOpenPermissions,
-                ),
-            ],
-          ),
+          if (soundStyle != SoundStylePreset.normal ||
+              sleepRem != null ||
+              !perms.backgroundReady ||
+              !perms.overlayGranted) ...[
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              alignment: WrapAlignment.center,
+              children: [
+                if (soundStyle != SoundStylePreset.normal)
+                  _miniStatusChip(
+                    icon: CupertinoIcons.waveform,
+                    label: soundStyle.label,
+                    color: fgColor,
+                    onTap: onOpenControlCenter,
+                  ),
+                if (sleepRem != null)
+                  _miniStatusChip(
+                    icon: CupertinoIcons.moon_fill,
+                    label: '${(sleepRem.inSeconds / 60).ceil()}m',
+                    color: fgColor,
+                    onTap: onOpenControlCenter,
+                  ),
+                if (!perms.backgroundReady || !perms.overlayGranted)
+                  _miniStatusChip(
+                    icon: CupertinoIcons.layers_alt_fill,
+                    label: !perms.overlayGranted
+                        ? 'Izinkan Island Luar App'
+                        : 'Izinkan Latar Belakang',
+                    color: subColor,
+                    onTap: onOpenPermissions,
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );

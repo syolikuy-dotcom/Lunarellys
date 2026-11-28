@@ -365,13 +365,16 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
         AppColors.iosBlue;
     final fg = AppColors.inkOf(context);
     final sub = AppColors.subOf(context);
+    final primaryBtnBg = isDark ? Colors.white : const Color(0xFF111316);
+    final primaryBtnFg = isDark ? Colors.black : Colors.white;
+    final neutralPillBg = isDark ? const Color(0xFF23262C) : const Color(0xFFE7EAF0);
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF101215) : const Color(0xFFF4F6F9),
+      backgroundColor: isDark ? const Color(0xFF111316) : const Color(0xFFF4F6F9),
       body: SafeArea(
         child: Column(
           children: [
-            // Top bar
+            // Top studio bar (matching 78146: solid white Simpan pill + monochrome icons)
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 6, 12, 8),
               child: Row(
@@ -405,23 +408,23 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
                     onTap: _savePoster,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
+                        horizontal: 18,
+                        vertical: 9,
                       ),
                       decoration: BoxDecoration(
-                        color: accent,
-                        borderRadius: BorderRadius.circular(18),
+                        color: primaryBtnBg,
+                        borderRadius: BorderRadius.circular(999),
                       ),
                       child: _saving
-                          ? const CupertinoActivityIndicator(
+                          ? CupertinoActivityIndicator(
                               radius: 8,
-                              color: Colors.white,
+                              color: primaryBtnFg,
                             )
-                          : const Text(
+                          : Text(
                               'Simpan',
                               style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
+                                color: primaryBtnFg,
+                                fontSize: 13.5,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -463,7 +466,7 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
               ),
             ),
 
-            // Quick Actions Strip (Ratio, Play/Pause, Acak desain, Clarity)
+            // Quick Actions Strip (Ratio, Play/Pause, Acak desain, Clarity — sleek neutral pills)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: SingleChildScrollView(
@@ -508,10 +511,8 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
                       onTap: _randomizeDesign,
                       child: _actionChip(
                         isDark: isDark,
-                        icon: CupertinoIcons.sparkles,
+                        icon: CupertinoIcons.shuffle,
                         label: 'Acak desain',
-                        highlighted: true,
-                        accent: accent,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -533,17 +534,17 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
               ),
             ),
 
-            // Bottom Control Panel (4 Tabs)
+            // Bottom Control Panel (4 Tabs matching 78146 monochrome style)
             Container(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF141822) : Colors.white,
+                color: isDark ? const Color(0xFF16181C) : Colors.white,
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(24),
                 ),
                 border: Border(
                   top: BorderSide(
-                    color: (isDark ? Colors.white : Colors.black).withAlpha(18),
+                    color: (isDark ? Colors.white : Colors.black).withAlpha(16),
                   ),
                 ),
               ),
@@ -562,22 +563,23 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
                           child: GestureDetector(
                             onTap: () => setState(() => _activeTab = entry.$1),
                             child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 3),
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               decoration: BoxDecoration(
                                 color: _activeTab == entry.$1
-                                    ? accent.withAlpha(28)
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(12),
+                                    ? primaryBtnBg
+                                    : neutralPillBg,
+                                borderRadius: BorderRadius.circular(999),
                               ),
                               child: Text(
                                 entry.$2,
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  fontSize: 12.5,
+                                  fontSize: 12.2,
                                   fontWeight: _activeTab == entry.$1
                                       ? FontWeight.w800
                                       : FontWeight.w600,
-                                  color: _activeTab == entry.$1 ? accent : sub,
+                                  color: _activeTab == entry.$1 ? primaryBtnFg : fg,
                                 ),
                               ),
                             ),
@@ -585,8 +587,8 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
                         ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  _buildTabBody(isDark, accent, fg, sub),
+                  const SizedBox(height: 12),
+                  _buildTabBody(isDark, primaryBtnBg, primaryBtnFg, neutralPillBg, fg, sub),
                 ],
               ),
             ),
@@ -596,7 +598,14 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
     );
   }
 
-  Widget _buildTabBody(bool isDark, Color accent, Color fg, Color sub) {
+  Widget _buildTabBody(
+    bool isDark,
+    Color primaryBtnBg,
+    Color primaryBtnFg,
+    Color neutralPillBg,
+    Color fg,
+    Color sub,
+  ) {
     if (_activeTab == 0) {
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -604,34 +613,44 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
           Row(
             children: [
               Expanded(
-                child: CupertinoButton(
-                  color: accent,
-                  borderRadius: BorderRadius.circular(14),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  onPressed: _pickPhoto,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(CupertinoIcons.photo_fill, size: 17, color: Colors.white),
-                      const SizedBox(width: 6),
-                      Text(
-                        _pickedImagePath != null ? 'Ganti foto' : 'Pilih foto',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                        ),
+                child: GestureDetector(
+                  onTap: _pickPhoto,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: neutralPillBg,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: (isDark ? Colors.white : Colors.black).withAlpha(18),
                       ),
-                    ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(CupertinoIcons.photo, size: 17, color: fg),
+                        const SizedBox(width: 7),
+                        Text(
+                          _pickedImagePath != null ? 'Ganti foto' : 'Pilih foto',
+                          style: TextStyle(
+                            color: fg,
+                            fontSize: 13.2,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withAlpha(12) : const Color(0xFFF3F4F6),
-                  borderRadius: BorderRadius.circular(14),
+                  color: neutralPillBg,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: (isDark ? Colors.white : Colors.black).withAlpha(18),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -639,7 +658,7 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
                     Text(
                       'Potong latar',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 12.2,
                         fontWeight: FontWeight.w700,
                         color: fg,
                       ),
@@ -647,7 +666,8 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
                     const SizedBox(width: 6),
                     CupertinoSwitch(
                       value: _cutoutSubject,
-                      activeTrackColor: accent,
+                      activeTrackColor: primaryBtnBg,
+                      thumbColor: primaryBtnFg,
                       onChanged: (v) => setState(() => _cutoutSubject = v),
                     ),
                   ],
@@ -655,16 +675,40 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          _sliderRow('Gelap', _darkness, 0.0, 0.85, accent, sub, (v) {
-            setState(() => _darkness = v);
-          }),
-          _sliderRow('Kabur', _blurAmount / 24.0, 0.0, 1.0, accent, sub, (v) {
-            setState(() => _blurAmount = v * 24.0);
-          }),
-          _sliderRow('Cahaya kartu', _cardGlow, 0.0, 1.0, accent, sub, (v) {
-            setState(() => _cardGlow = v);
-          }),
+          const SizedBox(height: 8),
+          _sliderRow(
+            'Gelap',
+            _darkness,
+            0.0,
+            0.85,
+            '${(_darkness * 100).round()}%',
+            primaryBtnBg,
+            fg,
+            sub,
+            (v) => setState(() => _darkness = v),
+          ),
+          _sliderRow(
+            'Kabur',
+            _blurAmount / 24.0,
+            0.0,
+            1.0,
+            '${((_blurAmount / 24.0) * 100).round()}%',
+            primaryBtnBg,
+            fg,
+            sub,
+            (v) => setState(() => _blurAmount = v * 24.0),
+          ),
+          _sliderRow(
+            'Cahaya kartu',
+            _cardGlow,
+            0.0,
+            1.0,
+            '${(_cardGlow * 100).round()}%',
+            primaryBtnBg,
+            fg,
+            sub,
+            (v) => setState(() => _cardGlow = v),
+          ),
         ],
       );
     }
@@ -681,17 +725,21 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: fg),
                 ),
               ),
-              CupertinoButton(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                color: accent,
-                borderRadius: BorderRadius.circular(14),
-                onPressed: _openTrackPicker,
-                child: const Text(
-                  'Pilih lagu',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
+              GestureDetector(
+                onTap: _openTrackPicker,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: primaryBtnBg,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    'Pilih lagu',
+                    style: TextStyle(
+                      color: primaryBtnFg,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -717,9 +765,7 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
                         width: 158,
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                         decoration: BoxDecoration(
-                          color: isDark
-                              ? Colors.white.withAlpha(12)
-                              : const Color(0xFFF3F4F6),
+                          color: neutralPillBg,
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Row(
@@ -771,7 +817,7 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
 
     if (_activeTab == 2) {
       return SizedBox(
-        height: 70,
+        height: 66,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           itemCount: _cardStyles.length,
@@ -784,10 +830,8 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: selected
-                      ? accent
-                      : (isDark ? Colors.white.withAlpha(12) : const Color(0xFFF3F4F6)),
-                  borderRadius: BorderRadius.circular(16),
+                  color: selected ? primaryBtnBg : neutralPillBg,
+                  borderRadius: BorderRadius.circular(999),
                 ),
                 child: Center(
                   child: Text(
@@ -795,7 +839,7 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: selected ? Colors.white : fg,
+                      color: selected ? primaryBtnFg : fg,
                     ),
                   ),
                 ),
@@ -807,7 +851,7 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
     }
 
     return SizedBox(
-      height: 70,
+      height: 66,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _bgStyles.length,
@@ -820,10 +864,8 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: selected
-                    ? accent
-                    : (isDark ? Colors.white.withAlpha(12) : const Color(0xFFF3F4F6)),
-                borderRadius: BorderRadius.circular(16),
+                color: selected ? primaryBtnBg : neutralPillBg,
+                borderRadius: BorderRadius.circular(999),
               ),
               child: Center(
                 child: Text(
@@ -831,7 +873,7 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: selected ? Colors.white : fg,
+                    color: selected ? primaryBtnFg : fg,
                   ),
                 ),
               ),
@@ -847,33 +889,45 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
     double value,
     double min,
     double max,
-    Color accent,
+    String readout,
+    Color activeColor,
+    Color fg,
     Color sub,
     ValueChanged<double> onChanged,
   ) {
     return Row(
       children: [
         SizedBox(
-          width: 82,
+          width: 84,
           child: Text(
             label,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: sub),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: fg),
           ),
         ),
         Expanded(
           child: SliderTheme(
             data: SliderTheme.of(context).copyWith(
               trackHeight: 3,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+              thumbColor: activeColor,
+              activeTrackColor: activeColor,
+              inactiveTrackColor: activeColor.withAlpha(42),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 13),
             ),
             child: Slider(
               value: value.clamp(min, max),
               min: min,
               max: max,
-              activeColor: accent,
               onChanged: onChanged,
             ),
+          ),
+        ),
+        SizedBox(
+          width: 38,
+          child: Text(
+            readout,
+            textAlign: TextAlign.right,
+            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: sub),
           ),
         ),
       ],
@@ -884,27 +938,23 @@ class _PosterEditorScreenState extends ConsumerState<PosterEditorScreen>
     required bool isDark,
     required IconData icon,
     required String label,
-    bool highlighted = false,
-    Color? accent,
   }) {
-    final bg = highlighted
-        ? (accent ?? AppColors.iosBlue)
-        : (isDark ? const Color(0xFF1C2026) : Colors.white);
-    final fg = highlighted ? Colors.white : AppColors.inkOf(context);
+    final bg = isDark ? const Color(0xFF23262C) : Colors.white;
+    final fg = AppColors.inkOf(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: (isDark ? Colors.white : Colors.black).withAlpha(22),
+          color: (isDark ? Colors.white : Colors.black).withAlpha(20),
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 14, color: fg),
-          const SizedBox(width: 5),
+          const SizedBox(width: 6),
           Text(
             label,
             style: TextStyle(
@@ -960,7 +1010,7 @@ class _PosterCanvasPreview extends StatelessWidget {
         return Stack(
           fit: StackFit.expand,
           children: [
-            // 1. Background Base
+            // 1. Background Base (neutral studio dark gradient by default matching 78146)
             if (hasFile)
               Image.file(File(pickedImagePath!), fit: BoxFit.cover)
             else if (primaryTrack != null && bgStyle == 'Buram Sampul')
@@ -979,20 +1029,20 @@ class _PosterCanvasPreview extends StatelessWidget {
               DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
                     colors: bgStyle == 'Polos'
-                        ? [const Color(0xFF0A0C12), const Color(0xFF050608)]
+                        ? [const Color(0xFF0C0E12), const Color(0xFF060709)]
                         : bgStyle == 'Mesh Gradasi'
                             ? [
-                                Color.lerp(const Color(0xFF0B132B), accent, 0.45)!,
-                                const Color(0xFF1C163A),
-                                const Color(0xFF070A12),
+                                Color.lerp(const Color(0xFF101926), accent, 0.32)!,
+                                const Color(0xFF172231),
+                                const Color(0xFF080B10),
                               ]
-                            : [
-                                Color.lerp(const Color(0xFF111827), accent, 0.28)!,
-                                const Color(0xFF090D16),
-                                const Color(0xFF04060A),
+                            : const [
+                                Color(0xFF151C24),
+                                Color(0xFF1B242E),
+                                Color(0xFF090B0E),
                               ],
                   ),
                 ),
@@ -1020,7 +1070,7 @@ class _PosterCanvasPreview extends StatelessWidget {
                 ),
               ),
 
-            // 4. Up to 5 floating Liquid Glass mini-player cards
+            // 4. Up to 5 portrait floating Liquid Glass mini-player cards matching 78146
             LayoutBuilder(
               builder: (context, box) {
                 final w = box.maxWidth;
@@ -1032,7 +1082,6 @@ class _PosterCanvasPreview extends StatelessWidget {
                       _buildFloatingTrackCard(
                         track: tracks[i],
                         index: i,
-                        total: count,
                         w: w,
                         h: h,
                         phase: phase,
@@ -1042,35 +1091,27 @@ class _PosterCanvasPreview extends StatelessWidget {
               },
             ),
 
-            // 5. Archys Watermark Badge at Bottom Center
+            // 5. Minimal Unboxed Archys Watermark at Bottom Center (matching 78146)
             Positioned(
               left: 0,
               right: 0,
-              bottom: 14,
+              bottom: 12,
               child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withAlpha(115),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: Colors.white.withAlpha(42)),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ArchysHorizonLogo(size: 15, color: Colors.white),
-                      SizedBox(width: 6),
-                      Text(
-                        AppConfig.appName,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.2,
-                        ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ArchysHorizonLogo(size: 13, color: Colors.white.withAlpha(230)),
+                    const SizedBox(width: 5),
+                    Text(
+                      AppConfig.appName,
+                      style: TextStyle(
+                        color: Colors.white.withAlpha(230),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -1083,18 +1124,25 @@ class _PosterCanvasPreview extends StatelessWidget {
   Widget _buildFloatingTrackCard({
     required MusicItem track,
     required int index,
-    required int total,
     required double w,
     required double h,
     required double phase,
   }) {
-    final slotY = (0.14 + (index / math.max(total, 1)) * 0.62) * h;
-    final leftSide = (index + seed) % 2 == 0;
-    final xJitter = ((seed * (index + 3)) % 18) - 9.0;
-    final floatDy = math.sin(phase + index * 1.15) * 6.0;
-    final tiltBase = leftSide ? -0.055 : 0.055;
-    final tilt = tiltBase + ((seed % 5) - 2) * 0.012;
-    final cardWidth = (w * 0.68).clamp(155.0, 240.0);
+    // 2-top / 1-center / 2-bottom staggered portrait layout (matching 78146)
+    const slots = [
+      Offset(0.08, 0.08),
+      Offset(0.57, 0.05),
+      Offset(0.325, 0.26),
+      Offset(0.09, 0.54),
+      Offset(0.56, 0.51),
+    ];
+    const tilts = [-0.11, 0.11, 0.0, -0.07, 0.09];
+    final slot = slots[index % slots.length];
+    final cardWidth = (w * 0.345).clamp(68.0, 114.0);
+    final seedShiftX = (((seed * (index + 3)) % 9) - 4) * 1.2;
+    final seedShiftY = (((seed * (index + 5)) % 9) - 4) * 1.2;
+    final floatDy = math.sin(phase + index * 1.15) * 4.5;
+    final tilt = tilts[index % tilts.length] + ((seed % 3) - 1) * 0.018;
 
     final bool lightCard = cardStyle == 'Putih Minimal';
     final Color cardBg;
@@ -1105,99 +1153,188 @@ class _PosterCanvasPreview extends StatelessWidget {
         borderCol = Colors.white;
         break;
       case 'Gelap OLED':
-        cardBg = const Color(0xFF07090E).withAlpha(235);
-        borderCol = Colors.white.withAlpha(36);
+        cardBg = const Color(0xFF080A0E).withAlpha(236);
+        borderCol = Colors.white.withAlpha(46);
         break;
       case 'Aurora Border':
-        cardBg = const Color(0xFF0F172A).withAlpha(190);
-        borderCol = const Color(0xFF5EEAD4).withAlpha(190);
+        cardBg = const Color(0xFF0F172A).withAlpha(200);
+        borderCol = const Color(0xFF5EEAD4).withAlpha(200);
         break;
       case 'Liquid Glass':
       default:
-        cardBg = Colors.white.withAlpha(42);
-        borderCol = Colors.white.withAlpha(115);
+        cardBg = const Color(0xFF282E38).withAlpha(165);
+        borderCol = Colors.white.withAlpha(96);
         break;
     }
 
     final textColor = lightCard ? const Color(0xFF0F172A) : Colors.white;
     final subColor = lightCard ? const Color(0xFF475569) : Colors.white70;
+    final artSize = (cardWidth - 14).clamp(44.0, 96.0);
+    final showSparkleRight = index == 0 || index == 1 || index == 3;
 
     return Positioned(
-      top: slotY + floatDy,
-      left: leftSide ? (w * 0.06 + xJitter).clamp(8.0, w - cardWidth - 8) : null,
-      right: leftSide ? null : (w * 0.06 - xJitter).clamp(8.0, w - cardWidth - 8),
+      left: (w * slot.dx + seedShiftX).clamp(6.0, math.max(6.0, w - cardWidth - 6.0)),
+      top: (h * slot.dy + seedShiftY + floatDy).clamp(6.0, math.max(6.0, h - cardWidth * 1.45)),
       child: Transform.rotate(
         angle: tilt,
-        child: Container(
-          width: cardWidth,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: borderCol, width: 1.0),
-            boxShadow: [
-              BoxShadow(
-                color: accent.withAlpha((cardGlow * 130).round().clamp(0, 180)),
-                blurRadius: 20,
-                spreadRadius: -3,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: cardWidth,
+              padding: const EdgeInsets.fromLTRB(7, 6, 7, 7),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(color: borderCol, width: 1.0),
+                boxShadow: [
+                  if (cardGlow > 0.04)
+                    BoxShadow(
+                      color: Colors.white.withAlpha((cardGlow * 70).round().clamp(0, 90)),
+                      blurRadius: 16,
+                      spreadRadius: -2,
+                    ),
+                  BoxShadow(
+                    color: Colors.black.withAlpha(110),
+                    blurRadius: 14,
+                    offset: const Offset(0, 7),
+                  ),
+                ],
               ),
-              BoxShadow(
-                color: Colors.black.withAlpha(95),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              ArtworkImage(
-                url: track.bestThumbUrl(size: 160),
-                size: 40,
-                radius: 10,
-                preserveFull: true,
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      track.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Micro mini-player header bar
+                  Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 2,
+                        decoration: BoxDecoration(
+                          color: subColor.withAlpha(110),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(
+                        CupertinoIcons.ellipsis,
+                        size: 8,
+                        color: subColor.withAlpha(160),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  ArtworkImage(
+                    url: track.bestThumbUrl(size: 200),
+                    size: artSize,
+                    radius: 7,
+                    fit: BoxFit.cover,
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    track.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 8.2,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.1,
+                    ),
+                  ),
+                  Text(
+                    track.artistDisplay,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: subColor,
+                      fontSize: 6.8,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  // Micro progress line
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(99),
+                    child: SizedBox(
+                      height: 2,
+                      child: LinearProgressIndicator(
+                        value: 0.42 + (index * 0.11) % 0.4,
+                        backgroundColor: subColor.withAlpha(46),
+                        valueColor: AlwaysStoppedAnimation<Color>(textColor),
                       ),
                     ),
-                    const SizedBox(height: 1),
-                    Text(
-                      track.artistDisplay,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: subColor,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(CupertinoIcons.backward_fill, size: 7, color: textColor),
+                      const SizedBox(width: 8),
+                      Icon(CupertinoIcons.pause_fill, size: 8, color: textColor),
+                      const SizedBox(width: 8),
+                      Icon(CupertinoIcons.forward_fill, size: 7, color: textColor),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (cardGlow > 0.05)
+              Positioned(
+                top: -8,
+                right: showSparkleRight ? -7 : null,
+                left: showSparkleRight ? null : -7,
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    size: const Size(18, 18),
+                    painter: _SparkleStarPainter(
+                      opacity: (0.45 + cardGlow * 0.55).clamp(0.0, 1.0),
                     ),
-                  ],
+                  ),
                 ),
               ),
-              const SizedBox(width: 4),
-              Icon(
-                CupertinoIcons.play_circle_fill,
-                color: accent,
-                size: 20,
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );
   }
+}
+
+class _SparkleStarPainter extends CustomPainter {
+  final double opacity;
+  const _SparkleStarPainter({required this.opacity});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final r = size.width * 0.48;
+    final ir = size.width * 0.11;
+    final path = Path()
+      ..moveTo(cx, cy - r)
+      ..quadraticBezierTo(cx + ir * 0.5, cy - ir * 0.5, cx + r, cy)
+      ..quadraticBezierTo(cx + ir * 0.5, cy + ir * 0.5, cx, cy + r)
+      ..quadraticBezierTo(cx - ir * 0.5, cy + ir * 0.5, cx - r, cy)
+      ..quadraticBezierTo(cx - ir * 0.5, cy - ir * 0.5, cx, cy - r)
+      ..close();
+
+    canvas.drawCircle(
+      Offset(cx, cy),
+      r * 0.72,
+      Paint()
+        ..color = Colors.white.withAlpha((opacity * 120).round())
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+    );
+    canvas.drawPath(
+      path,
+      Paint()..color = Colors.white.withAlpha((opacity * 255).round()),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _SparkleStarPainter oldDelegate) =>
+      oldDelegate.opacity != opacity;
 }
 
 class _StudioSilhouetteHaloPainter extends CustomPainter {

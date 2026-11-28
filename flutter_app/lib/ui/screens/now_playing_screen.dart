@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
@@ -106,18 +107,59 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   }
 
   void _ensureVideoController(String trackId) {
-    final embedUri = Uri.parse(
-      'https://www.youtube.com/embed/$trackId?autoplay=1&playsinline=1&rel=0',
-    );
+    final safeId = Uri.encodeComponent(trackId);
+    final html = '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
+    iframe { width: 100%; height: 100%; border: 0; display: block; }
+  </style>
+</head>
+<body>
+  <iframe
+    src="https://www.youtube.com/embed/$safeId?autoplay=1&playsinline=1&rel=0&modestbranding=1&enablejsapi=1&origin=https://www.youtube.com"
+    title="YouTube video player"
+    frameborder="0"
+    referrerpolicy="strict-origin-when-cross-origin"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    allowfullscreen>
+  </iframe>
+</body>
+</html>
+''';
     if (_videoController == null) {
       _videoController = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setBackgroundColor(Colors.black)
-        ..loadRequest(embedUri);
+        ..setUserAgent(
+          'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36',
+        )
+        ..setNavigationDelegate(
+          NavigationDelegate(
+            onNavigationRequest: (req) {
+              final url = req.url;
+              if (url.startsWith('https://www.youtube.com') ||
+                  url.startsWith('https://m.youtube.com') ||
+                  url.startsWith('https://www.youtube-nocookie.com') ||
+                  url.startsWith('https://accounts.google.com') ||
+                  url.contains('googlevideo.com') ||
+                  url.startsWith('about:blank')) {
+                return NavigationDecision.navigate;
+              }
+              return NavigationDecision.prevent;
+            },
+          ),
+        )
+        ..loadHtmlString(html, baseUrl: 'https://www.youtube.com');
       _videoTrackId = trackId;
     } else if (_videoTrackId != trackId) {
       _videoTrackId = trackId;
-      _videoController!.loadRequest(embedUri);
+      _videoController!.loadHtmlString(html, baseUrl: 'https://www.youtube.com');
     }
   }
 
@@ -353,6 +395,33 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                     ),
                   ),
                   const SizedBox(width: 10),
+                  if (!_videoMode) ...[
+                    LiquidGlassTap(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _vinylMode = !_vinylMode);
+                      },
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: _vinylMode ? ink : pill,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: border, width: 0.7),
+                        ),
+                        child: Icon(
+                          _vinylMode
+                              ? CupertinoIcons.photo_fill
+                              : CupertinoIcons.circle_grid_hex_fill,
+                          color: _vinylMode
+                              ? (isDark ? Colors.black : Colors.white)
+                              : ink,
+                          size: 17,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   LiquidGlassTap(
                     onTap: () => showIosControlCenter(
                       context,
@@ -402,7 +471,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
           ),
         ),
 
-        // Full Uncropped Artwork Hero OR Spinning Vinyl Platter OR Embedded Video
+        // Full Edge-to-Edge Artwork Hero OR Spinning Vinyl Platter OR Embedded Video
         Expanded(
           child: RepaintBoundary(
             child: Stack(
@@ -415,43 +484,83 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                   child: _videoMode
                       ? Padding(
                           key: ValueKey('video_${track.id}'),
-                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 56),
-                          child: Center(
-                            child: AspectRatio(
-                              aspectRatio: 16 / 9,
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(22),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.black,
-                                    borderRadius: BorderRadius.circular(22),
-                                    border: Border.all(
-                                      color: Colors.white.withAlpha(36),
-                                      width: 1,
+                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 54),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              AspectRatio(
+                                aspectRatio: 16 / 9,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.black,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: Colors.white.withAlpha(36),
+                                        width: 1,
+                                      ),
                                     ),
-                                  ),
-                                  child: _videoController != null
-                                      ? WebViewWidget(controller: _videoController!)
-                                      : const Center(
-                                          child: CupertinoActivityIndicator(
-                                            color: Colors.white,
+                                    child: _videoController != null
+                                        ? WebViewWidget(controller: _videoController!)
+                                        : const Center(
+                                            child: CupertinoActivityIndicator(
+                                              color: Colors.white,
+                                            ),
                                           ),
-                                        ),
+                                  ),
                                 ),
                               ),
-                            ),
+                              const SizedBox(height: 8),
+                              GestureDetector(
+                                onTap: () => launchUrl(
+                                  Uri.parse('https://www.youtube.com/watch?v=${track.id}'),
+                                  mode: LaunchMode.externalApplication,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: (isDark ? Colors.white : Colors.black)
+                                        .withAlpha(18),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        CupertinoIcons.play_rectangle_fill,
+                                        size: 13,
+                                        color: sub,
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        'Buka di YouTube',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: sub,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         )
                       : _vinylMode
                           ? Container(
                               key: const ValueKey('vinyl_stage'),
                               alignment: Alignment.center,
-                              padding: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.only(bottom: 18),
                               child: LayoutBuilder(
                                 builder: (ctx, c) {
                                   final maxDim = math.min(
                                     c.maxWidth * 0.72,
-                                    c.maxHeight - 50,
+                                    c.maxHeight - 54,
                                   );
                                   final discSize = maxDim.clamp(140.0, 268.0);
                                   return Column(
@@ -485,141 +594,83 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                           : LayoutBuilder(
                               key: const ValueKey('cover_stage'),
                               builder: (ctx, c) {
-                                final artW = (c.maxWidth - 40).clamp(160.0, 440.0);
-                                final artH = (c.maxHeight - 16).clamp(150.0, 440.0);
-                                final frameSide = math.min(artW, artH);
-                                final boxW = artW > frameSide * 1.18
-                                    ? math.min(artW, frameSide * 1.38)
-                                    : frameSide;
-                                return Center(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(22),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black
-                                              .withAlpha(isDark ? 115 : 44),
-                                          blurRadius: 26,
-                                          spreadRadius: -4,
-                                          offset: const Offset(0, 12),
-                                        ),
-                                      ],
-                                    ),
-                                    child: ArtworkImage(
-                                      url: track.bestThumbUrl(size: 900),
-                                      width: boxW,
-                                      height: artH,
-                                      size: boxW,
-                                      radius: 22,
-                                      preserveFull: true,
-                                    ),
+                                return ShaderMask(
+                                  blendMode: BlendMode.dstIn,
+                                  shaderCallback: (rect) => const LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.transparent,
+                                      Colors.white,
+                                      Colors.white,
+                                      Colors.transparent,
+                                    ],
+                                    stops: [0.0, 0.06, 0.76, 1.0],
+                                  ).createShader(rect),
+                                  child: ArtworkImage(
+                                    url: track.bestThumbUrl(size: 900),
+                                    width: c.maxWidth,
+                                    height: c.maxHeight,
+                                    size: c.maxWidth,
+                                    radius: 0,
+                                    fit: BoxFit.cover,
+                                    preserveFull: false,
                                   ),
                                 );
                               },
                             ),
                 ),
-                // Left [Audio | Video] mode switcher capsule
+                // Centered [Audio | Video] mode switcher capsule (matching reference 78151)
                 Positioned(
-                  left: 24,
-                  bottom: 14,
-                  child: Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withAlpha(isDark ? 148 : 168),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: Colors.white.withAlpha(76),
-                        width: 0.8,
+                  left: 0,
+                  right: 0,
+                  bottom: 12,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(isDark ? 148 : 168),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: Colors.white.withAlpha(76),
+                          width: 0.8,
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _audioVideoSegment(
-                          label: 'Audio',
-                          selected: !_videoMode,
-                          onTap: () {
-                            if (_videoMode) {
-                              HapticFeedback.selectionClick();
-                              setState(() => _videoMode = false);
-                            }
-                          },
-                        ),
-                        _audioVideoSegment(
-                          label: 'Video',
-                          selected: _videoMode,
-                          onTap: () {
-                            if (!_videoMode) {
-                              HapticFeedback.selectionClick();
-                              if (isPlaying) {
-                                ref.read(playerProvider.notifier).togglePlayPause();
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _audioVideoSegment(
+                            label: 'Audio',
+                            selected: !_videoMode,
+                            onTap: () {
+                              if (_videoMode) {
+                                HapticFeedback.selectionClick();
+                                setState(() => _videoMode = false);
                               }
-                              _ensureVideoController(track.id);
-                              setState(() {
-                                _videoMode = true;
-                                _vinylMode = false;
-                              });
-                            }
-                          },
-                        ),
-                      ],
+                            },
+                          ),
+                          _audioVideoSegment(
+                            label: 'Video',
+                            selected: _videoMode,
+                            onTap: () {
+                              if (!_videoMode) {
+                                HapticFeedback.selectionClick();
+                                if (isPlaying) {
+                                  ref.read(playerProvider.notifier).togglePlayPause();
+                                }
+                                _ensureVideoController(track.id);
+                                setState(() {
+                                  _videoMode = true;
+                                  _vinylMode = false;
+                                });
+                              }
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                // Right Interactive Sampul / Piringan Vinyl switcher pill
-                if (!_videoMode)
-                  Positioned(
-                    right: 26,
-                    bottom: 14,
-                    child: LiquidGlassTap(
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        setState(() => _vinylMode = !_vinylMode);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 7,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withAlpha(isDark ? 148 : 168),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: Colors.white.withAlpha(82),
-                            width: 0.8,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withAlpha(42),
-                              blurRadius: 10,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _vinylMode
-                                  ? CupertinoIcons.photo_fill
-                                  : CupertinoIcons.circle_grid_hex_fill,
-                              color: Colors.white,
-                              size: 14,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              _vinylMode ? 'Sampul' : 'Piringan',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),

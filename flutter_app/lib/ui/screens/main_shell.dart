@@ -365,8 +365,8 @@ class _MainShellState extends ConsumerState<MainShell>
     final showCompactInline = _navCollapsed;
     final showHomeFabs = _selectedIndex == 0;
     final fabBottom = showCompactInline
-        ? bottomInset + (hasTrack ? 80.0 : 22.0)
-        : bottomInset + (hasTrack ? 162.0 : 86.0);
+        ? bottomInset + (hasTrack ? 86.0 : 22.0)
+        : bottomInset + (hasTrack ? 176.0 : 88.0);
 
     final pagesBody = RepaintBoundary(
       child: NotificationListener<ScrollNotification>(

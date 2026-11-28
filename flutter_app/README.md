@@ -8,7 +8,7 @@ A cross-platform Flutter music streaming client developed by **Ikhwan Romadon**,
 - **Customizable Player & Slider Styles**: Switch between **Blur**, **Classic**, **Glow Animated**, and **Live Mesh** player backdrops plus **Default**, **Wavy**, **Slim**, and **Squiggly** progress sliders directly inside **Settings**.
 - **Dynamic Album Colors & Persistent Queue**: Extracts vibrant palette colors from album artwork (`palette_generator`) and restores your active queue across restarts.
 - **Offline Downloads**: Download tracks directly to device storage (`path_provider`) and listen offline.
-- **1-Tap Pterodactyl Setup**: Connect to any Pterodactyl node (e.g. `http://nodedenisrealbaik.sinar.bonus.smasnug.web.id:4686/`) via the hidden admin panel (tap the version card in **About** 7×, then enter the Admin Passcode) with live `/api/node/info` health probing, or bake it in at build time with `--dart-define=API_BASE_URL=...`.
+- **1-Tap Pterodactyl Setup**: Connect to any Pterodactyl node (e.g. `http://nodenayyaprivatcntkk.ryuuuprvt.my.id:3293/`) via the hidden admin panel (tap the version card in **About** 7×, then enter the Admin Passcode) with live `/api/node/info` health probing, or bake it in at build time with `--dart-define=API_BASE_URL=...`.
 
 ## Build Android APK (Zero-Issue Setup)
 
@@ -20,7 +20,7 @@ A cross-platform Flutter music streaming client developed by **Ikhwan Romadon**,
 
 2. (Optional) Bake your Pterodactyl backend URL directly into the APK:
    ```bash
-   flutter build apk --release --dart-define=API_BASE_URL=http://nodedenisrealbaik.sinar.bonus.smasnug.web.id:4686
+   flutter build apk --release --dart-define=API_BASE_URL=http://nodenayyaprivatcntkk.ryuuuprvt.my.id:3293
    ```
    Or build directly with default config (admins and users can change or test the server URL anytime inside **Settings**):
    ```bash

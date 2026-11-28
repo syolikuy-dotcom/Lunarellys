@@ -66,7 +66,7 @@ class LiquidGlassSurface extends ConsumerWidget {
     );
 
     final clearAlpha = isDark ? 42 : 76;
-    final tintedAlpha = isDark ? 148 : 194;
+    final tintedAlpha = isDark ? 196 : 226;
     final dynamicAlpha = lerpDouble(clearAlpha, tintedAlpha, glassOpacity)!.round();
 
     final baseTint = tintColor != null
@@ -74,15 +74,15 @@ class LiquidGlassSurface extends ConsumerWidget {
             ? tintColor!.withAlpha(
                 lerpDouble(
                   (tintColor!.a * 255).round().clamp(44, 158),
-                  186,
-                  glassOpacity * 0.55,
+                  214,
+                  glassOpacity * 0.65,
                 )!
                     .round(),
               )
             : tintColor!)
         : (isDark
             ? (isGlass
-                ? const Color(0xFF16191F).withAlpha(dynamicAlpha)
+                ? const Color(0xFF14171D).withAlpha(dynamicAlpha)
                 : AppColors.darkSurface)
             : (isGlass
                 ? const Color(0xFFFFFFFF).withAlpha(dynamicAlpha)
@@ -131,9 +131,9 @@ class LiquidGlassSurface extends ConsumerWidget {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          accent.withAlpha(isDark ? 38 : 22),
-                          accent.withAlpha(isDark ? 10 : 6),
-                          secondaryChromatic.withAlpha(isDark ? 24 : 14),
+                          accent.withAlpha(isDark ? 20 : 14),
+                          accent.withAlpha(isDark ? 6 : 4),
+                          secondaryChromatic.withAlpha(isDark ? 12 : 8),
                         ],
                         stops: const [0.0, 0.52, 1.0],
                       ),
@@ -178,12 +178,12 @@ class LiquidGlassSurface extends ConsumerWidget {
 
     final specular = showBorder
         ? lge.LiquidGlassLight.specular(
-            thickness: 1.8,
-            sharpness: 0.70,
+            thickness: 1.5,
+            sharpness: 0.72,
             angle: 42.0,
             spread: 0.88,
-            intensity: isDark ? 0.62 : 0.92,
-            oppositeIntensity: isDark ? 0.34 : 0.64,
+            intensity: isDark ? 0.44 : 0.85,
+            oppositeIntensity: isDark ? 0.22 : 0.55,
             color: Colors.white,
           )
         : const lge.LiquidGlassLight.specular(thickness: 0, intensity: 0, oppositeIntensity: 0);

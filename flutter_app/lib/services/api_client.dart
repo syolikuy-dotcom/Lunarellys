@@ -653,7 +653,7 @@ class MusicApiClient {
       final pm = _asMap(probe.data);
       if (pm['success'] != true) {
         throw const MusicApiException(
-          'URL ini bukan server Archys. Cek alamat & port (contoh :4686).',
+          'URL ini bukan server Archys. Cek alamat & port (contoh :3293).',
         );
       }
       final real = probe.realUri;
